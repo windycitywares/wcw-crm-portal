@@ -31,6 +31,7 @@ export const NAV: NavGroup[] = [
       { href: "/settings/custom-fields", label: "Custom fields", icon: "edit", permission: "lookups:manage" },
       { href: "/settings/email", label: "Email", icon: "mail", permission: "settings:manage" },
       { href: "/settings/business-hours", label: "Business hours", icon: "clock", permission: "settings:manage" },
+      { href: "/settings/integrations", label: "Integrations", icon: "globe", permission: "settings:manage" },
       { href: "/settings/deployments", label: "Deployments", icon: "download", permission: "settings:manage" },
       { href: "/settings/audit", label: "Audit log", icon: "shield", permission: "audit:view" },
     ],

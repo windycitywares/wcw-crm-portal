@@ -74,7 +74,7 @@ frontend/src/
   app/(auth)/ · app/(crm)/<module>/   (sidebar shell layout)
   modules/<module>/  components, hooks, api, types
   components/ui/     shared primitives: DataTable, EntityForm, Kanban, Timeline, …
-docs/          SPEC.md, DEPLOYMENT.md
+docs/          SPEC.md, DEPLOYMENT.md, SHOP_EVENTS.md (shop → CRM webhook contract)
 ```
 
 ## Deploy
@@ -126,5 +126,5 @@ npm run typecheck
 ## Status
 
 - 2026-10-16: M0 live — https://crm.windycitywares.com (web) + https://crm-api.windycitywares.com (API), auto-deploy cron
-  on the server. **M1 in progress** — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
+  on the server. M1 done; **M2 in progress** (customers live; shop events next) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
 - Claude can't merge PRs (owner merges) and can't create server secrets/cron from the browser; ask the owner.

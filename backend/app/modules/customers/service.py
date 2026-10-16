@@ -198,3 +198,97 @@ class CustomerService:
         await self.timeline.record(ENTITY, customer.id, "customer.restored", "Customer restored", actor=actor)
         await self.session.commit()
         return await self.get(customer.id)
+
+    # ---- shop sync ------------------------------------------------------
+    # Called by app.integrations.shop with no actor (shown as "System"). These methods flush but don't
+    # commit: the caller commits once the whole shop event has been applied.
+
+    async def _shop_source(self) -> str | None:
+        try:
+            return await self.lookups.require("lead_source", "shop")
+        except (NotFoundError, ValidationFailedError):
+            return None  # someone removed the "Shop" source; leave it blank
+
+    async def find_by_email(self, email: str) -> int | None:
+        customer = await self.repo.by_email(email)
+        return customer.id if customer else None
+
+    async def sync_from_shop(self, *, email: str | None, shop_user_id: int | None = None, full_name: str | None = None,
+                             phone: str | None = None, address: dict[str, Any] | None = None) -> int:
+        """Find the customer for a shop account / order email, or create one. Staff edits win: existing
+        names, phone and address are only filled in when blank. Returns the customer id."""
+        email = (email or "").strip().lower() or None
+        if not email and shop_user_id is None:
+            raise ValidationFailedError("A shop event needs an email or a shop account id")
+        customer = await self.repo.by_shop_user(shop_user_id) if shop_user_id is not None else None
+        if customer is not None and customer.deleted_at is not None:
+            customer = None  # a deleted record keeps its link; match the live one by email instead
+            shop_user_id = None
+        if customer is None and email:
+            customer = await self.repo.by_email(email)
+        first, _, last = " ".join((full_name or "").split()).partition(" ")
+        address = {k: v for k, v in (address or {}).items() if v} or None
+
+        if customer is None:
+            customer = Customer(first_name=first[:80], last_name=last[:80], email=email, phone=(phone or None),
+                                address=address, source=await self._shop_source(), shop_user_id=shop_user_id)
+            await self.repo.add(customer)
+            await self.audit.record("customer.create", entity_type=ENTITY, entity_id=customer.id,
+                                    changes=diff({}, _snapshot(customer)))
+            await self.timeline.record(ENTITY, customer.id, "customer.created", "Customer added from the shop")
+            return customer.id
+
+        before = _snapshot(customer)
+        alt = set(customer.alt_emails or [])
+        if not customer.first_name and not customer.last_name and first:
+            customer.first_name, customer.last_name = first[:80], last[:80]
+        if not customer.phone and phone:
+            customer.phone = phone[:40]
+        if not customer.address and address:
+            customer.address = address
+        if shop_user_id is not None and customer.shop_user_id is None:
+            customer.shop_user_id = shop_user_id
+        if email and email != customer.email:
+            other = await self.repo.by_email(email)
+            if customer.email is None and other is None:
+                customer.email = email
+            elif other is None and customer.shop_user_id == shop_user_id and shop_user_id is not None:
+                alt.add(customer.email or "")  # the shop account changed its email: follow it, keep the old one
+                customer.email = email
+            else:
+                alt.add(email)
+        alt.discard("")
+        alt.discard(customer.email or "")
+        if alt != set(customer.alt_emails or []):
+            customer.alt_emails = sorted(alt)
+        changes = diff(before, _snapshot(customer))
+        await self.session.flush()
+        if changes:
+            await self.audit.record("customer.update", entity_type=ENTITY, entity_id=customer.id, changes=changes)
+            what = ", ".join(LABELS.get(k, k.replace("_", " ")) for k in changes)
+            await self.timeline.record(ENTITY, customer.id, "customer.updated", f"Shop updated {what}",
+                                       data={"fields": list(changes)})
+        return customer.id
+
+    async def set_consent_from_shop(self, customer_id: int, consent: bool, how: str) -> None:
+        customer = await self._get(customer_id)
+        was = customer.marketing_consent
+        if consent and not customer.marketing_consent:
+            self._consent(customer, True, how)
+            await self.timeline.record(ENTITY, customer.id, "customer.consent", f"Agreed to marketing email ({how})")
+        elif not consent and customer.unsubscribed_at is None:
+            customer.marketing_consent, customer.unsubscribed_at = False, _now()
+            await self.timeline.record(ENTITY, customer.id, "customer.consent", f"Unsubscribed from marketing email ({how})")
+        else:
+            return
+        await self.audit.record("customer.consent", entity_type=ENTITY, entity_id=customer.id,
+                                changes={"marketing_consent": [was, consent], "via": how})
+        await self.session.flush()
+
+    async def set_order_stats(self, customer_id: int, *, count: int, total: Any, first: datetime | None,
+                              last: datetime | None) -> None:
+        """Order totals worked out by the shop integration (derived data: not audited)."""
+        customer = await self._get(customer_id, include_deleted=True)
+        customer.orders_count, customer.total_spent = count, total
+        customer.first_order_at, customer.last_order_at = first, last
+        await self.session.flush()

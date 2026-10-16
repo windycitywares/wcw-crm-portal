@@ -1,5 +1,5 @@
 """Settings groups staff edit in Admin → Settings. One pydantic model per group (add a group = add a model
-here and an entry in GROUPS). Defaults apply until someone saves the group.
+here and an entry in GROUPS, or call `register_group` from a module's startup hook). Defaults apply until someone saves the group.
 
 Secrets (like the SMTP password) are declared in `SECRET_FIELDS`: stored encrypted with DATA_ENCRYPTION_KEY,
 never returned by the API (the response says only whether one is set), and kept when a save leaves them empty.
@@ -91,3 +91,10 @@ GROUPS: dict[str, tuple[str, type[BaseModel]]] = {
     "business_hours": ("Business hours", BusinessHours),
 }
 SECRET_FIELDS: dict[str, tuple[str, ...]] = {"email": ("smtp_password",)}
+
+
+def register_group(key: str, label: str, model: type[BaseModel], secrets: tuple[str, ...] = ()) -> None:
+    """Let a module or integration add its own settings group (e.g. the shop connection)."""
+    GROUPS[key] = (label, model)
+    if secrets:
+        SECRET_FIELDS[key] = secrets
