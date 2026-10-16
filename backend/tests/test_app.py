@@ -5,7 +5,7 @@ import unittest
 try:
     from fastapi import APIRouter
     from fastapi.testclient import TestClient
-except ImportError:  # pragma: no cover
+except (ImportError, RuntimeError):  # pragma: no cover - httpx (TestClient) is only installed in CI
     APIRouter = None
 
 
