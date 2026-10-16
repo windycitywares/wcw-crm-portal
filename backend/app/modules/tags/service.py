@@ -85,7 +85,10 @@ class TagService:
 
     async def set_for(self, user, entity_type: str, entity_id: int, names: list[str]) -> list[TagOut]:
         await check_entity_access(self.session, user, entity_type, entity_id, write=True)
-        wanted = {clean(n).lower(): clean(n) for n in names if clean(n)}
+        wanted: dict[str, str] = {}
+        for name in map(clean, names):
+            if name:
+                wanted.setdefault(name.lower(), name)  # first spelling wins
         if len(wanted) > MAX_TAGS_PER_RECORD:
             raise ValidationFailedError(f"At most {MAX_TAGS_PER_RECORD} tags per record")
         existing = {t.name_key: t for t in await self.repo.by_keys(list(wanted))}
