@@ -79,10 +79,8 @@ class LookupTests(unittest.TestCase):
 
 class SlugTests(unittest.TestCase):
     def test_slugify(self):
-        try:
-            from app.modules.lookups.service import slugify
-        except ImportError:  # pragma: no cover - sqlalchemy missing
-            self.skipTest("sqlalchemy not installed")
+        from app.shared.text import slugify
+
         self.assertEqual(slugify("Marketplace (Etsy/Amazon)"), "marketplace_etsy_amazon")
         self.assertEqual(slugify("Return / exchange"), "return_exchange")
         self.assertEqual(slugify("Café déco"), "cafe_deco")
