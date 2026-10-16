@@ -128,7 +128,7 @@ crontab -e
 ```
 add (minute 5, 15, 25 … so it never overlaps the shop's job at 0, 10, 20 …):
 ```
-5-59/10 * * * * bash $HOME/repos/wcw-crm-portal/deploy/auto-deploy.sh >> $HOME/logs/wcw-crm-deploy.log 2>&1
+* * * * * bash $HOME/repos/wcw-crm-portal/deploy/auto-deploy.sh >> $HOME/logs/wcw-crm-deploy.log 2>&1
 ```
 
 - **API** — new commits on `main` → `update-api.sh`: install, run tests, migrate, seed, restart, check `/health`.
@@ -138,7 +138,13 @@ add (minute 5, 15, 25 … so it never overlaps the shop's job at 0, 10, 20 …):
   Admin → Settings → Email and retries failures. Modules add their own jobs (`CrmModule.jobs`).
 - History: `~/logs/wcw-crm-deploy.log`. Run any script by hand to deploy immediately.
 
-**Release flow: merge a PR into `main` → live within ~10 minutes.**
+**Release flow: merge a PR into `main` → live within the interval set in Admin → Deployments (default 10 min),
+or click *Deploy now* there (starts within a minute).**
+
+The cron job runs every minute but only *looks* for updates when Admin → Deployments says so: automatically
+every N minutes, only at set times (e.g. 02:00), paused, or right away after *Deploy now*. The page also shows
+the live versions and the deploy log. If the gate can't answer (database down), the script looks for updates
+as before, so updates never get stuck.
 
 ## 7. First sign-in
 

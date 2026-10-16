@@ -70,8 +70,8 @@ fi
 chmod 644 "$HOME/crm.windycitywares.com/.htaccess" "$HOME/crm-api.windycitywares.com/.htaccess" 2>/dev/null || true
 bash "$REPO/deploy/update-web.sh"
 
-step "7/7 Automatic updates (cron every 10 min)"
-LINE='5-59/10 * * * * bash $HOME/repos/wcw-crm-portal/deploy/auto-deploy.sh >> $HOME/logs/wcw-crm-deploy.log 2>&1'
+step "7/7 Automatic updates (cron every minute; timing set in Admin → Deployments)"
+LINE='* * * * * bash $HOME/repos/wcw-crm-portal/deploy/auto-deploy.sh >> $HOME/logs/wcw-crm-deploy.log 2>&1'
 if crontab -l 2>/dev/null | grep -qF 'wcw-crm-portal/deploy/auto-deploy.sh'; then
   echo "✓ cron already set"
 else

@@ -1,4 +1,4 @@
-"""Run every installed module's background jobs once. Cron calls this every 10 minutes (deploy/run-jobs.sh).
+"""Run every installed module's background jobs once. Cron calls this every minute (deploy/run-jobs.sh).
 
     python -m app.workers.run_jobs                # all jobs
     python -m app.workers.run_jobs --only outbox  # some jobs
