@@ -134,6 +134,8 @@ add (minute 5, 15, 25 … so it never overlaps the shop's job at 0, 10, 20 …):
 - **API** — new commits on `main` → `update-api.sh`: install, run tests, migrate, seed, restart, check `/health`.
   If install or tests fail, the previous code is restored and the running API is untouched.
 - **Web** — a new `web-build` → `update-web.sh`: swap in the new bundle, restart, check `/login`.
+- **Jobs** — then `run-jobs.sh` (`python -m app.workers.run_jobs`): sends queued emails within the limits set in
+  Admin → Settings → Email and retries failures. Modules add their own jobs (`CrmModule.jobs`).
 - History: `~/logs/wcw-crm-deploy.log`. Run any script by hand to deploy immediately.
 
 **Release flow: merge a PR into `main` → live within ~10 minutes.**
@@ -144,8 +146,9 @@ add (minute 5, 15, 25 … so it never overlaps the shop's job at 0, 10, 20 …):
 2. **Your account** → change the password. Then remove `ADMIN_PASSWORD` from `backend/.env`.
 3. **Users** → add your team with their roles (Admin, Manager, Sales, Support, Marketing, Read-only).
 
-Password-reset emails are written to the API log until the SMTP account is set up in
-Admin → Settings → Email (milestone M1); until then, admins set passwords in **Users**.
+Outgoing email (password resets, later campaigns) waits in the outbox until the SMTP account is saved and
+switched on in Admin → Settings → Email; use the **Send test email** button there to check it. Until then,
+admins set passwords in **Users**.
 
 ## Troubleshooting
 

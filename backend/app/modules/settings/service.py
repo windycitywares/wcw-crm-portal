@@ -15,7 +15,9 @@ from app.core.exceptions import NotFoundError, ValidationFailedError
 from app.core.security import SecretBox
 from app.modules.audit.service import AuditService, diff
 
-from .groups import GROUPS, SECRET_FIELDS
+from app.integrations.email import SmtpConfig
+
+from .groups import GROUPS, SECRET_FIELDS, EmailSettings
 from .models import AppSetting
 
 ENC_PREFIX = "enc:"
@@ -33,6 +35,11 @@ def _first_error(exc: ValidationError) -> str:
     where = ".".join(str(p) for p in err.get("loc", ()) if p != "__root__")
     msg = str(err.get("msg", "Invalid value")).removeprefix("Value error, ")
     return f"{where.replace('_', ' ')}: {msg}" if where else msg
+
+
+def smtp_config(s: EmailSettings) -> SmtpConfig:
+    return SmtpConfig(host=s.smtp_host, port=s.smtp_port, security=s.smtp_security, user=s.smtp_user or None,
+                      password=s.smtp_password or None, from_address=str(s.from_address), from_name=s.from_name)
 
 
 class SettingsService:

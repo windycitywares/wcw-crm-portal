@@ -47,12 +47,13 @@ class World:
     def __init__(self) -> None:
         from fastapi.testclient import TestClient
 
-        from app.integrations.email import LogEmailSender, get_email_sender
+        from app.integrations.email import LogEmailSender
         from app.main import create_app
+        from app.modules.users.deps import email_sender
 
         self.mail = LogEmailSender()
         app = create_app()
-        app.dependency_overrides[get_email_sender] = lambda: self.mail
+        app.dependency_overrides[email_sender] = lambda: self.mail
         self.client = TestClient(app)
         self.sfx = uuid.uuid4().hex[:8]
         self._n = 0
