@@ -101,6 +101,8 @@ npm run typecheck
 - "Types" (customer, supplier, ticket, task, lead source, …) are rows in `lookup_values(kind, …)` —
   adding a type never needs a migration. Pipelines/stages have their own tables.
 - A module never imports another module's repository; call its **service** or publish a domain event.
+  Exception: every module may import `app.modules.users.deps` (`SessionDep`, `CurrentUser`, `require`).
+- Record security-relevant and data changes with `AuditService(session).record(...)` in the same transaction.
 - New module = new `modules/<name>/` package + register its router in `main.py`; nothing else edited.
 - Every business table: timestamps, created_by/updated_by, soft delete (`deleted_at`), `owner_id` where relevant, audited.
 - External services sit behind small interfaces (`EmailSender`, `ShopClient`, `TemplateRenderer`).

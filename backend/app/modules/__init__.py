@@ -23,7 +23,8 @@ from fastapi import APIRouter
 
 # Order matters only for menus and seed data; dependencies between modules go through services/events.
 INSTALLED_MODULES: tuple[str, ...] = (
-    # "app.modules.users",       # Foundation 2
+    "app.modules.users",
+    "app.modules.audit",
     # "app.modules.customers",   # M2
 )
 
