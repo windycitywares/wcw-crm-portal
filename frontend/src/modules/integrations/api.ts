@@ -33,7 +33,32 @@ export interface ShopEvent {
   processed_at: string | null;
 }
 
+export interface Backfill {
+  status: "idle" | "running" | "done" | "failed";
+  phase: "customers" | "orders" | "newsletter";
+  counts: Record<string, number>;
+  error: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface ShopOrder {
+  id: number;
+  number: string;
+  status: string;
+  payment_status: string;
+  currency: string;
+  grand_total: string;
+  refunded_total: string;
+  placed_at: string | null;
+}
+
 export const shopApi = {
+  test: () => apiFetch<{ ok: boolean; detail: string }>("/integrations/shop/test"),
+  backfill: () => apiFetch<Backfill>("/integrations/shop/backfill"),
+  startBackfill: () => apiFetch<Backfill>("/integrations/shop/backfill", { method: "POST" }),
+  cancelBackfill: () => apiFetch<Backfill>("/integrations/shop/backfill/cancel", { method: "POST" }),
+  customerOrders: (customerId: number) => apiFetch<ShopOrder[]>(`/integrations/shop/customers/${customerId}/orders`),
   status: () => apiFetch<ShopStatus>("/integrations/shop/status"),
   events: (status: ShopEventStatus | "", page: number) => apiFetch<Page<ShopEvent>>(`/integrations/shop/events${qs({ status: status || undefined, page, page_size: 20 })}`),
   retry: (id: number) => apiFetch<ShopEvent>(`/integrations/shop/events/${id}/retry`, { method: "POST" }),

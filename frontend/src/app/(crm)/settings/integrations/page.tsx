@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import type { Page } from "@/lib/types";
 import { formatDateTime, timeAgo } from "@/lib/utils";
+import { BackfillPanel } from "@/modules/integrations/BackfillPanel";
 import { newSecret, shopApi, type ShopEvent, type ShopEventStatus, type ShopSettings, type ShopStatus } from "@/modules/integrations/api";
 import { errorText, settingsApi } from "@/modules/settings/api";
 
@@ -212,7 +213,7 @@ export default function IntegrationsPage() {
         </Panel>
 
         <Panel>
-          <PanelHeader title="Reading from the shop" description="Used to bring in past customers and show order history (coming next)." />
+          <PanelHeader title="Reading from the shop" description="Used to import customers and orders from before the connection (below). The token is CRM_API_TOKEN on the shop server." />
           <PanelBody className="grid gap-4">
             <Field label="Shop API address">
               {(p) => <Input {...p} value={form.shop_api_url} onChange={(e) => setForm({ ...form, shop_api_url: e.target.value })} autoComplete="off" />}
@@ -238,6 +239,8 @@ export default function IntegrationsPage() {
           </Button>
         </div>
       </form>
+
+      <BackfillPanel tokenSet={saved.shop_api_token_set} />
 
       <Panel className="mt-6">
         <PanelHeader

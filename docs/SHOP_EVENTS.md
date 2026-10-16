@@ -81,3 +81,11 @@ Creates the customer if needed and records consent ("shop newsletter, site").
 {"email": "jane@example.com"}
 ```
 Withdraws consent for an existing customer; unknown addresses are ignored.
+
+## Importing what the shop already has
+
+CRM → Integrations → *Import existing shop data* pages through the shop's read API
+(`GET /api/v1/integrations/crm/{customers,orders,newsletter}`, bearer `CRM_API_TOKEN`, shop `docs/CRM_SYNC.md`):
+customers first, then orders, then newsletter consent. The `shop-backfill` job does a few hundred records a minute
+and applies each one with the same rules as the events above (no timeline lines for old orders). Running it again
+changes nothing that is already right.
