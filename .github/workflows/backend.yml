@@ -66,6 +66,7 @@ jobs:
           python -m unittest discover -v tests > ../test.log 2>&1
           status=$?
           cat ../test.log
+          echo "::notice title=Backend tests::$(grep -E '^(Ran |OK|FAILED)' ../test.log | tr '\n' ' ') $(grep -c 'skipped' ../test.log) skipped"
           if [ $status -ne 0 ]; then
             body=$( { grep -E "^(FAIL|ERROR): " ../test.log | head -n 15; echo "---"; tail -n 25 ../test.log; } | cut -c1-300 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             echo "::error title=Backend tests failed::${body}"
