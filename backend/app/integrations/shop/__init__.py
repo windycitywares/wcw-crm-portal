@@ -20,5 +20,11 @@ async def _retry(session):
     return await ShopEventService(session).retry_due()
 
 
+async def _backfill(session):
+    from .backfill import ShopBackfillService
+
+    return await ShopBackfillService(session).run_chunk()
+
+
 module = CrmModule(name="shop", router=router, models="app.integrations.shop.models",
-                   on_startup=(_register_settings,), jobs=(("shop-events", _retry),))
+                   on_startup=(_register_settings,), jobs=(("shop-events", _retry), ("shop-backfill", _backfill)))

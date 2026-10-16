@@ -11,11 +11,14 @@ from app.core.request import client_ip
 from app.modules.users.deps import SessionDep, require
 from app.modules.users.models import User
 
+from .backfill import BackfillOut, ShopBackfillService
+from .orders import ShopOrderOut, orders_for_customer
 from .schemas import ShopEventOut, ShopEventPage, ShopStatus
 from .service import ShopEventService, WebhookRejected
 
 router = APIRouter(prefix="/integrations/shop", tags=["integrations"])
 Admin = Annotated[User, Depends(require(Permission.SETTINGS_MANAGE))]
+Viewer = Annotated[User, Depends(require(Permission.CUSTOMERS_VIEW))]
 bad_signatures = RateLimiter(max_hits=30, window_seconds=600)
 WEBHOOK_PATH = "/integrations/shop/webhook"
 
@@ -58,3 +61,30 @@ async def shop_events(session: SessionDep, _: Admin, page: PageDep,
 @router.post("/events/{event_id}/retry", response_model=ShopEventOut)
 async def retry_event(session: SessionDep, _: Admin, event_id: int) -> ShopEventOut:
     return await ShopEventService(session).retry(event_id)
+
+
+@router.get("/test", response_model=dict)
+async def test_shop_api(session: SessionDep, _: Admin) -> dict:
+    """Check the shop API address and token (Integrations → Test connection)."""
+    return await ShopBackfillService(session).test_connection()
+
+
+@router.get("/backfill", response_model=BackfillOut)
+async def backfill_state(session: SessionDep, _: Admin) -> BackfillOut:
+    return await ShopBackfillService(session).state()
+
+
+@router.post("/backfill", response_model=BackfillOut)
+async def start_backfill(session: SessionDep, actor: Admin) -> BackfillOut:
+    return await ShopBackfillService(session).start(actor)
+
+
+@router.post("/backfill/cancel", response_model=BackfillOut)
+async def cancel_backfill(session: SessionDep, actor: Admin) -> BackfillOut:
+    return await ShopBackfillService(session).cancel(actor)
+
+
+@router.get("/customers/{customer_id}/orders", response_model=list[ShopOrderOut])
+async def customer_orders(session: SessionDep, _: Viewer, customer_id: int) -> list[ShopOrderOut]:
+    """The customer's shop orders (newest first), from the copies the events keep up to date."""
+    return await orders_for_customer(session, customer_id)

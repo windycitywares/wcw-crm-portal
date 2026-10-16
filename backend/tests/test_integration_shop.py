@@ -154,3 +154,96 @@ class ShopWebhookTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FakeShop:
+    """Stands in for the shop's read API: pages of items by id."""
+
+    def __init__(self, data):
+        self.data = data
+
+    async def page(self, resource, after_id, limit=200):
+        items = [i for i in self.data.get(resource, []) if i["_id"] > after_id][:limit]
+        clean = [{k: v for k, v in i.items() if k != "_id"} for i in items]
+        return {"items": clean, "next_after_id": items[-1]["_id"] if len(items) == limit else None}
+
+
+@skip_unless_db
+class ShopBackfillTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from app.modules.lookups.service import LookupService
+
+        cls.w = World()
+        reset_limits()
+        run(lambda s: LookupService(s).seed())
+        cls.admin, cls.admin_h = cls.w.user_with_token("admin")
+        cls.sales, cls.sales_h = cls.w.user_with_token("sales")
+
+    def tearDown(self):
+        from app.integrations.shop.client import set_shop_client_factory
+
+        set_shop_client_factory(None)
+
+    def test_backfill_imports_in_chunks_and_orders_show_on_customer(self):
+        from app.integrations.shop.backfill import ShopBackfillService
+        from app.integrations.shop.client import set_shop_client_factory
+
+        base = int(time.time() * 1000) % 10**9 * 10 + 7
+        email, email2, news = self.w.email("old"), self.w.email("old2"), self.w.email("oldnews")
+        shop = FakeShop({
+            "customers": [{"_id": n, "id": base + n, "email": e, "full_name": f"Old Customer{n}"} for n, e in ((1, email), (2, email2))]
+            + [{"_id": 3, "id": "broken", "email": "x"}],
+            "orders": [
+                {"_id": 1, "id": base + 1, "number": f"OLD-{base}-1", "user_id": base + 1, "email": email, "status": "delivered",
+                 "payment_status": "paid", "grand_total": "30.00", "placed_at": "2025-05-01T10:00:00Z", "updated_at": "2025-05-03T10:00:00Z"},
+                {"_id": 2, "id": base + 2, "number": f"OLD-{base}-2", "user_id": None, "email": email, "status": "paid",
+                 "payment_status": "paid", "grand_total": "12.00", "placed_at": "2025-06-01T10:00:00Z", "updated_at": "2025-06-01T10:00:00Z"},
+            ],
+            "newsletter": [{"_id": 1, "type": "newsletter.subscribed", "email": news, "source": "site"}],
+        })
+        set_shop_client_factory(lambda settings: shop)
+
+        start = self.w.client.post(f"{API}/integrations/shop/backfill", headers=self.admin_h)
+        self.assertEqual(start.status_code, 200, start.text)
+        self.assertEqual(start.json()["status"], "running")
+        self.assertEqual(self.w.client.post(f"{API}/integrations/shop/backfill", headers=self.sales_h).status_code, 403)
+
+        for _ in range(10):
+            run(lambda s: ShopBackfillService(s).run_chunk())
+            state = self.w.client.get(f"{API}/integrations/shop/backfill", headers=self.admin_h).json()
+            if state["status"] != "running":
+                break
+        self.assertEqual(state["status"], "done", state)
+        self.assertEqual(state["counts"], {"customers": 2, "orders": 2, "newsletter": 1, "errors": 1})
+
+        cid = self.w.client.get(f"{API}/customers/check-email", headers=self.admin_h, params={"email": email}).json()["customer_id"]
+        c = self.w.client.get(f"{API}/customers/{cid}", headers=self.admin_h).json()
+        self.assertEqual((c["orders_count"], float(c["total_spent"]), c["shop_user_id"]), (2, 42.0, base + 1))
+        orders = self.w.client.get(f"{API}/integrations/shop/customers/{cid}/orders", headers=self.sales_h).json()
+        self.assertEqual([o["number"] for o in orders], [f"OLD-{base}-2", f"OLD-{base}-1"])
+        timeline = self.w.client.get(f"{API}/entities/customer/{cid}/timeline", headers=self.admin_h).json()["items"]
+        self.assertFalse(any(a["kind"] == "shop.order" for a in timeline))  # history isn't replayed as news
+        self.assertIsNotNone(self.w.client.get(f"{API}/customers/check-email", headers=self.admin_h,
+                                               params={"email": news}).json()["customer_id"])
+
+        # running it again changes nothing
+        self.w.client.post(f"{API}/integrations/shop/backfill", headers=self.admin_h)
+        for _ in range(10):
+            run(lambda s: ShopBackfillService(s).run_chunk())
+        c2 = self.w.client.get(f"{API}/customers/{cid}", headers=self.admin_h).json()
+        self.assertEqual((c2["orders_count"], float(c2["total_spent"])), (2, 42.0))
+
+    def test_unreachable_shop(self):
+        from app.integrations.shop.client import ShopApiError, set_shop_client_factory
+
+        class Down:
+            async def page(self, *a, **k):
+                raise ShopApiError("HTTP 401: the shop refused the API token")
+
+        set_shop_client_factory(lambda settings: Down())
+        res = self.w.client.post(f"{API}/integrations/shop/backfill", headers=self.admin_h)
+        self.assertEqual(res.status_code, 422)
+        self.assertIn("refused the API token", res.text)
+        test = self.w.client.get(f"{API}/integrations/shop/test", headers=self.admin_h).json()
+        self.assertFalse(test["ok"])

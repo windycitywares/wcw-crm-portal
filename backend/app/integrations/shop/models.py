@@ -48,3 +48,19 @@ class ShopOrder(Base):
     placed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     shop_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # ignore older events
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class ShopBackfill(Base):
+    """Progress of the one-off import of existing shop customers, orders and consent (one row, id 1)."""
+
+    __tablename__ = "shop_backfill"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    status: Mapped[str] = mapped_column(String(10), default="idle", server_default="idle")  # idle|running|done|failed
+    phase: Mapped[str] = mapped_column(String(12), default="customers", server_default="customers")
+    after_id: Mapped[int] = mapped_column(BigInteger, default=0, server_default=sql_text("0"))
+    counts: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default=sql_text("'{}'::jsonb"))
+    error: Mapped[str | None] = mapped_column(Text)
+    started_by: Mapped[int | None] = mapped_column(BigInteger)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

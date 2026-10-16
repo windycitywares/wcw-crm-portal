@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { customersApi, formatMoney, STATUS_LABEL, type Customer } from "@/modules/customers/api";
+import { ShopOrders } from "@/modules/integrations/ShopOrders";
 import { CustomFieldsView } from "@/modules/records/CustomFields";
 import { NotesPanel } from "@/modules/records/NotesPanel";
 import { TagEditor } from "@/modules/records/TagEditor";
@@ -186,14 +187,15 @@ export default function CustomerPage() {
           </Panel>
 
           <Panel>
-            <PanelHeader title="Shop" description="Filled in by the shop once it's connected." />
-            <PanelBody>
+            <PanelHeader title="Shop orders" description="Kept up to date by the shop connection." />
+            <PanelBody className="grid gap-4">
               <dl className="grid grid-cols-2 gap-4">
                 <Detail label="Orders">{customer.orders_count}</Detail>
                 <Detail label="Total spent">{formatMoney(customer.total_spent)}</Detail>
                 <Detail label="First order">{customer.first_order_at ? formatDate(customer.first_order_at) : null}</Detail>
                 <Detail label="Last order">{customer.last_order_at ? formatDate(customer.last_order_at) : null}</Detail>
               </dl>
+              <ShopOrders customerId={customer.id} refreshKey={customer.updated_at} />
             </PanelBody>
           </Panel>
 

@@ -61,6 +61,7 @@ class ShopEventService:
         self.orders = ShopOrderRepository(session)
         self.customers = CustomerService(session)
         self.timeline = TimelineService(session)
+        self.quiet = False  # backfill: no timeline lines for history
         self.handlers: dict[str, Callable[[dict[str, Any]], Awaitable[int | None]]] = {
             "customer.upserted": self._customer,
             "order.updated": self._order,
@@ -148,13 +149,18 @@ class ShopEventService:
         count, total, first, last = await self.orders.stats(customer_id)
         await self.customers.set_order_stats(customer_id, count=count, total=total, first=first, last=last)
 
-        if data.status != previous and data.status in STATUS_WORDS:
+        if data.status != previous and data.status in STATUS_WORDS and not self.quiet:
             title = f"Order {data.number} {STATUS_WORDS[data.status]}"
             if data.status == "paid" or (previous in (None, "pending") and data.status != "cancelled"):
                 title += f" — {_money(data.grand_total, data.currency)}"
             await self.timeline.record("customer", customer_id, "shop.order", title,
                                        data={"order_id": data.id, "number": data.number, "status": data.status})
         return customer_id
+
+    async def apply_data(self, event_type: str, data: dict[str, Any]) -> int | None:
+        """Apply one item outside the webhook flow (the backfill). Raises on bad data."""
+        handler = self.handlers.get(event_type)
+        return await handler(data) if handler else None
 
     async def _subscribed(self, payload: dict[str, Any]) -> int:
         data = NewsletterData.model_validate(payload)
