@@ -38,7 +38,7 @@ export const NAV: NavGroup[] = [
   },
 ];
 
-const EXTRA_TITLES: Record<string, string> = { "/account": "Your account", "/customers/new": "Customers" };
+const EXTRA_TITLES: Record<string, string> = { "/account": "Your account", "/customers/new": "Customers", "/customers/import": "Customers" };
 
 export function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);

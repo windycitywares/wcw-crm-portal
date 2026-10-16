@@ -292,3 +292,37 @@ class CustomerService:
         customer.orders_count, customer.total_spent = count, total
         customer.first_order_at, customer.last_order_at = first, last
         await self.session.flush()
+
+    # ---- import (app.modules.customers.transfer) ------------------------------------------
+    async def import_row(self, values: dict[str, Any], actor, *, update_existing: bool) -> tuple[str, int]:
+        """Create a customer from an import row, or (when asked) fill in an existing one with the same email.
+        Returns ("created" | "updated" | "skipped", customer id). Flushes, doesn't commit."""
+        existing = await self.repo.by_email(values["email"]) if values.get("email") else None
+        if existing is None:
+            data = await self._validate(dict(values), None)
+            data.setdefault("owner_id", actor.id)
+            customer = Customer(**{k: v for k, v in data.items() if v is not None}, created_by=actor.id, updated_by=actor.id)
+            await self.repo.add(customer)
+            await self.audit.record("customer.create", actor=actor, entity_type=ENTITY, entity_id=customer.id,
+                                    changes=diff({}, _snapshot(customer)))
+            await self.timeline.record(ENTITY, customer.id, "customer.created", "Customer imported", actor=actor)
+            return "created", customer.id
+        if not update_existing:
+            return "skipped", existing.id
+        data = {k: v for k, v in values.items() if k != "email"}
+        if "alt_emails" in data:
+            data["alt_emails"] = [e for e in {*(existing.alt_emails or []), *data["alt_emails"]} if e != existing.email]
+        if "address" in data:
+            data["address"] = {**(existing.address or {}), **data["address"]}
+        before = _snapshot(existing)
+        data = await self._validate(data, existing)
+        self.repo.apply(existing, data)
+        existing.updated_by = actor.id
+        await self.session.flush()
+        changes = diff(before, _snapshot(existing))
+        if changes:
+            await self.audit.record("customer.update", actor=actor, entity_type=ENTITY, entity_id=existing.id, changes=changes)
+            what = ", ".join(LABELS.get(k, k.replace("_", " ")) for k in changes)
+            await self.timeline.record(ENTITY, existing.id, "customer.updated", f"Import changed {what}", actor=actor,
+                                       data={"fields": list(changes)})
+        return "updated", existing.id

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ButtonLink } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { ColorTag } from "@/components/ui/ColorTag";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Field, Input, Select } from "@/components/ui/Field";
@@ -10,10 +10,11 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Panel } from "@/components/ui/Panel";
 import { Pill } from "@/components/ui/Pill";
+import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import type { Page } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
-import { customersApi, formatMoney, SORTS, STATUS_LABEL, type Customer, type CustomerFilters } from "@/modules/customers/api";
+import { customerFilesApi, customersApi, formatMoney, SORTS, STATUS_LABEL, type Customer, type CustomerFilters } from "@/modules/customers/api";
 import { useDirectory } from "@/modules/records/useDirectory";
 import { tagsApi, type Tag } from "@/modules/settings/api";
 import { useLookups } from "@/modules/settings/useLookups";
@@ -33,6 +34,8 @@ function loadFilters(): CustomerFilters {
 
 export default function CustomersPage() {
   const { can } = useAuth();
+  const toast = useToast();
+  const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
   const { name } = useDirectory();
   const lookups = useLookups();
   const [filters, setFilters] = useState<CustomerFilters>(BLANK);
@@ -129,11 +132,38 @@ export default function CustomersPage() {
         title="Customers"
         description={data ? `${data.total.toLocaleString()} ${data.total === 1 ? "customer" : "customers"}${filtered ? " match" : ""}` : "Everyone who buys from or talks to Windy City Wares."}
         actions={
-          can("customers:edit_own") || can("customers:edit_any") ? (
-            <ButtonLink href="/customers/new" size="sm">
-              Add customer
-            </ButtonLink>
-          ) : undefined
+          <>
+            {can("data:export") && (
+              <>
+                {(["csv", "xlsx"] as const).map((format) => (
+                  <Button
+                    key={format}
+                    variant="secondary"
+                    size="sm"
+                    disabled={exporting !== null}
+                    onClick={() => {
+                      setExporting(format);
+                      customerFilesApi
+                        .export(filters, format)
+                        .then(() => toast.push({ title: "Customers exported", description: "The file is in your downloads." }))
+                        .catch((err) => toast.push({ tone: "danger", title: "Couldn't export", description: err instanceof Error ? err.message : undefined }))
+                        .finally(() => setExporting(null));
+                    }}
+                  >
+                    {exporting === format ? "Exporting…" : format === "csv" ? "Export CSV" : "Export Excel"}
+                  </Button>
+                ))}
+                <ButtonLink href="/customers/import" variant="secondary" size="sm">
+                  Import
+                </ButtonLink>
+              </>
+            )}
+            {(can("customers:edit_own") || can("customers:edit_any")) && (
+              <ButtonLink href="/customers/new" size="sm">
+                Add customer
+              </ButtonLink>
+            )}
+          </>
         }
       />
 
