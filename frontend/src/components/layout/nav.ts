@@ -22,6 +22,11 @@ export const NAV: NavGroup[] = [
     label: "Administration",
     items: [
       { href: "/settings/users", label: "Users", icon: "users", permission: "users:manage" },
+      { href: "/settings/types", label: "Types", icon: "sliders", permission: "lookups:manage" },
+      { href: "/settings/tags", label: "Tags", icon: "tag", permission: "lookups:manage" },
+      { href: "/settings/custom-fields", label: "Custom fields", icon: "edit", permission: "lookups:manage" },
+      { href: "/settings/email", label: "Email", icon: "mail", permission: "settings:manage" },
+      { href: "/settings/business-hours", label: "Business hours", icon: "clock", permission: "settings:manage" },
       { href: "/settings/audit", label: "Audit log", icon: "shield", permission: "audit:view" },
     ],
   },

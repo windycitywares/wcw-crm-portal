@@ -24,12 +24,14 @@ Branch `feat/<area>-<n>-<short-name>` · PR title `<Area> <n>/<total>: <what it 
 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
-| 1 | Lookups | `lookups` module: admin-editable type lists (`lookup_values`), kind registry, seed from SPEC §9, module seed hook, API + tests | open |
-| 2 | Tags, notes, timeline | `tags` + `taggings`, `notes`, `activities` (polymorphic `entity_type/entity_id`), shared services other modules call; API + tests | — |
-| 3 | Custom fields | `custom_field_defs` per entity (text, number, date, select, checkbox), validation service for `custom_fields JSONB`; API + tests | — |
-| 4 | Settings + email | `settings` module (key/value, typed), Admin → Settings → Email (SMTP, encrypted password, sender, daily limit, throttle, test send), business hours; email outbox table + `workers/run_jobs.py` + cron wiring in auto-deploy; password reset uses it | — |
-| 5 | Web: settings screens | Settings → Types (per kind, reorder, colour, activate), Settings → Email, Settings → Custom fields | — |
-| 6 | Web: shared components | `Timeline`, `NotesPanel`, `TagPicker`, `EntityForm` custom-field renderer, used by M2 customers | — |
+| 1 | Lookups | `lookups` module: admin-editable type lists (`lookup_values`), kind registry, seed from SPEC §9, module seed hook, API + tests | #8 |
+| 2 | Tags, notes, timeline | `tags` + `taggings`, `notes`, `activities` (polymorphic `entity_type/entity_id`), shared services other modules call; `core/entities.py` registry; API + tests | #9 (needs #8) |
+| 3 | Custom fields | `custom_field_defs` per entity (text, number, date, select, checkbox), validation service for `custom_fields JSONB`; API + tests | #10 (needs #9) |
+| 4a | Settings | `settings` module: typed groups (Email: SMTP + encrypted password, sender, daily limit, per-minute throttle, footer address; Business hours), test-send endpoint; API + tests | #11 (needs #10) |
+| 4b | Email outbox + jobs | `email_outbox` table, `OutboxEmailSender` (queue + send now when possible, SMTP from Settings, limits), `app/workers/run_jobs.py` (retries, advisory lock) + `deploy/run-jobs.sh` called by auto-deploy; password reset goes through it | #12 (needs #11) |
+| 5a | Web: types, tags, custom fields | Settings → Types (per list: add, rename, colour, activate, reorder), Tags (search, edit, delete), Custom fields (per record type) | #13 (needs #12) |
+| 5b | Web: email + business hours | Settings → Email (SMTP, password kept when blank, limits, test send), Business hours | #14 (needs #13) |
+| 6 | Web: record components | `modules/records`: `NotesPanel`, `Timeline`, `TagEditor`, `CustomFieldsEditor`/`CustomFieldsView`, `useDirectory`; API `GET /users/directory` (names for everyone) | open (needs #14) |
 
 ## Next milestones
 M2 customers + shop sync → M3 tasks + tickets → M4 sales → M5 campaigns → M6 suppliers → M7 reports.

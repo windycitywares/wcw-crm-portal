@@ -68,7 +68,7 @@ jobs:
             [ "$got" = "$2" ] || fail=1
           }
           check /robots.txt 200
-          for path in /login /forgot-password /reset-password /dashboard /account /settings/users /settings/audit; do check "$path" 200; done
+          for path in /login /forgot-password /reset-password /dashboard /account /settings/users /settings/audit /settings/types /settings/tags /settings/custom-fields /settings/email /settings/business-hours; do check "$path" 200; done
           check / 307
           curl -s http://127.0.0.1:3005/robots.txt | grep -q "Disallow: /" || { echo "::error::robots.txt must disallow everything"; fail=1; }
           curl -sI http://127.0.0.1:3005/login | grep -qi "x-robots-tag: noindex" || { echo "::error::missing X-Robots-Tag"; fail=1; }

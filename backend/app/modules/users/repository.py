@@ -30,6 +30,9 @@ class UserRepository(BaseRepository[User]):
             stmt = stmt.where(User.is_active.is_(active))
         return stmt.order_by(func.lower(User.full_name), User.id)
 
+    async def directory(self) -> list[User]:
+        return list(await self.list(self.query().order_by(User.is_active.desc(), func.lower(User.full_name))))
+
     async def count_active_admins(self) -> int:
         stmt = select(func.count()).select_from(User).where(User.role == Role.ADMIN.value, User.is_active.is_(True))
         return (await self.session.execute(stmt)).scalar_one()

@@ -22,7 +22,7 @@ from app.modules.audit.service import AuditService, diff
 from .models import PasswordResetToken, User
 from .repository import ResetTokenRepository, UserRepository
 from .schemas import (
-    MeOut, PasswordChange, ProfileUpdate, RoleOut, TokenOut, UserCreate, UserOut, UserPage, UserUpdate,
+    DirectoryEntry, MeOut, PasswordChange, ProfileUpdate, RoleOut, TokenOut, UserCreate, UserOut, UserPage, UserUpdate,
 )
 
 RESET_TOKEN_MINUTES = 60
@@ -174,6 +174,9 @@ class UserService:
         rows, total = await self.users.paginate(self.users.search(q=q, role=role, active=active), params)
         return UserPage(items=[UserOut.model_validate(u) for u in rows], total=total,
                         page=params.page, page_size=params.page_size)
+
+    async def directory(self) -> list[DirectoryEntry]:
+        return [DirectoryEntry.model_validate(u) for u in await self.users.directory()]
 
     async def get(self, user_id: int) -> UserOut:
         return UserOut.model_validate(await self._get(user_id))
