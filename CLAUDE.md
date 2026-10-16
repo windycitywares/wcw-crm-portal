@@ -40,8 +40,7 @@ M4 sales → M5 campaigns → M6 suppliers → M7 reports.
   - `src/lib/api.ts` server-side fetches · `src/lib/client-api.ts` browser fetches with JWT
 - **Backend:** Python 3.11+, FastAPI (async, strictly typed, REST JSON API)
   - SQLAlchemy 2 async + asyncpg, Alembic migrations
-  - Layers: `app/core/` (config, db, enums, permissions, security) · `app/models/` · `app/schemas/` ·
-    `app/repositories/` (DB queries only) · `app/services/` (business rules) · `app/api/v1/` (thin routers)
+  - Layers inside each module: models · schemas · repository (DB queries only) · service (business rules) · router (thin)
 - **Database:** PostgreSQL (`JSONB` for dynamic/custom fields, `ltree` where hierarchy is needed)
 - **Auth:** JWT + bcrypt, permission-based RBAC (roles: Admin, Manager, Sales, Support, Marketing, Read-only)
 - **Hosting:** cPanel shared hosting
@@ -87,7 +86,7 @@ npm run typecheck
 ## Conventions (carried over from the shop)
 
 - Routes depend on **permissions**, never role names: `Depends(require(Permission.X))`.
-- Routes stay thin; business rules go in `app/services/`, queries in `app/repositories/`.
+- Routes stay thin; business rules go in the module's `service.py`, queries in its `repository.py`.
 - Custom / variable data goes in `custom_fields JSONB`, not new columns.
 - "Types" (customer, supplier, ticket, task, lead source, …) are rows in `lookup_values(kind, …)` —
   adding a type never needs a migration. Pipelines/stages have their own tables.
