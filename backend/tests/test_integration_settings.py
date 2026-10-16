@@ -42,7 +42,7 @@ class SettingsTests(unittest.TestCase):
         self.assertIsNone(ok.json()["values"]["days"]["mon"])  # days is replaced as a whole
 
     def test_email_secret_is_encrypted_and_never_returned(self):
-        res = self.w.client.put(f"{API}/settings/email", headers=self.h, json={"enabled": True})
+        res = self.w.client.put(f"{API}/settings/email", headers=self.h, json={"enabled": True, "smtp_host": ""})
         self.assertEqual(res.status_code, 422)
         self.assertIn("SMTP host", res.json()["detail"])
         res = self.w.client.put(f"{API}/settings/email", headers=self.h, json={
