@@ -29,6 +29,7 @@ INSTALLED_MODULES: tuple[str, ...] = (
     "app.modules.lookups",
     "app.modules.tags",
     "app.modules.activity",
+    "app.modules.customfields",
     # "app.modules.customers",   # M2
 )
 

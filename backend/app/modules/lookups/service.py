@@ -2,24 +2,16 @@
 
 from __future__ import annotations
 
-import re
-import unicodedata
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationFailedError
 from app.modules.audit.service import AuditService, diff
+from app.shared.text import slugify
 
 from .kinds import KINDS, Kind
 from .models import LookupValue
 from .repository import LookupRepository
 from .schemas import KindOut, LookupCreate, LookupOut, LookupUpdate
-
-
-def slugify(label: str) -> str:
-    ascii_ = unicodedata.normalize("NFKD", label).encode("ascii", "ignore").decode()
-    slug = re.sub(r"[^a-z0-9]+", "_", ascii_.lower()).strip("_")
-    return slug[:60] or "value"
 
 
 def _snapshot(v: LookupValue) -> dict:
