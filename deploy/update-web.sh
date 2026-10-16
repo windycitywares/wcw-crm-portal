@@ -42,9 +42,22 @@ if [ -z "$SELECTOR" ] || ! "$SELECTOR" restart --json --interpreter=nodejs --app
   mkdir -p "$DEST/tmp" && touch "$DEST/tmp/restart.txt"
 fi
 # LiteSpeed keeps Node processes running in the background and may keep serving the OLD build from memory
-# even after a restart (seen 2026-10-16). End every process of this app; LiteSpeed starts a fresh one on the
-# next request. Only processes whose command line contains this app's folder are matched.
-pkill -u "$(id -u)" -f "$DEST" 2>/dev/null || true
+# even after a restart (seen 2026-10-16). End every process of THIS app; LiteSpeed starts a fresh one on the
+# next request. Next.js renames its process to "next-server (vX)", so the command line doesn't name the
+# folder — match on the working directory instead (server.js chdirs into the app root). The shop's and main
+# site's Next servers have other working directories and are left alone.
+stop_app_processes() {
+  local pid cwd n=0
+  for pid in $(pgrep -u "$(id -u)" -f 'next-server|node' 2>/dev/null); do
+    cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || true)
+    case "$cwd" in
+      "$DEST"|"$DEST (deleted)") kill "$pid" 2>/dev/null && n=$((n + 1)) ;;
+    esac
+  done
+  [ "$n" -gt 0 ] && echo "  ended $n old process(es) of this app"
+  return 0
+}
+stop_app_processes
 sleep 2
 
 # Check that the site really serves the new build (its BUILD_ID appears in every page), not just that it's up.
