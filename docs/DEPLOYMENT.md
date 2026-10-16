@@ -149,6 +149,12 @@ Admin → Settings → Email (milestone M1); until then, admins set passwords in
 
 ## Troubleshooting
 
+Gotchas found during the first install (2026-10-16), handled by `deploy/first-setup.sh`:
+- Creating the Python app **overwrites `backend/wsgi.py`** with cPanel's "It works!" template (which answers
+  200 to every URL). Fix: `git -C ~/repos/wcw-crm-portal checkout -- backend/wsgi.py`, then Restart.
+- A `.htaccess` written while the shell had `umask 077` is `0600`, so LiteSpeed ignores it and shows a
+  directory listing / 404. Fix: `chmod 644 ~/crm.windycitywares.com/.htaccess`.
+
 | Symptom | Look at |
 |---|---|
 | API 503 / 500 | `~/repos/wcw-crm-portal/backend/stderr.log`; Setup Python App → Restart |

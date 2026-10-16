@@ -45,7 +45,7 @@ fi
 code=000
 for _ in $(seq 1 18); do   # the app can take a while to start (503 meanwhile): retry for ~90 s
   sleep 5
-  code=$(curl -s -m 20 -o /dev/null -w '%{http_code}' "$HEALTH" || true)
-  [ "$code" = "200" ] && break
+  body=$(curl -s -m 20 "$HEALTH" || true)
+  case "$body" in *'"status":"ok"'*) code=200; break;; *) code=000;; esac
 done
 if [ "$code" = "200" ]; then echo "✓ CRM API is up (health 200)"; else echo "✗ restarted on the new code, but $HEALTH returns $code after 90 s — see backend/stderr.log"; exit 1; fi
