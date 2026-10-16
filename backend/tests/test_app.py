@@ -60,7 +60,6 @@ class AppTests(unittest.TestCase):
             load_modules(("app.core.events",))  # has no `module = CrmModule(...)`
 
 
-@unittest.skipIf(APIRouter is None, "fastapi test client not installed")
 class SecretBoxTests(unittest.TestCase):
     def test_round_trip_and_wrong_key(self):
         from cryptography.fernet import Fernet
