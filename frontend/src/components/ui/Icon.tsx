@@ -1,0 +1,74 @@
+import { cn } from "@/lib/utils";
+
+/** Small outline icon set for the CRM (24px grid, 1.6px stroke, inherits text colour). */
+const PATHS = {
+  dashboard: "M4 4h7v7H4z M13 4h7v4h-7z M13 10h7v10h-7z M4 13h7v7H4z",
+  orders: "M6 3h12v18l-3-2-3 2-3-2-3 2V3Z M9 8h6 M9 12h6",
+  customers: "M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20 M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35 M15.5 4.7a3.5 3.5 0 0 1 0 6.6 M10 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z",
+  star: "M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9L3.5 9.7l5.9-.8L12 3.5Z",
+  products: "M12 3 4 7v10l8 4 8-4V7l-8-4Z M4 7l8 4 8-4 M12 11v10",
+  categories: "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z",
+  import: "M12 15V4 M8 8l4-4 4 4 M5 15v4h14v-4",
+  inventory: "M12 4 3 9l9 5 9-5-9-5Z M3 14l9 5 9-5",
+  tag: "M3 12V4h8l9 9-8 8-9-9Z M7.5 7.5h.01",
+  bulb: "M9 18h6 M10 21h4 M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z",
+  chart: "M4 4v16h16 M8 16v-5 M12 16V8 M16 16v-3",
+  globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z M3 12h18 M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z",
+  funnel: "M4 5h16l-6 7.5V19l-4-2v-4.5L4 5Z",
+  search: "M11 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z M20 20l-4.2-4.2",
+  sliders: "M4 7h10 M18 7h2 M4 17h2 M10 17h10 M16 4.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z M8 14.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z",
+  mail: "M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z M3 7.5l9 6 9-6",
+  shield: "M12 3l7 3v5c0 5-3.2 8.2-7 10-3.8-1.8-7-5-7-10V6l7-3Z",
+  external: "M14 4h6v6 M20 4l-9 9 M18 14v5H5V6h5",
+  menu: "M4 7h16 M4 12h16 M4 17h16",
+  close: "M6 6l12 12 M18 6 6 18",
+  chevronDown: "M6 9l6 6 6-6",
+  chevronRight: "M9 6l6 6-6 6",
+  chevronLeft: "M15 6l-6 6 6 6",
+  check: "M5 12.5l4.5 4.5L19 7.5",
+  arrowUp: "M12 19V5 M6 11l6-6 6 6",
+  arrowDown: "M12 5v14 M6 13l6 6 6-6",
+  plus: "M12 5v14 M5 12h14",
+  calendar: "M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z M4 10h16 M8 3v4 M16 3v4",
+  alert: "M12 4 2.5 20h19L12 4Z M12 10v4 M12 17h.01",
+  truck: "M2 6h11v10H2z M13 9h4l3 3v4h-7 M6 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z M17 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z",
+  logout: "M9 4H5v16h4 M16 8l4 4-4 4 M20 12H9",
+  download: "M12 4v11 M8 11l4 4 4-4 M5 19h14",
+  copy: "M9 9h10v11H9z M5 15V4h10",
+  trash: "M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13",
+  edit: "M4 20h4L19 9l-4-4L4 16v4Z M13.5 6.5l4 4",
+  eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
+  gift: "M4 10h16v10H4z M3 7h18v3H3z M12 7v13 M12 7C9 7 8 3.5 10 3.5S12 7 12 7Zm0 0c3 0 4-3.5 2-3.5S12 7 12 7Z",
+  sparkle: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z M18 16l.8 2.2L21 19l-2.2.8L18 22l-.8-2.2L15 19l2.2-.8L18 16Z",
+  users: "M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20 M10 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z",
+  cart: "M3 4h2.5l2 11h10l2-8H7 M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z M17 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z",
+  heart: "M12 20s-7.5-4.6-7.5-10A4.5 4.5 0 0 1 12 7.2 4.5 4.5 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10Z",
+  clock: "M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16Z M12 8v4l3 2",
+  bell: "M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z M10 20a2 2 0 0 0 4 0",
+  archive: "M4 5h16v4H4z M5 9v10h14V9 M10 13h4",
+  flask: "M9 3h6 M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3 M7 15h10",
+  inbox: "M4 13l2.5-7h11L20 13v6H4v-6Z M4 13h4.5l1.5 2.5h4l1.5-2.5H20",
+  ticket: "M4 7a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v3a2 2 0 0 0 0 4v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a2 2 0 0 0 0-4V7Z M14 6v12",
+  briefcase: "M4 8h16v11H4z M9 8V5h6v3 M4 13h16",
+  tasks: "M4 6l1.5 1.5L8 5 M11 6h9 M4 12l1.5 1.5L8 11 M11 12h9 M4 18l1.5 1.5L8 17 M11 18h9",
+  key: "M14.5 4a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z M10.5 13.5 4 20 M6.5 17.5l2 2 M14.5 8.5h.01",
+} as const;
+
+export type IconName = keyof typeof PATHS;
+
+export function Icon({ name, className, strokeWidth = 1.6 }: { name: IconName; className?: string; strokeWidth?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn("size-5 shrink-0", className)}
+    >
+      <path d={PATHS[name]} />
+    </svg>
+  );
+}

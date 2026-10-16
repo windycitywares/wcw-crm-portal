@@ -6,7 +6,7 @@ Context file for AI-assisted work on this repo. Read this first in every session
 
 | What | Location |
 |---|---|
-| Live URL (target) | https://crm.windycitywares.com |
+| Live URL (target) | https://crm.windycitywares.com (web) · https://crm-api.windycitywares.com (API) |
 | GitHub repo | https://github.com/windycitywares/wcw-crm-portal (private, branch `main`) |
 | Local folder (Windows) | `C:\Users\Maaz4\Documents\WindyCityWares\wcw-crm-portal` |
 | Sister project (reference spec) | `windycitywares/wcw-shop-portal` → https://shop.windycitywares.com |

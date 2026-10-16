@@ -1,0 +1,40 @@
+import type { IconName } from "@/components/ui/Icon";
+
+export interface NavItem {
+  href: string;
+  label: string;
+  icon: IconName;
+  /** Hidden unless the user has this permission (the API enforces it again). */
+  permission?: string;
+}
+export interface NavGroup {
+  label?: string;
+  items: NavItem[];
+}
+
+/**
+ * The sidebar. Each module adds its entries here when its pages ship (customers in M2, tasks and
+ * tickets in M3, sales in M4, campaigns in M5, suppliers in M6, reports in M7).
+ */
+export const NAV: NavGroup[] = [
+  { items: [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" }] },
+  {
+    label: "Administration",
+    items: [
+      { href: "/settings/users", label: "Users", icon: "users", permission: "users:manage" },
+      { href: "/settings/audit", label: "Audit log", icon: "shield", permission: "audit:view" },
+    ],
+  },
+];
+
+const EXTRA_TITLES: Record<string, string> = { "/account": "Your account" };
+
+export function isActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function titleFor(pathname: string) {
+  if (EXTRA_TITLES[pathname]) return EXTRA_TITLES[pathname];
+  for (const group of NAV) for (const item of group.items) if (isActive(pathname, item.href)) return item.label;
+  return "CRM";
+}

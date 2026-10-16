@@ -1,0 +1,89 @@
+# Builds the CRM web app. On `main` it also publishes the ready-to-run bundle to the `web-build`
+# branch; the HostItBro server pulls that branch via deploy/update-web.sh (the server's 2 GB
+# memory limit is too small for `next build`). No server credentials are stored in GitHub.
+name: web
+
+on:
+  push:
+    branches: [main]
+    paths: ["frontend/**", ".github/workflows/web.yml"]
+  pull_request:
+    paths: ["frontend/**", ".github/workflows/web.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # push the web-build branch
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_API_URL: ${{ vars.API_URL || 'https://crm-api.windycitywares.com/api/v1' }}
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20 # same major version as the server
+
+      - name: Install
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+
+      - name: Type check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Assemble bundle
+        run: |
+          mkdir -p bundle/.next
+          cp -a frontend/.next/standalone/. bundle/
+          cp -a frontend/.next/static bundle/.next/static
+          cp -a frontend/public bundle/public
+          printf '%s\n' "$GITHUB_SHA" > bundle/BUILD_SHA
+          du -sh bundle bundle/node_modules
+
+      - name: Smoke test the bundle
+        working-directory: bundle
+        env:
+          PORT: "3005"
+          HOSTNAME: 127.0.0.1
+        run: |
+          node server.js > ../server.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:3005/robots.txt && break; sleep 1; done
+          fail=0
+          check() { # path, expected status
+            local got; got=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3005$1")
+            echo "::notice title=smoke $1::$got (want $2)"
+            [ "$got" = "$2" ] || fail=1
+          }
+          check /robots.txt 200
+          for path in /login /forgot-password /reset-password /dashboard /account /settings/users /settings/audit; do check "$path" 200; done
+          check / 307
+          curl -s http://127.0.0.1:3005/robots.txt | grep -q "Disallow: /" || { echo "::error::robots.txt must disallow everything"; fail=1; }
+          curl -sI http://127.0.0.1:3005/login | grep -qi "x-robots-tag: noindex" || { echo "::error::missing X-Robots-Tag"; fail=1; }
+          if [ "$fail" = 1 ]; then
+            echo "::error title=server log::$(tail -c 1500 ../server.log | tr '\n' ' ')"
+            exit 1
+          fi
+
+      - name: Publish bundle to the web-build branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: bundle
+        run: |
+          git init -q -b web-build
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -f .
+          git commit -q -m "Web build ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" web-build
