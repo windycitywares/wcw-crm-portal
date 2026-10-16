@@ -39,8 +39,8 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
-| 1 | Customers API | `customers` module: model (name, company, email/phones, type, status, source, owner, consent, address, shop link + order stats, custom fields), registered record type, list/search/filter/sort, create (duplicate-email check), edit (own vs any), soft delete/restore, timeline + audit; tests | open |
-| 2 | Customers web | list page (search, filters, columns, tags), customer page (details, tags, custom fields, notes, timeline), create/edit form | — |
+| 1 | Customers API | `customers` module: model (name, company, email/phones, type, status, source, owner, consent, address, shop link + order stats, custom fields), registered record type, list/search/filter/sort, create (duplicate-email check), edit (own vs any), soft delete/restore, timeline + audit; tests | #20 merged |
+| 2 | Customers web | list page (search, filters, columns, tags), customer page (details, tags, custom fields, notes, timeline), create/edit form | open |
 | 3 | Shop → CRM events | `integrations/shop`: signed webhook endpoint, `integration_events` (idempotent), handlers for customer/order/newsletter events → upsert customer, order stats, timeline; Settings → Integrations (shared secret, shop API URL/token) | — |
 | 4 | Shop side (wcw-shop-portal) | shop emits signed events to the CRM from its outbox + read-only API token for the CRM — PR in the shop repo, following its batch rules | — |
 | 5 | Backfill + order history | job that imports existing shop customers/orders via the shop API; customer page shows order history (read API) | — |
