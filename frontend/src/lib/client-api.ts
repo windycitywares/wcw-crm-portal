@@ -34,9 +34,11 @@ export const tokenStore = {
     }
   },
   /** Called when the API rejects the token (expired, password or role changed). */
-  onSignedOut(fn: Listener) {
+  onSignedOut(fn: Listener): () => void {
     signedOutListeners.add(fn);
-    return () => signedOutListeners.delete(fn);
+    return () => {
+      signedOutListeners.delete(fn);
+    };
   },
 };
 
