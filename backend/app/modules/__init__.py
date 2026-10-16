@@ -33,7 +33,7 @@ INSTALLED_MODULES: tuple[str, ...] = (
     "app.modules.settings",
     "app.modules.mail",
     "app.modules.deploy",
-    # "app.modules.customers",   # M2
+    "app.modules.customers",
 )
 
 
