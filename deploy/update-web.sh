@@ -41,11 +41,23 @@ SELECTOR=$(command -v cloudlinux-selector || ls /usr/sbin/cloudlinux-selector /u
 if [ -z "$SELECTOR" ] || ! "$SELECTOR" restart --json --interpreter=nodejs --app-root="$APP_ROOT" >/dev/null; then
   mkdir -p "$DEST/tmp" && touch "$DEST/tmp/restart.txt"
 fi
-sleep 3
-code=$(curl -s -m 30 -o /dev/null -w '%{http_code}' "$SITE/login")
-if [ "$code" = "200" ]; then
-  echo "✓ CRM web is up ($SITE/login → 200)"
+# LiteSpeed keeps Node processes running in the background and may keep serving the OLD build from memory
+# even after a restart (seen 2026-10-16). End every process of this app; LiteSpeed starts a fresh one on the
+# next request. Only processes whose command line contains this app's folder are matched.
+pkill -u "$(id -u)" -f "$DEST" 2>/dev/null || true
+sleep 2
+
+# Check that the site really serves the new build (its BUILD_ID appears in every page), not just that it's up.
+BUILD_ID=$(cat "$DEST/.next/BUILD_ID" 2>/dev/null || true)
+ok=0
+for _ in $(seq 1 12); do
+  page=$(curl -s -m 30 "$SITE/login?deploy=$NEW" || true)
+  if [ -n "$BUILD_ID" ] && printf '%s' "$page" | grep -q "$BUILD_ID"; then ok=1; break; fi
+  sleep 5
+done
+if [ "$ok" = 1 ]; then
+  echo "✓ CRM web is up and serving build $BUILD_ID ($SITE/login)"
 else
-  echo "✗ CRM web returned $code — check $DEST/stderr.log"
+  echo "✗ CRM web isn't serving the new build ($BUILD_ID) after 60 s — check $DEST/stderr.log or stop/start the app in Setup Node.js App"
   exit 1
 fi
