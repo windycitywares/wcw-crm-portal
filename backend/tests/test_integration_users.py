@@ -68,6 +68,13 @@ class UserAdminTests(unittest.TestCase):
             res = self.w.client.patch(f"{API}/users/{self.admin['id']}", headers=self.admin_h, json=change)
             self.assertEqual(res.status_code, 422, change)
 
+    def test_directory_is_names_only_for_everyone(self):
+        _, ro_h = self.w.user_with_token("read_only")
+        res = self.w.client.get(f"{API}/users/directory", headers=ro_h)
+        self.assertEqual(res.status_code, 200)
+        entry = next(e for e in res.json() if e["id"] == self.manager["id"])
+        self.assertEqual(set(entry), {"id", "full_name", "title", "is_active"})
+
     def test_audit_needs_permission(self):
         _, sales_h = self.w.user_with_token("sales")
         self.assertEqual(self.w.client.get(f"{API}/audit", headers=sales_h).status_code, 403)

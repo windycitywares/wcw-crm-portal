@@ -98,6 +98,17 @@ class UserPage(BaseModel):
     page_size: int
 
 
+class DirectoryEntry(BaseModel):
+    """What every signed-in user may see about colleagues (names on notes, assignees …)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    full_name: str
+    title: str | None
+    is_active: bool
+
+
 class RoleOut(BaseModel):
     key: Role
     label: str
