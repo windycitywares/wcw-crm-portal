@@ -5,7 +5,7 @@ import unittest
 try:
     from fastapi import APIRouter
     from fastapi.testclient import TestClient
-except ImportError:  # pragma: no cover
+except (ImportError, RuntimeError):  # pragma: no cover - httpx (TestClient) is only installed in CI
     APIRouter = None
 
 
@@ -60,6 +60,7 @@ class AppTests(unittest.TestCase):
             load_modules(("app.core.events",))  # has no `module = CrmModule(...)`
 
 
+@unittest.skipIf(APIRouter is None, "fastapi test client not installed")
 class SecretBoxTests(unittest.TestCase):
     def test_round_trip_and_wrong_key(self):
         from cryptography.fernet import Fernet
