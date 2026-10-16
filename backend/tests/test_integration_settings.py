@@ -21,7 +21,7 @@ class SettingsTests(unittest.TestCase):
     def test_groups_and_permissions(self):
         self.assertEqual(self.w.client.get(f"{API}/settings", headers=self.manager_h).status_code, 403)
         keys = [g["key"] for g in self.w.client.get(f"{API}/settings", headers=self.h).json()]
-        self.assertEqual(keys, ["email", "business_hours"])
+        self.assertEqual(keys[:2], ["email", "business_hours"])  # modules may add more (e.g. "shop")
         self.assertEqual(self.w.client.get(f"{API}/settings/nope", headers=self.h).status_code, 404)
 
     def test_business_hours_defaults_and_validation(self):
