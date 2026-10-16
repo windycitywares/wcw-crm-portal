@@ -24,8 +24,8 @@ Branch `feat/<area>-<n>-<short-name>` · PR title `<Area> <n>/<total>: <what it 
 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
-| 1 | Lookups | `lookups` module: admin-editable type lists (`lookup_values`), kind registry, seed from SPEC §9, module seed hook, API + tests | open |
-| 2 | Tags, notes, timeline | `tags` + `taggings`, `notes`, `activities` (polymorphic `entity_type/entity_id`), shared services other modules call; API + tests | — |
+| 1 | Lookups | `lookups` module: admin-editable type lists (`lookup_values`), kind registry, seed from SPEC §9, module seed hook, API + tests | #8 |
+| 2 | Tags, notes, timeline | `tags` + `taggings`, `notes`, `activities` (polymorphic `entity_type/entity_id`), shared services other modules call; `core/entities.py` registry; API + tests | open (needs #8) |
 | 3 | Custom fields | `custom_field_defs` per entity (text, number, date, select, checkbox), validation service for `custom_fields JSONB`; API + tests | — |
 | 4 | Settings + email | `settings` module (key/value, typed), Admin → Settings → Email (SMTP, encrypted password, sender, daily limit, throttle, test send), business hours; email outbox table + `workers/run_jobs.py` + cron wiring in auto-deploy; password reset uses it | — |
 | 5 | Web: settings screens | Settings → Types (per kind, reorder, colour, activate), Settings → Email, Settings → Custom fields | — |
