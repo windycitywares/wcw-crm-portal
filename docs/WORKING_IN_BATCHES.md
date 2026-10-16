@@ -28,8 +28,9 @@ Branch `feat/<area>-<n>-<short-name>` · PR title `<Area> <n>/<total>: <what it 
 | 2 | Tags, notes, timeline | `tags` + `taggings`, `notes`, `activities` (polymorphic `entity_type/entity_id`), shared services other modules call; `core/entities.py` registry; API + tests | #9 (needs #8) |
 | 3 | Custom fields | `custom_field_defs` per entity (text, number, date, select, checkbox), validation service for `custom_fields JSONB`; API + tests | #10 (needs #9) |
 | 4a | Settings | `settings` module: typed groups (Email: SMTP + encrypted password, sender, daily limit, per-minute throttle, footer address; Business hours), test-send endpoint; API + tests | #11 (needs #10) |
-| 4b | Email outbox + jobs | `email_outbox` table, `OutboxEmailSender` (queue + send now when possible, SMTP from Settings, limits), `app/workers/run_jobs.py` (retries, advisory lock) + `deploy/run-jobs.sh` called by auto-deploy; password reset goes through it | open (needs #11) |
-| 5 | Web: settings screens | Settings → Types (per kind, reorder, colour, activate), Settings → Email, Settings → Custom fields | — |
+| 4b | Email outbox + jobs | `email_outbox` table, `OutboxEmailSender` (queue + send now when possible, SMTP from Settings, limits), `app/workers/run_jobs.py` (retries, advisory lock) + `deploy/run-jobs.sh` called by auto-deploy; password reset goes through it | #12 (needs #11) |
+| 5a | Web: types, tags, custom fields | Settings → Types (per list: add, rename, colour, activate, reorder), Tags (search, edit, delete), Custom fields (per record type) | open (needs #12) |
+| 5b | Web: email + business hours | Settings → Email (SMTP, password kept when blank, limits, test send), Business hours | — |
 | 6 | Web: shared components | `Timeline`, `NotesPanel`, `TagPicker`, `EntityForm` custom-field renderer, used by M2 customers | — |
 
 ## Next milestones
