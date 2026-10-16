@@ -82,3 +82,37 @@ export function moved<T extends { id: number }>(items: T[], index: number, delta
 export function errorText(err: unknown) {
   return err instanceof Error ? err.message : "Something went wrong";
 }
+
+export interface EmailSettings {
+  enabled: boolean;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_security: "ssl" | "starttls" | "none";
+  smtp_user: string;
+  smtp_password_set: boolean;
+  from_name: string;
+  from_address: string;
+  reply_to: string;
+  footer_address: string;
+  daily_limit: number;
+  per_minute: number;
+}
+
+export type Day = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+export interface BusinessHours {
+  timezone: string;
+  days: Record<Day, { open: string; close: string } | null>;
+  holidays: string[];
+}
+
+interface Group<T> {
+  key: string;
+  label: string;
+  values: T;
+}
+
+export const settingsApi = {
+  get: <T>(key: string) => apiFetch<Group<T>>(`/settings/${key}`),
+  save: <T>(key: string, values: Record<string, unknown>) => apiFetch<Group<T>>(`/settings/${key}`, json("PUT", values)),
+  testEmail: (to: string) => apiFetch<{ ok: boolean; detail: string }>("/settings/email/test", json("POST", { to })),
+};
