@@ -72,6 +72,5 @@ npm run typecheck
 
 ## Status
 
-- 2026-10-16: repo created. Local folder has only `README.md` (one local commit, not yet pushed;
-  the GitHub repo is still empty). CRM-specific spec (`docs/SPEC.md`: modules, roles, data model)
-  not written yet — define it before scaffolding.
+- 2026-10-16: repo created and pushed (`main` is default). Contains only `README.md` + `CLAUDE.md`.
+  CRM-specific spec (`docs/SPEC.md`: modules, roles, data model) not written yet — define it before scaffolding.
