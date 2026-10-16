@@ -116,3 +116,31 @@ export const settingsApi = {
   save: <T>(key: string, values: Record<string, unknown>) => apiFetch<Group<T>>(`/settings/${key}`, json("PUT", values)),
   testEmail: (to: string) => apiFetch<{ ok: boolean; detail: string }>("/settings/email/test", json("POST", { to })),
 };
+
+export type DeployMode = "auto" | "schedule" | "paused";
+export interface DeployStatus {
+  mode: DeployMode;
+  interval_minutes: number;
+  schedule_times: string[];
+  timezone: string;
+  requested_at: string | null;
+  requested_by: string | null;
+  last_check_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  running: boolean;
+  last_reason: string | null;
+  last_result: string | null;
+  api: { commit: string | null; subject: string | null; date: string | null };
+  web_build: string | null;
+  cron_seen: boolean;
+}
+
+export const deployApi = {
+  status: () => apiFetch<DeployStatus>("/deploy"),
+  configure: (data: { mode: DeployMode; interval_minutes: number; schedule_times: string[] }) =>
+    apiFetch<DeployStatus>("/deploy/config", json("PUT", data)),
+  now: () => apiFetch<DeployStatus>("/deploy/now", { method: "POST" }),
+  cancel: () => apiFetch<DeployStatus>("/deploy/now", { method: "DELETE" }),
+  log: (lines = 200) => apiFetch<{ log: string }>(`/deploy/log?lines=${lines}`),
+};

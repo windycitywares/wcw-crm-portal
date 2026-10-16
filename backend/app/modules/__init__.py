@@ -32,6 +32,7 @@ INSTALLED_MODULES: tuple[str, ...] = (
     "app.modules.customfields",
     "app.modules.settings",
     "app.modules.mail",
+    "app.modules.deploy",
     # "app.modules.customers",   # M2
 )
 
@@ -45,7 +46,7 @@ class CrmModule:
     # Default data, run by `python -m app.seed` (and every deploy). Must never change existing rows.
     # Receives an AsyncSession; returns a short line for the log. The seed script commits.
     seed: Callable[[Any], Awaitable[str]] | None = None
-    # Background jobs run by `python -m app.workers.run_jobs` (cron, every 10 minutes): (name, fn).
+    # Background jobs run by `python -m app.workers.run_jobs` (cron, every minute): (name, fn).
     # fn receives an AsyncSession and returns a short line for the log, or None when it did nothing.
     jobs: tuple[tuple[str, Callable[[Any], Awaitable[str | None]]], ...] = field(default_factory=tuple)
 

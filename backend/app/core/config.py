@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     # The CRM web app (used for links in emails, e.g. password reset).
     site_url: str = "http://localhost:3000"
 
+    # Admin → Deployments: where the server keeps the checkout, the web app and the deploy log.
+    deploy_repo_dir: str = str(BACKEND_DIR.parent)
+    web_app_dir: str = str(Path.home() / "apps" / "crm" / "wcw-crm-web")
+    deploy_log: str = str(Path.home() / "logs" / "wcw-crm-deploy.log")
+
     # First admin account, created by `python -m app.seed` when no admin exists.
     admin_email: str | None = None
     admin_password: str | None = None

@@ -91,8 +91,9 @@ class MailService:
             return False
         return await self._attempt(row, self.transport_factory(settings), settings)
 
-    async def deliver_due(self, max_seconds: float = 480) -> str | None:
-        """Background job: send what's due, pacing to the per-minute limit, stopping at the daily limit."""
+    async def deliver_due(self, max_seconds: float = 45) -> str | None:
+        """Background job (every minute): send what's due for up to `max_seconds`, pacing to the per-minute limit,
+        stopping at the daily limit."""
         now = _now()
         stale = (await self.session.execute(select(EmailOutbox).where(
             EmailOutbox.status == QUEUED, EmailOutbox.created_at < now - GIVE_UP_AFTER))).scalars().all()
