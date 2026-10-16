@@ -1,0 +1,73 @@
+name: backend
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/**", ".github/workflows/backend.yml"]
+  pull_request:
+    paths: ["backend/**", ".github/workflows/backend.yml"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:  # same major version as HostItBro
+        image: postgres:13
+        env:
+          POSTGRES_USER: wcw
+          POSTGRES_PASSWORD: wcw
+          POSTGRES_DB: wcw_crm_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U wcw" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://wcw:wcw@localhost:5432/wcw_crm_test
+      TEST_DATABASE_URL: postgresql+asyncpg://wcw:wcw@localhost:5432/wcw_crm_test
+      DB_USE_NULL_POOL: "true"
+      JWT_SECRET: ci-only-secret-0123456789abcdef0123456789
+      DATA_ENCRYPTION_KEY: ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg=
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install
+        run: pip install -r requirements.txt httpx
+      - name: Compile
+        run: python -m compileall -q app tests migrations wsgi.py
+      - name: Migrations (upgrade, back to base, upgrade again)
+        run: |
+          set +e
+          (alembic upgrade head && alembic downgrade base && alembic upgrade head) > ../migrate.log 2>&1
+          status=$?
+          cat ../migrate.log
+          if [ $status -ne 0 ]; then
+            body=$(tail -n 40 ../migrate.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Migrations failed::${body}"
+          fi
+          exit $status
+      - name: Models match migrations
+        run: |
+          set +e
+          alembic check > ../check.log 2>&1
+          status=$?
+          cat ../check.log
+          if [ $status -ne 0 ]; then echo "::error title=Models and migrations differ::run alembic revision --autogenerate"; fi
+          exit $status
+      - name: Tests
+        run: |
+          set +e
+          python -m unittest discover -v tests > ../test.log 2>&1
+          status=$?
+          cat ../test.log
+          if [ $status -ne 0 ]; then
+            body=$( { grep -E "^(FAIL|ERROR): " ../test.log | head -n 15; echo "---"; tail -n 25 ../test.log; } | cut -c1-300 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Backend tests failed::${body}"
+          fi
+          exit $status
