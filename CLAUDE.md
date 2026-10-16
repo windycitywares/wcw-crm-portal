@@ -109,6 +109,9 @@ npm run typecheck
   adding a type never needs a migration. Pipelines/stages have their own tables.
 - A module never imports another module's repository; call its **service** or publish a domain event.
   Exception: every module may import `app.modules.users.deps` (`SessionDep`, `CurrentUser`, `require`).
+- Record types that notes/tags/timeline/custom fields attach to are registered once with
+  `register_entity(EntityType(...))` (`app/core/entities.py`); modules write timeline lines with
+  `TimelineService(session).record(...)`.
 - Record security-relevant and data changes with `AuditService(session).record(...)` in the same transaction.
 - New module = new `modules/<name>/` package (`module = CrmModule(...)`) + one line in `INSTALLED_MODULES`
   (`app/modules/__init__.py`); nothing else edited.

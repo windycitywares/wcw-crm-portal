@@ -1,21 +1,8 @@
-import re
 from datetime import datetime
-from typing import Annotated
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-COLOR = re.compile(r"^(#[0-9a-fA-F]{6}|neutral|accent|success|warning|danger|info)$")
-
-
-def _color(value: str | None) -> str | None:
-    if value in (None, ""):
-        return None
-    if not COLOR.match(value):
-        raise ValueError("Use #rrggbb or one of neutral, accent, success, warning, danger, info")
-    return value
-
-
-Color = Annotated[str | None, AfterValidator(_color)]
+from app.shared.schemas import Color
 
 
 class LookupOut(BaseModel):
