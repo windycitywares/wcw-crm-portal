@@ -18,7 +18,13 @@ Context file for AI-assisted work on this repo. Read this first in every session
 **module-per-feature** (see Layout). When in doubt, open `wcw-shop-portal` and copy its pattern
 (auth, RBAC, email outbox, deployment).
 
-**Full spec:** `docs/SPEC.md` — read it before building any module.
+**Full spec:** `docs/SPEC.md` — read it before building any module (decisions + seed types in §9).
+
+## How to work (owner's rule, same as shop)
+
+**Work in batches and open small PRs** — one layer or feature per PR, each green and safe to deploy
+alone, pushed as soon as it's done. Never do a whole milestone in one shot (it exhausts the session).
+See the shop's `docs/WORKING_IN_BATCHES.md` for the pattern.
 
 ## Scope (agreed 2026-10-16)
 
@@ -27,7 +33,10 @@ deals, pipelines), **Tasks**, **Support tickets** (+ types, SLA), **Campaigns** 
 target lists/segments, sending, tracking, suppression), **Suppliers** (+ supplier types), Reports.
 Fed by the shop via signed webhooks + read API. **Later:** B2B accounts UI, communication channels
 (unified inbox, live chat, Etsy, SMS), automation, AI.
-Roles: Admin, Manager, Sales, Support, Marketing, Read-only.
+Roles: Admin, Manager, Sales, Support, Marketing, Read-only (confirmed).
+Campaign sender/SMTP/daily limits are **configurable in Admin → Settings**, not env-only.
+Shop's inbox + campaigns move into the CRM **later** (after M5); until then the shop keeps them.
+Types/pipelines/SLA seeded from SPEC §9, all editable in Admin.
 Build order: M0 scaffold/auth → M1 shared blocks → M2 customers+shop sync → M3 tasks+tickets →
 M4 sales → M5 campaigns → M6 suppliers → M7 reports.
 
@@ -41,10 +50,11 @@ M4 sales → M5 campaigns → M6 suppliers → M7 reports.
 - **Backend:** Python 3.11+, FastAPI (async, strictly typed, REST JSON API)
   - SQLAlchemy 2 async + asyncpg, Alembic migrations
   - Layers inside each module: models · schemas · repository (DB queries only) · service (business rules) · router (thin)
-- **Database:** PostgreSQL (`JSONB` for dynamic/custom fields, `ltree` where hierarchy is needed)
+- **Database:** PostgreSQL 13 on the shop's HostItBro server — **no extensions** (no `ltree`/`pg_trgm`/`citext`);
+  `JSONB` for custom fields, plain-text id paths ("1.4.9") for any hierarchy, like the shop
 - **Auth:** JWT + bcrypt, permission-based RBAC (roles: Admin, Manager, Sales, Support, Marketing, Read-only)
-- **Hosting:** cPanel shared hosting
-  - Backend via Passenger (ASGI/WSGI) on cPanel
+- **Hosting:** HostItBro cPanel shared hosting (Python 3.11, Node 20/22)
+  - Backend via Passenger; entry point `backend/wsgi.py` (never commit `passenger_wsgi.py`)
   - Frontend via Next.js `output: 'standalone'` Node server (or `output: 'export'` if static only)
   - Standard PostgreSQL connection string
 - **Quality bar:** OOP / SOLID, easy to maintain & upgrade, WCAG 2.1 AA (labels on every control, `focus-visible` styles)
@@ -102,5 +112,5 @@ npm run typecheck
 
 ## Status
 
-- 2026-10-16: repo created; scope agreed and written to `docs/SPEC.md`. No code yet — next is **M0**
-  (scaffold, auth, roles/permissions, app shell). Open questions listed in SPEC §9.
+- 2026-10-16: repo created; scope + decisions agreed (`docs/SPEC.md` §9). No code yet — next is **M0**
+  (scaffold, auth, roles/permissions, app shell), split into small PRs.

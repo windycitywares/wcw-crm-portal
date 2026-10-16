@@ -1,6 +1,6 @@
 # WCW CRM — Specification
 
-crm.windycitywares.com · Windy City Wares LLC · status: **agreed scope v1 (2026-10-16)**
+crm.windycitywares.com · Windy City Wares LLC · status: **agreed scope v1 (2026-10-16), decisions recorded §9**
 
 ## 1. Purpose
 
@@ -184,7 +184,9 @@ Generic `DataTable` (server-side paging/filter/sort/saved views/export) and `Ent
 - Privacy: consent records, export/delete a customer (GDPR/CCPA), PII access by permission.
 - Accessibility: WCAG 2.1 AA, keyboard-first tables and kanban.
 - Performance: server-side pagination everywhere, indexed filters, JSONB GIN indexes for custom fields.
-- Hosting: cPanel — backend via Passenger (ASGI), frontend Next.js standalone, PostgreSQL;
+- Hosting: HostItBro cPanel (same server as the shop) — Python 3.11, Node 20/22, **PostgreSQL 13 with
+  no extensions** (no `ltree`, `pg_trgm`, `citext`…; hierarchies use plain-text id paths like the shop);
+  backend via Passenger (`backend/wsgi.py`), frontend Next.js standalone;
   background work via cron hitting `workers/` scripts. No WebSockets assumed (polling/SSE).
 - Tests: unit tests per service, API tests per router, Playwright e2e for key flows.
 
@@ -202,8 +204,37 @@ Generic `DataTable` (server-side paging/filter/sort/saved views/export) and `Ent
 | **M7** | Dashboard & reports |
 | Later | Communication channels (unified inbox), B2B accounts, automation, AI |
 
-## 9. Open questions
-- Team size and who gets which role.
-- Sender address(es) and daily send limit on the cPanel mailbox for campaigns.
-- Do shop admin campaigns/inbox move to the CRM (and get retired in the shop)?
-- Initial lists of customer types, supplier types, ticket types, pipeline stages.
+## 9. Decisions (2026-10-16)
+
+1. **Roles:** Admin, Manager, Sales, Support, Marketing, Read-only — as in §2. Role → permission map is
+   code-defined in v1; assigning roles to users is done in Admin → Users.
+2. **Campaign email is configurable in Admin → Settings → Email** (no hard-coded sender):
+   from name, from address, reply-to, SMTP host/port/security/user/password (password stored encrypted),
+   **daily send limit** and **per-minute throttle**, footer postal address, test-send button.
+   The campaign dispatcher never exceeds the configured limits and carries the remainder to the next day.
+   Multiple sender identities can be added later (same settings table, `is_default`).
+3. **Shop inbox & campaigns move to the CRM — later.** The shop keeps its contact inbox and campaigns
+   until CRM M5 (campaigns) and the inbox phase are live; then they are retired in the shop and the shop
+   only emits events. Until then the CRM receives `contact_message.*` events read-only on the timeline.
+4. **Starter lookups** (seeded as `lookup_values`, all editable/deactivatable in Admin → Settings → Types):
+
+| Kind | Seed values |
+|---|---|
+| customer_type | Retail, Repeat, VIP, Wholesale, Marketplace (Etsy/Amazon) |
+| supplier_type | Manufacturer, Raw materials, Packaging, Printing & labels, Shipping & logistics, Services |
+| ticket_type | Order question, Shipping & delivery, Return / exchange, Damaged / defective, Custom request, Product question, Complaint, Other |
+| ticket_priority | Low, Normal, High, Urgent |
+| task_type | Call, Email, Follow-up, Meeting, To-do |
+| lead_source | Website, Shop, Etsy, Amazon, Referral, Social media, Trade show, Other |
+| lost_reason | Price, Timing, Chose competitor, No response, Not a fit, Other |
+
+**Seed pipelines** (stages editable in Admin → Settings → Pipelines):
+- *Custom orders:* New inquiry (10%) → Quoted (30%) → Design approved (60%) → In production (90%) → Won / Lost
+- *Wholesale* (inactive until B2B): Lead (10%) → Qualified (25%) → Sample sent (40%) → Proposal (60%) → Negotiation (80%) → Won / Lost
+
+**Seed SLA policy** (business hours, editable): first response / resolution —
+Urgent 2h / 1 day · High 4h / 2 days · Normal 1 business day / 3 days · Low 2 business days / 5 days.
+
+### Still open (not blocking)
+- Team members and their roles (entered in Admin → Users after M0).
+- Business hours / holidays for SLA timers (default Mon–Fri 9:00–17:00 America/Chicago).
