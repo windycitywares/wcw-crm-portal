@@ -77,6 +77,13 @@ frontend/src/
 docs/          SPEC.md, DEPLOYMENT.md
 ```
 
+## Deploy
+
+Same server as the shop. Web → `~/apps/crm/wcw-crm-web` (Node 20, bundle from the `web-build` branch built by
+Actions); API → `~/repos/wcw-crm-portal/backend` (Python app, `wsgi.py`) on `crm-api.windycitywares.com`;
+DB `windycit_crm`. Cron runs `deploy/auto-deploy.sh` every 10 min: **merge to `main` → live in ~10 min**.
+Full steps incl. the one-time clean-up of the old crm subdomain: `docs/DEPLOYMENT.md`.
+
 ## Commands (same as shop)
 
 ```bash

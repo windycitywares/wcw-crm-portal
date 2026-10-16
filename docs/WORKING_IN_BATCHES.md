@@ -18,7 +18,7 @@ Branch `feat/<area>-<n>-<short-name>` · PR title `<Area> <n>/<total>: <what it 
 | 1 | Backend core | config, db, security (JWT, bcrypt, encrypted secrets), permissions map (6 roles), exceptions, event bus, pagination, base model mixins, generic repository, module registry, wsgi adapter, Alembic, CI | #1 |
 | 2 | Users & auth | users module: model + migration, login, me, password reset, users admin API, seed admin, audit log | #2 (needs #1) |
 | 3 | Frontend shell | Next.js app, login, sidebar shell (menu by permission), users admin page, CI build + bundle branch | #3 (needs #2) |
-| 4 | Deploy | deploy scripts (auto-deploy cron, update API/web), DEPLOYMENT.md incl. clean-up of the old crm subdomain | — |
+| 4 | Deploy | deploy scripts (auto-deploy cron, update API/web), DEPLOYMENT.md incl. clean-up of the old crm subdomain | #4 |
 
 ## Next milestones
 M1 shared blocks (lookups, tags, notes, attachments, custom fields, timeline, DataTable, import/export) →
