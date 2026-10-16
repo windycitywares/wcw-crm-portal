@@ -69,21 +69,21 @@ class CustomerTests(unittest.TestCase):
         self.assertEqual(self.w.client.put(f"{API}/entities/customer/{mine['id']}/tags", headers=self.sales2_h, json={"names": ["Gift buyer"]}).status_code, 200)
 
     def test_search_filters_and_tags(self):
-        sfx = self.w.sfx
-        a = self.create(first_name=f"Zelda{sfx}", company="Lake Co", customer_type="wholesale")
-        b = self.create(first_name=f"Zed{sfx}", headers=self.sales2_h)
-        self.w.client.put(f"{API}/entities/customer/{b['id']}/tags", headers=self.sales2_h, json={"names": [f"Repeat {sfx}"]})
-        res = self.w.client.get(f"{API}/customers", headers=self.ro_h, params={"q": f"zelda{sfx} lake"}).json()
+        mark = f"co{self.w.sfx}"  # only these two customers carry it (emails share the plain suffix)
+        a = self.create(first_name="Zelda", company=f"Lake {mark}", customer_type="wholesale")
+        b = self.create(first_name="Zed", company=f"Pond {mark}", headers=self.sales2_h)
+        self.w.client.put(f"{API}/entities/customer/{b['id']}/tags", headers=self.sales2_h, json={"names": [f"Repeat {mark}"]})
+        res = self.w.client.get(f"{API}/customers", headers=self.ro_h, params={"q": f"zelda lake {mark}"}).json()
         self.assertEqual([c["id"] for c in res["items"]], [a["id"]])
-        res = self.w.client.get(f"{API}/customers", headers=self.ro_h, params={"q": sfx, "type": "wholesale"}).json()
+        res = self.w.client.get(f"{API}/customers", headers=self.ro_h, params={"q": mark, "type": "wholesale"}).json()
         self.assertEqual([c["id"] for c in res["items"]], [a["id"]])
-        mine = self.w.client.get(f"{API}/customers", headers=self.sales2_h, params={"q": sfx, "owner": "me"}).json()
+        mine = self.w.client.get(f"{API}/customers", headers=self.sales2_h, params={"q": mark, "owner": "me"}).json()
         self.assertEqual([c["id"] for c in mine["items"]], [b["id"]])
         tag_id = mine["items"][0]["tags"][0]["id"]
         tagged = self.w.client.get(f"{API}/customers", headers=self.ro_h, params={"tag_id": tag_id}).json()
         self.assertEqual([c["id"] for c in tagged["items"]], [b["id"]])
-        by_name = self.w.client.get(f"{API}/customers", headers=self.ro_h, params={"q": sfx, "sort": "name"}).json()
-        self.assertEqual([c["id"] for c in by_name["items"]], [b["id"], a["id"]] if f"Zed{sfx}" < f"Zelda{sfx}" else [a["id"], b["id"]])
+        by_name = self.w.client.get(f"{API}/customers", headers=self.ro_h, params={"q": mark, "sort": "name"}).json()
+        self.assertEqual([c["id"] for c in by_name["items"]], [b["id"], a["id"]])  # zed < zelda
         self.assertEqual(self.w.client.get(f"{API}/customers", headers=self.ro_h, params={"sort": "bogus"}).status_code, 422)
 
     def test_custom_fields_and_timeline(self):
