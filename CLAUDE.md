@@ -103,7 +103,8 @@ npm run typecheck
 - A module never imports another module's repository; call its **service** or publish a domain event.
   Exception: every module may import `app.modules.users.deps` (`SessionDep`, `CurrentUser`, `require`).
 - Record security-relevant and data changes with `AuditService(session).record(...)` in the same transaction.
-- New module = new `modules/<name>/` package + register its router in `main.py`; nothing else edited.
+- New module = new `modules/<name>/` package (`module = CrmModule(...)`) + one line in `INSTALLED_MODULES`
+  (`app/modules/__init__.py`); nothing else edited.
 - Every business table: timestamps, created_by/updated_by, soft delete (`deleted_at`), `owner_id` where relevant, audited.
 - External services sit behind small interfaces (`EmailSender`, `ShopClient`, `TemplateRenderer`).
 - Campaign templates render in a sandboxed Jinja2 env; unsubscribe link + suppression list are mandatory.
