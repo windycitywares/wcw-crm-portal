@@ -30,6 +30,7 @@ INSTALLED_MODULES: tuple[str, ...] = (
     "app.modules.tags",
     "app.modules.activity",
     "app.modules.customfields",
+    "app.modules.settings",
     # "app.modules.customers",   # M2
 )
 
