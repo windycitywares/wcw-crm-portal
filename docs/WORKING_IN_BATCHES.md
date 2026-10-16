@@ -15,11 +15,21 @@ Branch `feat/<area>-<n>-<short-name>` · PR title `<Area> <n>/<total>: <what it 
 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
-| 1 | Backend core | config, db, security (JWT, bcrypt, encrypted secrets), permissions map (6 roles), exceptions, event bus, pagination, base model mixins, generic repository, module registry, wsgi adapter, Alembic, CI | #1 |
-| 2 | Users & auth | users module: model + migration, login, me, password reset, users admin API, seed admin, audit log | #2 (needs #1) |
-| 3 | Frontend shell | Next.js app, login, sidebar shell (menu by permission), users admin page, CI build + bundle branch | #3 (needs #2) |
-| 4 | Deploy | deploy scripts (auto-deploy cron, update API/web), DEPLOYMENT.md incl. clean-up of the old crm subdomain | #4 |
+| 1 | Backend core | config, db, security (JWT, bcrypt, encrypted secrets), permissions map (6 roles), exceptions, event bus, pagination, base model mixins, generic repository, module registry, wsgi adapter, Alembic, CI | #1 merged |
+| 2 | Users & auth | users module: model + migration, login, me, password reset, users admin API, seed admin, audit log | #2 merged |
+| 3 | Frontend shell | Next.js app, login, sidebar shell (menu by permission), users admin page, CI build + bundle branch | #3 merged |
+| 4 | Deploy | deploy scripts (auto-deploy cron, update API/web), DEPLOYMENT.md incl. clean-up of the old crm subdomain | #4 merged (+ #5–#7 setup fixes) |
+
+## Plan — M1 Shared building blocks (started 2026-10-16)
+
+| # | Batch | Contents | PR |
+|---|-------|----------|----|
+| 1 | Lookups | `lookups` module: admin-editable type lists (`lookup_values`), kind registry, seed from SPEC §9, module seed hook, API + tests | open |
+| 2 | Tags, notes, timeline | `tags` + `taggings`, `notes`, `activities` (polymorphic `entity_type/entity_id`), shared services other modules call; API + tests | — |
+| 3 | Custom fields | `custom_field_defs` per entity (text, number, date, select, checkbox), validation service for `custom_fields JSONB`; API + tests | — |
+| 4 | Settings + email | `settings` module (key/value, typed), Admin → Settings → Email (SMTP, encrypted password, sender, daily limit, throttle, test send), business hours; email outbox table + `workers/run_jobs.py` + cron wiring in auto-deploy; password reset uses it | — |
+| 5 | Web: settings screens | Settings → Types (per kind, reorder, colour, activate), Settings → Email, Settings → Custom fields | — |
+| 6 | Web: shared components | `Timeline`, `NotesPanel`, `TagPicker`, `EntityForm` custom-field renderer, used by M2 customers | — |
 
 ## Next milestones
-M1 shared blocks (lookups, tags, notes, attachments, custom fields, timeline, DataTable, import/export) →
 M2 customers + shop sync → M3 tasks + tickets → M4 sales → M5 campaigns → M6 suppliers → M7 reports.
