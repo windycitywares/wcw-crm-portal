@@ -1,0 +1,23 @@
+import type { Metadata, Viewport } from "next";
+import { AuthProvider } from "@/lib/auth";
+import { body } from "./fonts";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: { default: "Windy City Wares CRM", template: "%s | WCW CRM" },
+  description: "Internal CRM for the Windy City Wares team.",
+  robots: { index: false, follow: false },
+};
+
+export const viewport: Viewport = { themeColor: "#17232b" };
+
+/** Root template: fonts, theme tokens and the signed-in user. Pages choose their frame via route groups. */
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className={body.variable}>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
+    </html>
+  );
+}

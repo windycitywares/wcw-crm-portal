@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+/*
+ * Theme tokens — same palette as the shop's admin ("gallery at dusk"), so staff moving between the
+ * shop admin and the CRM feel at home. Every text/background pair meets WCAG AA. No hex values in
+ * components: use these tokens (bg-surface, text-muted, border-line, bg-accent …).
+ */
+@theme {
+  --color-canvas: #f2f3ef;
+  --color-surface: #ffffff;
+  --color-sand: #e6e9e3;
+  --color-line: #d4d9d2;
+  --color-ink: #1d2730;
+  --color-muted: #55616a; /* 5.6:1 on canvas */
+  --color-accent: #2f5468;
+  --color-accent-strong: #213e4d;
+  --color-accent-soft: #e0e8eb;
+  --color-night: #17232b; /* sidebar */
+  --color-night-muted: #a9b6bd; /* text on night — 7.4:1 */
+  --color-success: #2f6b4a;
+  --color-danger: #a12a1e;
+  --color-on-accent: #ffffff;
+  --color-warning: #7a5000;
+  --color-gold: #c9902f;
+
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 4px;
+  --radius-control: 6px;
+}
+
+:root {
+  --logo-emblem: #1c2f45;
+  --logo-letters: #ffffff;
+  --logo-word: #1c2f45;
+  --logo-gold: #e0a845;
+  --logo-word-gold: #c9902f;
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-4: #eda100;
+  --viz-5: #e87ba4;
+  --viz-6: #008300;
+  --viz-7: #6250d6;
+  --viz-8: #e34948;
+  color-scheme: light;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  /* Clearly visible keyboard focus everywhere (WCAG 2.4.7) */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -4rem;
+    z-index: 100;
+    background: var(--color-ink);
+    color: var(--color-canvas);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-control);
+  }
+  .skip-link:focus {
+    top: 1rem;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  .admin-prose {
+    max-width: 68ch;
+  }
+  @keyframes admin-pulse {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 0.9;
+    }
+  }
+  .skeleton {
+    background: var(--color-sand);
+    border-radius: var(--radius-control);
+    animation: admin-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .toast-in {
+    animation: toast-in 180ms ease-out both;
+  }
+}
