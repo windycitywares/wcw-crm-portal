@@ -19,6 +19,10 @@ export interface NavGroup {
 export const NAV: NavGroup[] = [
   { items: [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" }] },
   {
+    label: "Work",
+    items: [{ href: "/customers", label: "Customers", icon: "customers", permission: "customers:view" }],
+  },
+  {
     label: "Administration",
     items: [
       { href: "/settings/users", label: "Users", icon: "users", permission: "users:manage" },
@@ -33,7 +37,7 @@ export const NAV: NavGroup[] = [
   },
 ];
 
-const EXTRA_TITLES: Record<string, string> = { "/account": "Your account" };
+const EXTRA_TITLES: Record<string, string> = { "/account": "Your account", "/customers/new": "Customers" };
 
 export function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
