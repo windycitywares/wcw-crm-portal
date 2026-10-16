@@ -4,10 +4,11 @@ import asyncio
 import logging
 import smtplib
 import ssl
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
-from typing import Protocol
+from typing import Any, Protocol
 
 log = logging.getLogger("wcw.email")
 
@@ -88,12 +89,22 @@ class SmtpEmailSender:
 
 
 _sender: EmailSender = LogEmailSender()
+# Set by the mail module at start-up: builds a sender bound to the request's DB session (the outbox).
+_factory: Callable[[Any], EmailSender] | None = None
 
 
-def get_email_sender() -> EmailSender:
+def get_email_sender(session: Any = None) -> EmailSender:
+    """FastAPI dependency (see users.deps.EmailSenderDep). Falls back to logging when no factory is set."""
+    if _factory is not None and session is not None:
+        return _factory(session)
     return _sender
 
 
 def set_email_sender(sender: EmailSender) -> None:
     global _sender
     _sender = sender
+
+
+def set_email_sender_factory(factory: Callable[[Any], EmailSender] | None) -> None:
+    global _factory
+    _factory = factory

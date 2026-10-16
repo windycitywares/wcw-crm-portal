@@ -4,20 +4,15 @@ from fastapi import APIRouter, Body, Depends
 from pydantic import EmailStr
 
 from app.core.permissions import Permission
-from app.integrations.email import Mail, SmtpConfig, SmtpEmailSender
+from app.integrations.email import Mail, SmtpEmailSender
 from app.modules.users.deps import SessionDep, require
 from app.modules.users.models import User
 
 from .groups import GROUPS, EmailSettings
-from .service import SettingsService
+from .service import SettingsService, smtp_config
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 Admin = Annotated[User, Depends(require(Permission.SETTINGS_MANAGE))]
-
-
-def smtp_config(s: EmailSettings) -> SmtpConfig:
-    return SmtpConfig(host=s.smtp_host, port=s.smtp_port, security=s.smtp_security, user=s.smtp_user or None,
-                      password=s.smtp_password or None, from_address=str(s.from_address), from_name=s.from_name)
 
 
 @router.get("", response_model=list[dict])

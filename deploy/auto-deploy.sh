@@ -3,6 +3,7 @@
 #   5-59/10 * * * * bash $HOME/repos/wcw-crm-portal/deploy/auto-deploy.sh >> $HOME/logs/wcw-crm-deploy.log 2>&1
 # - API: when `main` has new commits, run update-api.sh (tests must pass before it restarts).
 # - Web: when GitHub Actions has published a new build to `web-build`, run update-web.sh.
+# - Then the background jobs (queued emails, retries …): run-jobs.sh.
 set -uo pipefail
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"   # cron's default PATH is minimal
 exec 9>"$HOME/.wcw-crm-deploy.lock"
@@ -20,3 +21,5 @@ if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
 fi
 
 bash "$REPO/deploy/update-web.sh" --if-changed || echo "$(date '+%F %T') web update FAILED"
+
+[ -f "$REPO/deploy/run-jobs.sh" ] && { bash "$REPO/deploy/run-jobs.sh" || echo "$(date '+%F %T') background jobs FAILED"; }

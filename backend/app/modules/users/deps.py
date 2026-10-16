@@ -24,7 +24,13 @@ from .models import User
 bearer = HTTPBearer(auto_error=False)
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
-EmailSenderDep = Annotated[EmailSender, Depends(get_email_sender)]
+
+
+def email_sender(session: SessionDep) -> EmailSender:
+    return get_email_sender(session)
+
+
+EmailSenderDep = Annotated[EmailSender, Depends(email_sender)]
 
 
 async def get_current_user(
