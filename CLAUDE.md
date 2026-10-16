@@ -122,5 +122,6 @@ npm run typecheck
 
 ## Status
 
-- 2026-10-16: repo created; scope + decisions agreed (`docs/SPEC.md` §9). No code yet — next is **M0**
-  (scaffold, auth, roles/permissions, app shell), split into small PRs.
+- 2026-10-16: M0 live — https://crm.windycitywares.com (web) + https://crm-api.windycitywares.com (API), auto-deploy cron
+  on the server. **M1 in progress** — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
+- Claude can't merge PRs (owner merges) and can't create server secrets/cron from the browser; ask the owner.

@@ -16,8 +16,9 @@ Nothing else needs editing to add a module.
 from __future__ import annotations
 
 import importlib
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 from fastapi import APIRouter
 
@@ -25,6 +26,7 @@ from fastapi import APIRouter
 INSTALLED_MODULES: tuple[str, ...] = (
     "app.modules.users",
     "app.modules.audit",
+    "app.modules.lookups",
     # "app.modules.customers",   # M2
 )
 
@@ -35,6 +37,9 @@ class CrmModule:
     router: APIRouter | None = None
     models: str | None = None  # dotted path of the models module, imported for metadata
     on_startup: tuple[Callable[[], None], ...] = field(default_factory=tuple)
+    # Default data, run by `python -m app.seed` (and every deploy). Must never change existing rows.
+    # Receives an AsyncSession; returns a short line for the log. The seed script commits.
+    seed: Callable[[Any], Awaitable[str]] | None = None
 
 
 def load_modules(paths: tuple[str, ...] = INSTALLED_MODULES) -> list[CrmModule]:

@@ -2,8 +2,8 @@
 
     python -m app.seed
 
-Safe to run repeatedly: it never changes an existing account. Later milestones add seed data here
-(lookup types, pipelines, SLA policy — SPEC §9) through each module's own seeder.
+Safe to run repeatedly: it never changes an existing account. Then runs each module's
+`seed` hook (lookup types, pipelines, SLA policy — SPEC §9); seeders only add what's missing.
 """
 
 import asyncio
@@ -37,9 +37,22 @@ async def seed_admin() -> str:
         return f"created admin {email} — change the password after signing in"
 
 
+async def seed_modules() -> list[str]:
+    """Run every installed module's seeder (lookup types, …) in one transaction."""
+    lines = []
+    async with SessionFactory() as session:
+        for mod in load_modules():
+            if mod.seed is not None:
+                lines.append(f"{mod.name}: {await mod.seed(session)}")
+        await session.commit()
+    return lines
+
+
 async def main() -> None:
     load_modules()
     print(await seed_admin())
+    for line in await seed_modules():
+        print(line)
 
 
 if __name__ == "__main__":
