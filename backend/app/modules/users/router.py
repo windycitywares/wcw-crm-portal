@@ -10,7 +10,7 @@ from . import service
 from .deps import CurrentUser, EmailSenderDep, SessionDep, require
 from .models import User
 from .schemas import (
-    AdminSetPassword, ForgotPasswordIn, LoginIn, MeOut, Message, PasswordChange, ProfileUpdate, ResetPasswordIn,
+    AdminSetPassword, DirectoryEntry, ForgotPasswordIn, LoginIn, MeOut, Message, PasswordChange, ProfileUpdate, ResetPasswordIn,
     RoleOut, TokenOut, UserCreate, UserOut, UserPage, UserUpdate,
 )
 from .service import AuthService, UserService
@@ -54,6 +54,12 @@ async def reset_password(request: Request, session: SessionDep, data: ResetPassw
 @users_router.get("/roles", response_model=list[RoleOut])
 async def list_roles(_: CurrentUser) -> list[RoleOut]:
     return service.roles()
+
+
+@users_router.get("/directory", response_model=list[DirectoryEntry])
+async def directory(session: SessionDep, _: CurrentUser) -> list[DirectoryEntry]:
+    """Colleagues' names for every signed-in user (no emails, roles or sign-in data)."""
+    return await UserService(session).directory()
 
 
 @users_router.get("", response_model=UserPage)

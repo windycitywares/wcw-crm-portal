@@ -30,8 +30,8 @@ Branch `feat/<area>-<n>-<short-name>` · PR title `<Area> <n>/<total>: <what it 
 | 4a | Settings | `settings` module: typed groups (Email: SMTP + encrypted password, sender, daily limit, per-minute throttle, footer address; Business hours), test-send endpoint; API + tests | #11 (needs #10) |
 | 4b | Email outbox + jobs | `email_outbox` table, `OutboxEmailSender` (queue + send now when possible, SMTP from Settings, limits), `app/workers/run_jobs.py` (retries, advisory lock) + `deploy/run-jobs.sh` called by auto-deploy; password reset goes through it | #12 (needs #11) |
 | 5a | Web: types, tags, custom fields | Settings → Types (per list: add, rename, colour, activate, reorder), Tags (search, edit, delete), Custom fields (per record type) | #13 (needs #12) |
-| 5b | Web: email + business hours | Settings → Email (SMTP, password kept when blank, limits, test send), Business hours | open (needs #13) |
-| 6 | Web: shared components | `Timeline`, `NotesPanel`, `TagPicker`, `EntityForm` custom-field renderer, used by M2 customers | — |
+| 5b | Web: email + business hours | Settings → Email (SMTP, password kept when blank, limits, test send), Business hours | #14 (needs #13) |
+| 6 | Web: record components | `modules/records`: `NotesPanel`, `Timeline`, `TagEditor`, `CustomFieldsEditor`/`CustomFieldsView`, `useDirectory`; API `GET /users/directory` (names for everyone) | open (needs #14) |
 
 ## Next milestones
 M2 customers + shop sync → M3 tasks + tickets → M4 sales → M5 campaigns → M6 suppliers → M7 reports.
