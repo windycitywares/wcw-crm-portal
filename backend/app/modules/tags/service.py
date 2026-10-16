@@ -83,7 +83,7 @@ class TagService:
         await check_entity_access(self.session, user, entity_type, entity_id, write=False)
         return (await self.tags_for(entity_type, [entity_id])).get(entity_id, [])
 
-    async def set_for(self, user, entity_type: str, entity_id: int, names: list[str]) -> list[TagOut]:
+    async def set_for(self, user, entity_type: str, entity_id: int, names: list[str], *, commit: bool = True) -> list[TagOut]:
         await check_entity_access(self.session, user, entity_type, entity_id, write=True)
         wanted: dict[str, str] = {}
         for name in map(clean, names):
@@ -101,5 +101,8 @@ class TagService:
         if sorted(before) != after:
             await self.audit.record("tags.set", actor=user, entity_type=entity_type, entity_id=entity_id,
                                     changes={"tags": [sorted(before), after]})
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
         return (await self.tags_for(entity_type, [entity_id])).get(entity_id, [])

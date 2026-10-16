@@ -88,3 +88,29 @@ export function qs(params: Record<string, string | number | boolean | null | und
   const s = search.toString();
   return s ? `?${s}` : "";
 }
+
+/** Download a file from the API with the signed-in user's token (exports, templates). */
+export async function apiDownload(path: string, fallbackName: string): Promise<void> {
+  const headers = new Headers();
+  const token = tokenStore.get();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { headers, cache: "no-store" });
+  } catch {
+    throw new ApiRequestError(0, "Can't reach the CRM server. Check your connection and try again.");
+  }
+  if (!res.ok) {
+    const body = res.headers.get("content-type")?.includes("application/json") ? await res.json() : null;
+    throw new ApiRequestError(res.status, errorMessage(body, res.status));
+  }
+  const name = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "")?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

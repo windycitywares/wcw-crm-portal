@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch, qs } from "@/lib/client-api";
+import { apiDownload, apiFetch, qs } from "@/lib/client-api";
 import type { Page } from "@/lib/types";
 
 export type CustomerStatus = "active" | "inactive" | "blocked";
@@ -96,6 +96,32 @@ export const customersApi = {
   restore: (id: number) => apiFetch<Customer>(`/customers/${id}/restore`, { method: "POST" }),
   checkEmail: (email: string, excludeId?: number) =>
     apiFetch<{ exists: boolean; customer_id: number | null; display_name: string | null }>(`/customers/check-email${qs({ email, exclude_id: excludeId })}`),
+};
+
+export interface ImportResult {
+  dry_run: boolean;
+  rows: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: { row: number; error: string }[];
+  columns: Record<string, string>;
+  ignored_columns: string[];
+}
+
+export const customerFilesApi = {
+  export: (f: CustomerFilters, format: "csv" | "xlsx") => {
+    const filters = { ...f, page: undefined, page_size: undefined, format };
+    return apiDownload(`/customers/export${qs(filters)}`, `customers.${format}`);
+  },
+  template: () => apiDownload("/customers/import/template", "customers-import-template.csv"),
+  import: (file: File, mode: "skip" | "update", dryRun: boolean) => {
+    const body = new FormData();
+    body.set("file", file);
+    body.set("mode", mode);
+    body.set("dry_run", String(dryRun));
+    return apiFetch<ImportResult>("/customers/import", { method: "POST", body });
+  },
 };
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
