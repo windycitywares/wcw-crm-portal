@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
@@ -193,6 +193,7 @@ export default function CampaignListsPage() {
                         {canEdit && <Button variant="secondary" size="sm" onClick={() => editSegment(list)}>Edit</Button>}
                       </>
                     )}
+                    {list.kind === "static" && <ButtonLink href={`/campaigns/lists/${list.id}`} variant="secondary" size="sm">Manage members</ButtonLink>}
                     {canEdit && <Button variant="ghost" size="sm" className="text-danger" onClick={() => void remove(list.id)}>Delete</Button>}
                   </div>
                 </div>
