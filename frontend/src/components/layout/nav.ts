@@ -23,6 +23,7 @@ export const NAV: NavGroup[] = [
     items: [
       { href: "/tasks", label: "Tasks", icon: "tasks", permission: "tasks:view" },
       { href: "/tickets", label: "Tickets", icon: "ticket", permission: "tickets:view" },
+      { href: "/leads", label: "Leads", icon: "inbox", permission: "sales:view" },
       { href: "/sales", label: "Sales", icon: "briefcase", permission: "sales:view" },
       { href: "/customers", label: "Customers", icon: "customers", permission: "customers:view" },
     ],

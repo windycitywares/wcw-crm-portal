@@ -152,6 +152,9 @@ class LeadTests(unittest.TestCase):
         changed = self.patch(lead["id"], company="Cass Woodworks", status="contacted")
         self.assertEqual((changed.status_code, changed.json()["company"]), (200, "Cass Woodworks"))
         self.assertTrue(any("Changed company, status" in t for t in self.titles("lead", lead["id"])))
+        # a null in a patch means "not changing it", not "empty it"
+        same = self.patch(lead["id"], status=None)
+        self.assertEqual((same.status_code, same.json()["status"]), (200, "contacted"))
         self.assertEqual(self.patch(lead["id"], source="nope").status_code, 422)
         self.assertEqual(self.w.client.patch(f"{API}/leads/99999999", headers=self.sales_h,
                                             json={"notes": "x"}).status_code, 404)

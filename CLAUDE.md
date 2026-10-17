@@ -131,5 +131,6 @@ npm run typecheck
   emitting `contact_message.created` (shop repo). **M4 sales started — batches 1 (sales API) and 2 (sales web: deals board + list, Settings →
   Pipelines, deals panel on the customer, pipeline card on the dashboard) built (`feat/m4-1-sales-api`, `feat/m4-2-sales-web`); batch 3 (leads API:
   list/filters/summary, own-vs-any + handover, notes/timeline on a lead, convert to customer + deal in one transaction) built
-  (`feat/m4-3-leads-api`); next: leads web (3b), then deal items from the shop catalog. Shop connection needs `CRM_WEBHOOK_URL`/`CRM_WEBHOOK_SECRET`/`CRM_API_TOKEN` on the shop server (shop docs/CRM_SYNC.md) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
+  (`feat/m4-3-leads-api`); batch 3b (leads web: `/leads` with status tabs and counts, the status as a picker in each row, add/edit + convert
+  dialogs, a Leads card on the dashboard and a sidebar entry) built (`feat/m4-3b-leads-web`); next: deal items from the shop catalog. Shop connection needs `CRM_WEBHOOK_URL`/`CRM_WEBHOOK_SECRET`/`CRM_API_TOKEN` on the shop server (shop docs/CRM_SYNC.md) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.
