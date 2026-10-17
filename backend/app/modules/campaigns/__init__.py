@@ -1,11 +1,23 @@
-"""Campaigns (SPEC §3.6): the email templates campaigns are written from, and the suppression list.
+"""Campaigns (SPEC §3.6): what a campaign is written from and who it goes to — email templates, audiences
+(target lists) and the suppression list.
 
-This batch is the module's foundation — templates (with merge fields, preview and test send) and the
-suppression list. Target lists, the campaigns themselves, sending and tracking come next.
+Built so far: templates (merge fields, preview, test send) and the suppression list, then static target
+lists. Next: dynamic segments, the campaigns themselves with the sender, and tracking.
 """
 
 from app.modules import CrmModule
 
 from .router import router
 
-module = CrmModule(name="campaigns", router=router, models="app.modules.campaigns.models")
+
+def _subscribe() -> None:
+    from app.core.entities import RecordsMerged
+    from app.core.events import bus
+
+    from .merge import move_to_survivor
+
+    bus.subscribe(RecordsMerged, move_to_survivor)
+
+
+module = CrmModule(name="campaigns", router=router, models="app.modules.campaigns.models",
+                   on_startup=(_subscribe,))

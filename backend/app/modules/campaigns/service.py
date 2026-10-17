@@ -17,6 +17,12 @@ Rules:
 - the suppression list is soft-deleted: re-adding an address restores its row, keeping the history of why
   it was there. The campaign sender (next batch) asks `suppressed()` before every send; a customer's own
   `unsubscribed_at` is the other half of the same rule and is read at send time.
+- an **audience** is a target list of customers (the static kind so far; dynamic segments, whose rules are
+  re-evaluated at send time, are the next batch). A list row carries two numbers: `members` — the live
+  customers on it — and `reachable` — the ones a campaign could actually email: an address, consent, no
+  unsubscribe, and not on the suppression list. Membership changes are audited one row per customer, so
+  "who put them on this list?" always has an answer. Merging two customers moves their memberships to the
+  one that stayed (see `merge.py`).
 """
 
 from __future__ import annotations
@@ -39,16 +45,20 @@ from app.modules.settings.service import SettingsService
 from app.modules.users.service import UserService
 
 from . import render
-from .models import EmailTemplate, Suppression
-from .repository import EmailTemplateRepository, SuppressionRepository
+from .models import EmailTemplate, Suppression, TargetList, TargetListMember
+from .repository import (
+    EmailTemplateRepository, SuppressionRepository, TargetListMemberRepository, TargetListRepository,
+)
 from .schemas import (
-    RenderedEmail, SuppressionIn, SuppressionOut, SuppressionPage, TemplateIn, TemplateOut, TemplatePage,
-    TemplateSummary, TemplateUpdate, TestIn, TestSent,
+    MemberOut, MemberPage, MembersAdded, MembersIn, RenderedEmail, SuppressionIn, SuppressionOut,
+    SuppressionPage, TargetListIn, TargetListOut, TargetListPage, TargetListUpdate, TemplateIn, TemplateOut,
+    TemplatePage, TemplateSummary, TemplateUpdate, TestIn, TestSent,
 )
 from .tokens import unsubscribe_url
 
 ENTITY = "email_template"
 SUPPRESSION = "suppression"
+LIST = "target_list"
 TRACKED = ("name", "subject", "preheader", "version")
 
 
@@ -63,8 +73,10 @@ def _snapshot(template: EmailTemplate) -> dict[str, Any]:
 class CampaignService:
     def __init__(self, session: AsyncSession, email_sender: EmailSender | None = None):
         self.session = session
-        self.repo = EmailTemplateRepository(session)
+        self.templates = EmailTemplateRepository(session)
         self.suppressions = SuppressionRepository(session)
+        self.lists = TargetListRepository(session)
+        self.members = TargetListMemberRepository(session)
         self.audit = AuditService(session)
         self.settings = SettingsService(session)
         self.lookups = LookupService(session)
@@ -132,7 +144,7 @@ class CampaignService:
 
     # ---- templates -----------------------------------------------------------------------------
     async def list_templates(self, params: PageParams, *, q: str | None = None) -> TemplatePage:
-        rows, total = await self.repo.paginate(self.repo.search(q=q), params)
+        rows, total = await self.templates.paginate(self.templates.search(q=q), params)
         people = await self._people() if any(row.updated_by for row in rows) else {}
         items = []
         for row in rows:
@@ -142,7 +154,7 @@ class CampaignService:
         return TemplatePage(items=items, total=total, page=params.page, page_size=params.page_size)
 
     async def _get(self, template_id: int) -> EmailTemplate:
-        template = await self.repo.get(template_id)
+        template = await self.templates.get(template_id)
         if template is None:
             raise NotFoundError("Template not found")
         return template
@@ -155,7 +167,7 @@ class CampaignService:
         return out
 
     async def _check_name(self, name: str, *, keep: int | None = None) -> None:
-        other = await self.repo.by_name(name)
+        other = await self.templates.by_name(name)
         if other is not None and other.id != keep:
             raise ConflictError(f"There is already a template called “{other.name}”")
 
@@ -167,7 +179,7 @@ class CampaignService:
         await self._check(subject=values["subject"], preheader=values.get("preheader"), html=html, text=text)
         template = EmailTemplate(name=values["name"], subject=values["subject"], preheader=values.get("preheader"),
                                  html=html, text=text, version=1, created_by=actor.id, updated_by=actor.id)
-        await self.repo.add(template)
+        await self.templates.add(template)
         await self.audit.record("email_template.create", actor=actor, entity_type=ENTITY, entity_id=template.id,
                                 changes=diff({}, _snapshot(template)))
         await self.session.commit()
@@ -190,7 +202,7 @@ class CampaignService:
                   "html": html, "text": values.get("text") or template.text}
         await self._check(**merged)
         before = _snapshot(template)
-        self.repo.apply(template, values)
+        self.templates.apply(template, values)
         changes = diff(before, _snapshot(template))
         if changes:
             template.version += 1
@@ -203,7 +215,7 @@ class CampaignService:
 
     async def delete_template(self, template_id: int, actor) -> None:
         template = await self._get(template_id)
-        await self.repo.soft_delete(template)
+        await self.templates.soft_delete(template)
         await self.audit.record("email_template.delete", actor=actor, entity_type=ENTITY, entity_id=template.id,
                                 changes={"name": template.name})
         await self.session.commit()
@@ -278,3 +290,135 @@ class CampaignService:
 
     async def is_suppressed(self, email: str) -> bool:
         return await self.suppressions.by_email(email) is not None
+
+    # ---- audiences: target lists and their members ------------------------------------------------
+    async def list_lists(self, params: PageParams, *, kind: str | None = None,
+                         q: str | None = None) -> TargetListPage:
+        rows, total = await self.lists.paginate(self.lists.search(kind=kind, q=q), params)
+        ids = [row.id for row in rows]
+        members = await self.members.counts(ids)
+        reachable = await self.members.reachable(ids)
+        people = await self._people() if any(row.updated_by for row in rows) else {}
+        items = []
+        for row in rows:
+            item = TargetListOut.model_validate(row)
+            item.members = members.get(row.id, 0)
+            item.reachable = reachable.get(row.id, 0)
+            item.updated_by_name = people.get(row.updated_by) if row.updated_by else None
+            items.append(item)
+        return TargetListPage(items=items, total=total, page=params.page, page_size=params.page_size)
+
+    async def _get_list(self, list_id: int) -> TargetList:
+        target = await self.lists.get(list_id)
+        if target is None:
+            raise NotFoundError("List not found")
+        return target
+
+    async def get_list(self, list_id: int) -> TargetListOut:
+        target = await self._get_list(list_id)
+        members = await self.members.counts([target.id])
+        reachable = await self.members.reachable([target.id])
+        people = await self._people() if target.updated_by else {}
+        out = TargetListOut.model_validate(target)
+        out.members = members.get(target.id, 0)
+        out.reachable = reachable.get(target.id, 0)
+        out.updated_by_name = people.get(target.updated_by) if target.updated_by else None
+        return out
+
+    async def _check_list_name(self, name: str, *, keep: int | None = None) -> None:
+        other = await self.lists.by_name(name)
+        if other is not None and other.id != keep:
+            raise ConflictError(f"There is already a list called “{other.name}”")
+
+    async def create_list(self, data: TargetListIn, actor) -> TargetListOut:
+        values = data.model_dump(exclude_unset=True)
+        await self._check_list_name(values["name"])
+        target = TargetList(name=values["name"], description=values.get("description"),
+                            kind=values.get("kind", "static"), created_by=actor.id, updated_by=actor.id)
+        await self.lists.add(target)
+        await self.audit.record("target_list.create", actor=actor, entity_type=LIST, entity_id=target.id,
+                                changes={"name": target.name, "kind": target.kind})
+        await self.session.commit()
+        return await self.get_list(target.id)
+
+    async def update_list(self, list_id: int, data: TargetListUpdate, actor) -> TargetListOut:
+        """PATCH: a field left out is not changed; an emptied description clears it."""
+        target = await self._get_list(list_id)
+        values = data.model_dump(exclude_unset=True)
+        values = {k: v for k, v in values.items() if v is not None or k == "description"}
+        if values.get("name"):
+            await self._check_list_name(values["name"], keep=target.id)
+        before = {"name": target.name, "description": target.description}
+        self.lists.apply(target, values)
+        changes = diff(before, {"name": target.name, "description": target.description})
+        if changes:
+            target.updated_by = actor.id
+            await self.audit.record("target_list.update", actor=actor, entity_type=LIST, entity_id=target.id,
+                                    changes=changes)
+        await self.session.commit()
+        return await self.get_list(target.id)
+
+    async def delete_list(self, list_id: int, actor) -> None:
+        """Soft-delete a list: the memberships stay (a mistake is recoverable) but no campaign sees it."""
+        target = await self._get_list(list_id)
+        await self.lists.soft_delete(target)
+        await self.audit.record("target_list.delete", actor=actor, entity_type=LIST, entity_id=target.id,
+                                changes={"name": target.name})
+        await self.session.commit()
+
+    async def members_of(self, list_id: int, params: PageParams, *, q: str | None = None) -> MemberPage:
+        """Who is on the list, with the state that decides whether a campaign would reach them."""
+        target = await self._get_list(list_id)
+        rows, total = await self.members.page(target.id, params, q=q)
+        suppressed = await self.suppressed([c.email for _, c in rows if c.email])
+        return MemberPage(items=[self._member_out(member, customer, suppressed) for member, customer in rows],
+                          total=total, page=params.page, page_size=params.page_size)
+
+    def _member_out(self, member: TargetListMember, customer: Customer, suppressed: set[str]) -> MemberOut:
+        email = (customer.email or "").lower()
+        blocked = bool(email) and email in suppressed
+        return MemberOut(
+            customer_id=customer.id, first_name=customer.first_name, last_name=customer.last_name,
+            full_name=customer.full_name, company=customer.company, email=customer.email,
+            customer_type=customer.customer_type, marketing_consent=customer.marketing_consent,
+            unsubscribed=customer.unsubscribed_at is not None, suppressed=blocked,
+            reachable=bool(email) and customer.marketing_consent and customer.unsubscribed_at is None
+            and not blocked,
+            added_at=member.created_at)
+
+    async def add_members(self, list_id: int, data: MembersIn, actor) -> MembersAdded:
+        """Put customers on a list. Already there, or not a live customer: skipped, and told so."""
+        target = await self._get_list(list_id)
+        if target.kind != "static":
+            raise ValidationFailedError("A segment picks its own members — add customers to a static list")
+        wanted = list(dict.fromkeys(data.customer_ids))  # keep the order, drop repeats
+        customers = CustomerRepository(self.session)
+        live = {c.id for c in await customers.list(customers.search(ids=wanted))}
+        already = await self.members.among(target.id, wanted)
+        added = 0
+        for customer_id in wanted:
+            if customer_id not in live or customer_id in already:
+                continue
+            await self.members.add(TargetListMember(list_id=target.id, customer_id=customer_id,
+                                                   created_by=actor.id))
+            await self.audit.record("target_list.member_add", actor=actor, entity_type=LIST,
+                                    entity_id=target.id, changes={"customer_id": customer_id})
+            added += 1
+        target.updated_by = actor.id
+        await self.session.commit()
+        counts = await self.members.counts([target.id])
+        # added + already + missing is always the number of ids asked for, duplicates aside
+        return MembersAdded(added=added, already=len(live) - added, missing=len(wanted) - len(live),
+                            total=counts.get(target.id, 0))
+
+    async def remove_member(self, list_id: int, customer_id: int, actor) -> None:
+        """Take a customer off a list. The row goes; the audit log keeps who took them off."""
+        target = await self._get_list(list_id)
+        member = await self.members.by_pair(target.id, customer_id)
+        if member is None:
+            raise NotFoundError("That customer is not on this list")
+        await self.members.hard_delete(member)
+        target.updated_by = actor.id
+        await self.audit.record("target_list.member_remove", actor=actor, entity_type=LIST,
+                                entity_id=target.id, changes={"customer_id": customer_id})
+        await self.session.commit()

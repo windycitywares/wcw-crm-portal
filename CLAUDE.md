@@ -137,6 +137,8 @@ npm run typecheck
   deal dialog — add/edit/remove a line, the lines total next to the deal value with a one-click "use it") built (`feat/m4-4b-deal-items-web`). **M5 campaigns started —
   batch 1 (campaigns API foundation: `email_templates` with merge fields rendered in a sandboxed Jinja2 environment, a save-time render check, preview and test send
   through the outbox, `version` + audit; `suppressions` (soft-deleted, re-adding restores the row) and signed unsubscribe links) built (`feat/m5-1-campaigns-api`);
-  next: target lists + segments, then the campaigns themselves, sending and tracking. Still open from M4: the shop catalog picker (4c — needs a `products` resource on
+  batch 2 (campaigns API: target lists — the audiences a campaign goes to; members added in bulk, searched and paged, `members` and `reachable` counts, and
+  memberships following a customer delete or merge) built (`feat/m5-2-target-lists`); next: segments, then the campaigns themselves, sending and tracking.
+  Still open from M4: the shop catalog picker (4c — needs a `products` resource on
   the shop's read API). Shop connection needs `CRM_WEBHOOK_URL`/`CRM_WEBHOOK_SECRET`/`CRM_API_TOKEN` on the shop server (shop docs/CRM_SYNC.md) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

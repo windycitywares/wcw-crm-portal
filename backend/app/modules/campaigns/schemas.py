@@ -160,3 +160,85 @@ class SuppressionPage(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+# ---- audiences ---------------------------------------------------------------------------------
+
+ListKind = Literal["static"]
+
+
+class TargetListIn(BaseModel):
+    """A target list: the customers a campaign goes to.
+
+    Only the static kind so far — you put customers on it yourself. Segments (rules, re-evaluated at send
+    time) are the next batch, and `kind` is here already so nothing has to move when they land.
+    """
+
+    name: Name
+    description: Annotated[str | None, Field(default=None, max_length=300), AfterValidator(_words)] = None
+    kind: ListKind = "static"
+
+
+class TargetListUpdate(BaseModel):
+    """PATCH: a field left out is not changed; an emptied description clears it."""
+
+    name: Name | None = None
+    description: Annotated[str | None, Field(default=None, max_length=300), AfterValidator(_words)] = None
+
+
+class TargetListOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    description: str | None
+    kind: str
+    members: int = 0  # live customers on the list
+    reachable: int = 0  # …of those, the ones a campaign could actually email
+    updated_by_name: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class TargetListPage(BaseModel):
+    items: list[TargetListOut]
+    total: int
+    page: int
+    page_size: int
+
+
+class MembersIn(BaseModel):
+    """Put customers on a list. Ids that are already on it, or that are not a live customer, are skipped."""
+
+    customer_ids: list[int] = Field(min_length=1, max_length=500)
+
+
+class MembersAdded(BaseModel):
+    added: int
+    already: int  # were on the list already
+    missing: int  # not a live customer: not added
+    total: int  # members on the list now
+
+
+class MemberOut(BaseModel):
+    """One customer on a list, and whether a campaign would reach them."""
+
+    customer_id: int
+    first_name: str
+    last_name: str
+    full_name: str
+    company: str | None
+    email: str | None
+    customer_type: str | None
+    marketing_consent: bool
+    unsubscribed: bool
+    suppressed: bool  # on the suppression list (unsubscribed, bounced, complained or added by hand)
+    reachable: bool  # has an address, agreed, has not unsubscribed and is not suppressed
+    added_at: datetime
+
+
+class MemberPage(BaseModel):
+    items: list[MemberOut]
+    total: int
+    page: int
+    page_size: int

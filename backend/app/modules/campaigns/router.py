@@ -1,7 +1,8 @@
-"""HTTP surface for campaigns (SPEC §3.6): email templates, previews, test sends and the suppression list.
+"""HTTP surface for campaigns (SPEC §3.6): email templates, previews, test sends, audiences (target lists
+and their members) and the suppression list.
 
-Everything here needs `campaigns:view`; writing a template or the suppression list needs `campaigns:edit`,
-and sending a test needs `campaigns:send`.
+Everything here needs `campaigns:view`; writing a template, a list or the suppression list needs
+`campaigns:edit`, and sending a test needs `campaigns:send`.
 """
 
 from typing import Annotated
@@ -15,7 +16,8 @@ from app.modules.users.models import User
 
 from . import render
 from .schemas import (
-    MergeField, RenderedEmail, SuppressionIn, SuppressionOut, SuppressionPage, TemplateIn, TemplateOut,
+    MemberPage, MembersAdded, MembersIn, MergeField, RenderedEmail, SuppressionIn, SuppressionOut,
+    SuppressionPage, TargetListIn, TargetListOut, TargetListPage, TargetListUpdate, TemplateIn, TemplateOut,
     TemplatePage, TemplateUpdate, TestIn, TestSent,
 )
 from .service import CampaignService
@@ -79,6 +81,59 @@ async def test_template(session: SessionDep, actor: Sender, sender: EmailSenderD
                         data: TestIn) -> TestSent:
     """Send yourself the rendered template (SPEC §3.6). Queued in the outbox, so limits and retries apply."""
     return await CampaignService(session, sender).test_send(template_id, data, actor)
+
+
+# ---- audiences ---------------------------------------------------------------------------------
+
+
+@router.get("/lists", response_model=TargetListPage)
+async def list_lists(
+    session: SessionDep, page: PageDep,
+    kind: Annotated[str | None, Query(max_length=10)] = None,
+    q: Annotated[str | None, Query(max_length=120)] = None,
+) -> TargetListPage:
+    """The audiences: how many customers each has, and how many a campaign could actually email."""
+    return await CampaignService(session).list_lists(page, kind=kind, q=q)
+
+
+@router.post("/lists", response_model=TargetListOut, status_code=status.HTTP_201_CREATED)
+async def create_list(session: SessionDep, actor: Editor, data: TargetListIn) -> TargetListOut:
+    return await CampaignService(session).create_list(data, actor)
+
+
+@router.get("/lists/{list_id}", response_model=TargetListOut)
+async def get_list(session: SessionDep, list_id: int) -> TargetListOut:
+    return await CampaignService(session).get_list(list_id)
+
+
+@router.patch("/lists/{list_id}", response_model=TargetListOut)
+async def update_list(session: SessionDep, actor: Editor, list_id: int, data: TargetListUpdate) -> TargetListOut:
+    return await CampaignService(session).update_list(list_id, data, actor)
+
+
+@router.delete("/lists/{list_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_list(session: SessionDep, actor: Editor, list_id: int) -> None:
+    await CampaignService(session).delete_list(list_id, actor)
+
+
+@router.get("/lists/{list_id}/members", response_model=MemberPage)
+async def list_members(
+    session: SessionDep, page: PageDep, list_id: int,
+    q: Annotated[str | None, Query(max_length=120)] = None,
+) -> MemberPage:
+    """Who is on the list, with the state that decides whether a campaign would reach them."""
+    return await CampaignService(session).members_of(list_id, page, q=q)
+
+
+@router.post("/lists/{list_id}/members", response_model=MembersAdded)
+async def add_members(session: SessionDep, actor: Editor, list_id: int, data: MembersIn) -> MembersAdded:
+    """Put customers on a list; ids already on it, or not a live customer, are skipped and counted."""
+    return await CampaignService(session).add_members(list_id, data, actor)
+
+
+@router.delete("/lists/{list_id}/members/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_member(session: SessionDep, actor: Editor, list_id: int, customer_id: int) -> None:
+    await CampaignService(session).remove_member(list_id, customer_id, actor)
 
 
 # ---- suppression list --------------------------------------------------------------------------
