@@ -134,6 +134,9 @@ npm run typecheck
   (`feat/m4-3-leads-api`); batch 3b (leads web: `/leads` with status tabs and counts, the status as a picker in each row, add/edit + convert
   dialogs, a Leads card on the dashboard and a sidebar entry) built (`feat/m4-3b-leads-web`); batch 4 (deal items API: `deal_items`, lines with quantity × price, the
   lines total beside the deal's own value, timeline + audit, own-vs-any) built (`feat/m4-4-deal-items-api`); batch 4b (deal items web: the products panel in the
-  deal dialog — add/edit/remove a line, the lines total next to the deal value with a one-click "use it") built (`feat/m4-4b-deal-items-web`); next: the shop
-  catalog picker (4c — needs a `products` resource on the shop's read API), then M5 campaigns. Shop connection needs `CRM_WEBHOOK_URL`/`CRM_WEBHOOK_SECRET`/`CRM_API_TOKEN` on the shop server (shop docs/CRM_SYNC.md) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
+  deal dialog — add/edit/remove a line, the lines total next to the deal value with a one-click "use it") built (`feat/m4-4b-deal-items-web`). **M5 campaigns started —
+  batch 1 (campaigns API foundation: `email_templates` with merge fields rendered in a sandboxed Jinja2 environment, a save-time render check, preview and test send
+  through the outbox, `version` + audit; `suppressions` (soft-deleted, re-adding restores the row) and signed unsubscribe links) built (`feat/m5-1-campaigns-api`);
+  next: target lists + segments, then the campaigns themselves, sending and tracking. Still open from M4: the shop catalog picker (4c — needs a `products` resource on
+  the shop's read API). Shop connection needs `CRM_WEBHOOK_URL`/`CRM_WEBHOOK_SECRET`/`CRM_API_TOKEN` on the shop server (shop docs/CRM_SYNC.md) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.
