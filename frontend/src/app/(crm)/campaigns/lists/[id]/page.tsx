@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Papa from "papaparse";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -29,10 +30,82 @@ export default function AudienceMembersPage({ params }: { params: Promise<{ id: 
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerPage, setCustomerPage] = useState(1);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const csvInput = useRef<HTMLInputElement>(null);
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const importCsv = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (id === null || !canEdit || !csvFile) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      if (csvFile.size > 5 * 1024 * 1024) throw new Error("CSV files must be 5 MB or smaller.");
+      const parsed = await new Promise<Papa.ParseResult<Record<string, string>>>((resolve, reject) => {
+        Papa.parse<Record<string, string>>(csvFile, {
+          header: true,
+          skipEmptyLines: "greedy",
+          transformHeader: (header) => header.trim().replace(/^\uFEFF/, "").toLowerCase().replace(/[\s-]+/g, "_"),
+          complete: resolve,
+          error: reject,
+        });
+      });
+      if (parsed.errors.length) throw new Error(`CSV parsing failed: ${parsed.errors[0].message}`);
+      if (parsed.data.length > 5000) throw new Error("CSV files are limited to 5,000 rows.");
+      const headers = parsed.meta.fields ?? [];
+      const idColumn = headers.includes("customer_id") ? "customer_id" : headers.includes("id") ? "id" : null;
+      if (!idColumn && !headers.includes("email")) throw new Error("CSV needs a customer_id, id, or email column.");
+
+      const ids = new Set<number>();
+      const emails: string[] = [];
+      let unresolved = 0;
+      for (const row of parsed.data) {
+        const rawId = idColumn ? row[idColumn]?.trim() : "";
+        if (rawId && /^\d+$/.test(rawId) && Number(rawId) > 0) ids.add(Number(rawId));
+        else if (row.email?.trim()) emails.push(row.email.trim());
+        else unresolved += 1;
+      }
+
+      for (let start = 0; start < emails.length; start += 20) {
+        const results = await Promise.all(emails.slice(start, start + 20).map(async (email) => {
+          try {
+            return await customersApi.checkEmail(email);
+          } catch {
+            return null;
+          }
+        }));
+        for (const result of results) {
+          if (result?.exists && result.customer_id) ids.add(result.customer_id);
+          else unresolved += 1;
+        }
+      }
+
+      let added = 0;
+      let already = 0;
+      let missing = 0;
+      const resolvedIds = [...ids];
+      for (let start = 0; start < resolvedIds.length; start += 500) {
+        const result = await campaignsApi.lists.addMembers(id, resolvedIds.slice(start, start + 500));
+        added += result.added;
+        already += result.already;
+        missing += result.missing;
+      }
+      setMessage(`Imported ${added}; ${already} already on the list; ${missing + unresolved} not found or unavailable.`);
+      setCsvFile(null);
+      if (csvInput.current) csvInput.current.value = "";
+      setSelected(new Set());
+      setAudience(await campaignsApi.lists.get(id));
+      setRevision((value) => value + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't import this CSV");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     void (async () => {
@@ -205,6 +278,18 @@ export default function AudienceMembersPage({ params }: { params: Promise<{ id: 
                   {busy ? "Updating…" : `Add ${selected.size} selected`}
                 </Button>
               </div>}
+              {canEdit && <details className="border-t border-line p-4">
+                <summary className="cursor-pointer text-sm font-medium">Import customers from CSV</summary>
+                <form onSubmit={importCsv} className="mt-4 space-y-3">
+                  <p className="text-xs text-muted">Use a <code>customer_id</code>, <code>id</code>, or <code>email</code> column. Up to 5,000 rows; duplicate IDs are combined.</p>
+                  <Field label="CSV file">
+                    {(p) => <Input {...p} ref={csvInput} type="file" accept=".csv,text/csv" onChange={(e) => setCsvFile(e.target.files?.[0] ?? null)} />}
+                  </Field>
+                  <Button type="submit" size="sm" disabled={busy || !csvFile}>
+                    {busy ? "Importing…" : "Import CSV"}
+                  </Button>
+                </form>
+              </details>}
             </PanelBody>
           </Panel>
         </div>
