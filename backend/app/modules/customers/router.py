@@ -2,7 +2,7 @@ from typing import Annotated, Literal
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, Form, Query, Response, UploadFile, status
 
 from app.core.pagination import PageDep
 from app.core.permissions import Permission
@@ -100,3 +100,10 @@ async def delete_customer(session: SessionDep, actor: CurrentUser, customer_id: 
 @router.post("/{customer_id}/restore", response_model=CustomerOut)
 async def restore_customer(session: SessionDep, actor: CurrentUser, customer_id: int) -> CustomerOut:
     return await CustomerService(session).restore(customer_id, actor)
+
+
+@router.post("/{customer_id}/merge", response_model=CustomerOut)
+async def merge_customer(session: SessionDep, actor: Annotated[User, Depends(require(Permission.CUSTOMERS_MERGE))],
+                         customer_id: int, other_id: Annotated[int, Body(embed=True)]) -> CustomerOut:
+    """Merge duplicate `other_id` into this customer (managers and admins)."""
+    return await CustomerService(session).merge(customer_id, other_id, actor)

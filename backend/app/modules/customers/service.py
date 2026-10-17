@@ -14,7 +14,8 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.entities import EntityType, register_entity
+from app.core.entities import EntityType, RecordsMerged, register_entity
+from app.core.events import bus
 from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.core.permissions import Permission, has_permission
@@ -292,6 +293,59 @@ class CustomerService:
         customer.orders_count, customer.total_spent = count, total
         customer.first_order_at, customer.last_order_at = first, last
         await self.session.flush()
+
+    # ---- merge ----------------------------------------------------------------------------
+    async def merge(self, keep_id: int, other_id: int, actor) -> CustomerOut:
+        """Merge duplicate `other_id` into `keep_id`. The kept record's values win; its blanks are filled from the
+        duplicate. Emails, tags, notes, timeline and shop orders all move over; an unsubscribe on either record
+        wins over consent. The duplicate is soft-deleted (it keeps its own copy of what it had)."""
+        if keep_id == other_id:
+            raise ValidationFailedError("Choose two different customers")
+        if not has_permission(actor.role, Permission.CUSTOMERS_MERGE):
+            raise PermissionDeniedError("Only managers can merge customers")
+        keep, other = await self._get(keep_id), await self._get(other_id)
+        before = _snapshot(keep)
+        other_email, other_shop, other_name = other.email, other.shop_user_id, other.display_name
+
+        other.shop_user_id = None  # unique across all rows: free it before the kept record takes it
+        other.updated_by = actor.id
+        await self.repo.soft_delete(other)
+        await self.session.flush()
+
+        if not keep.first_name and not keep.last_name:
+            keep.first_name, keep.last_name = other.first_name, other.last_name
+        for field in ("company", "phone", "address", "customer_type", "source", "owner_id"):
+            if not getattr(keep, field) and getattr(other, field):
+                setattr(keep, field, getattr(other, field))
+        emails = {*(keep.alt_emails or []), *(other.alt_emails or [])}
+        if other_email:
+            if keep.email is None:
+                keep.email = other_email
+            else:
+                emails.add(other_email)
+        emails.discard(keep.email or "")
+        keep.alt_emails = sorted(emails)
+        if keep.shop_user_id is None and other_shop is not None:
+            keep.shop_user_id = other_shop
+        if other.unsubscribed_at or keep.unsubscribed_at:
+            keep.marketing_consent = False
+            keep.unsubscribed_at = max(d for d in (keep.unsubscribed_at, other.unsubscribed_at) if d)
+        elif other.marketing_consent and not keep.marketing_consent:
+            keep.marketing_consent, keep.consent_at, keep.consent_source = True, other.consent_at, other.consent_source
+        keep.custom_fields = {**(other.custom_fields or {}), **(keep.custom_fields or {})}
+        keep.updated_by = actor.id
+        await self.session.flush()
+
+        await bus.publish(RecordsMerged(entity_type=ENTITY, from_id=other.id, into_id=keep.id, actor_id=actor.id), self.session)
+        changes = diff(before, _snapshot(keep))
+        await self.audit.record("customer.merge", actor=actor, entity_type=ENTITY, entity_id=keep.id,
+                                changes={"merged_customer": [other.id, other_name], **changes})
+        await self.audit.record("customer.delete", actor=actor, entity_type=ENTITY, entity_id=other.id,
+                                changes={"merged_into": keep.id})
+        await self.timeline.record(ENTITY, keep.id, "customer.merged", f"Merged with duplicate #{other.id} {other_name}",
+                                   actor=actor, data={"merged_id": other.id})
+        await self.session.commit()
+        return await self.get(keep.id)
 
     # ---- import (app.modules.customers.transfer) ------------------------------------------
     async def import_row(self, values: dict[str, Any], actor, *, update_existing: bool) -> tuple[str, int]:

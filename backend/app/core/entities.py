@@ -19,6 +19,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from app.core.events import DomainEvent
 from app.core.exceptions import NotFoundError, PermissionDeniedError
 from app.core.permissions import Permission, has_permission
 
@@ -69,3 +70,13 @@ async def check_entity_access(session: Any, user: Any, entity_type: str, entity_
     if write and et.can_edit is not None and not await et.can_edit(session, user, entity_id):
         raise PermissionDeniedError(f"You can only change your own {et.label.lower()} records")
     return et
+
+
+@dataclass(frozen=True, kw_only=True)
+class RecordsMerged(DomainEvent):
+    """`from_id` was merged into `into_id` (e.g. a duplicate customer). Every module that keeps rows pointing at
+    records (notes, timeline, tags, shop orders …) subscribes and moves its own rows, in the same transaction."""
+
+    entity_type: str
+    from_id: int
+    into_id: int

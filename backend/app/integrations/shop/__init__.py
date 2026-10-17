@@ -14,6 +14,15 @@ def _register_settings() -> None:
     register_group("shop", "Shop connection", ShopSettings, SECRETS)
 
 
+def _subscribe() -> None:
+    from app.core.entities import RecordsMerged
+    from app.core.events import bus
+
+    from .merge import move_orders
+
+    bus.subscribe(RecordsMerged, move_orders)
+
+
 async def _retry(session):
     from .service import ShopEventService
 
@@ -27,4 +36,4 @@ async def _backfill(session):
 
 
 module = CrmModule(name="shop", router=router, models="app.integrations.shop.models",
-                   on_startup=(_register_settings,), jobs=(("shop-events", _retry), ("shop-backfill", _backfill)))
+                   on_startup=(_register_settings, _subscribe), jobs=(("shop-events", _retry), ("shop-backfill", _backfill)))

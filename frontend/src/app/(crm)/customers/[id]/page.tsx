@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { customersApi, formatMoney, STATUS_LABEL, type Customer } from "@/modules/customers/api";
+import { MergeDialog } from "@/modules/customers/MergeDialog";
 import { ShopOrders } from "@/modules/integrations/ShopOrders";
 import { CustomFieldsView } from "@/modules/records/CustomFields";
 import { NotesPanel } from "@/modules/records/NotesPanel";
@@ -42,6 +43,7 @@ export default function CustomerPage() {
   const [defs, setDefs] = useState<FieldDef[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [merging, setMerging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refresh, setRefresh] = useState(0);
 
@@ -134,6 +136,11 @@ export default function CustomerPage() {
                 Edit customer
               </ButtonLink>
             )}
+            {can("customers:merge") && !deleted && (
+              <Button variant="secondary" size="sm" onClick={() => setMerging(true)}>
+                Merge duplicate
+              </Button>
+            )}
             {canManage && !deleted && (
               <Button variant="secondary" size="sm" onClick={() => setConfirming(true)}>
                 Delete
@@ -212,6 +219,16 @@ export default function CustomerPage() {
           <Timeline record={record} refreshKey={`${refresh}-${customer.updated_at}`} />
         </div>
       </div>
+
+      <MergeDialog
+        customer={customer}
+        open={merging}
+        onClose={() => setMerging(false)}
+        onMerged={(merged) => {
+          setCustomer(merged);
+          changed();
+        }}
+      />
 
       <ConfirmDialog
         open={confirming}
