@@ -209,6 +209,81 @@ class SalesTests(unittest.TestCase):
         remaining = self.w.client.get(f"{API}/sales/pipelines", headers=self.manager_h).json()
         self.assertNotIn(self.pipeline["id"], [p["id"] for p in remaining])
 
+    # ---- deal lines (products from the shop catalog, or typed in) ------------------------------
+    def item(self, deal_id: int, headers=None, **data):
+        data.setdefault("name", f"Widget {self.name('i')}")
+        return self.w.client.post(f"{API}/sales/deals/{deal_id}/items", headers=headers or self.sales_h, json=data)
+
+    def items(self, deal_id: int, headers=None) -> dict:
+        res = self.w.client.get(f"{API}/sales/deals/{deal_id}/items", headers=headers or self.sales_h)
+        self.assertEqual(res.status_code, 200, res.text)
+        return res.json()
+
+    def test_deal_items_add_up(self):
+        d = self.deal()
+        added = self.item(d["id"], name="Windy Widget", sku="WW-1", quantity="2", unit_price="15.00")
+        self.assertEqual(added.status_code, 201, added.text)
+        line = added.json()
+        self.assertEqual((line["name"], line["sku"], float(line["quantity"])), ("Windy Widget", "WW-1", 2.0))
+        self.assertEqual((float(line["unit_price"]), float(line["total"]), line["position"]), (15.0, 30.0, 0))
+        # a second line goes to the bottom and the total is the sum
+        second = self.item(d["id"], name="Shipping", unit_price="9.50", quantity="1.5").json()
+        self.assertEqual((float(second["total"]), second["position"]), (14.25, 1))
+        listed = self.items(d["id"])
+        self.assertEqual([i["name"] for i in listed["items"]], ["Windy Widget", "Shipping"])
+        self.assertEqual((listed["count"], float(listed["total"])), (2, 44.25))
+        # the lines total never overwrites the deal's own value — they are shown side by side
+        self.assertEqual(float(self.w.client.get(f"{API}/sales/deals/{d['id']}", headers=self.sales_h)
+                               .json()["value"]), 0.0)
+        # the timeline reads the line out in full, on the deal and on its customer
+        titled = self.deal(customer_id=self.customer["id"])
+        self.item(titled["id"], name="Hour of work", quantity="1.5", unit_price="80")
+        self.assertIn("Line added: 1.5 × Hour of work = 120.00", self.titles("deal", titled["id"]))
+        self.assertIn("Line added: 1.5 × Hour of work = 120.00", self.titles("customer", self.customer["id"]))
+
+    def test_deal_items_edits_and_guards(self):
+        d = self.deal()
+        line = self.item(d["id"], name="Widget", quantity="2", unit_price="10").json()
+        # changing the quantity moves the total; a null field means "not changing it"
+        changed = self.w.client.patch(f"{API}/sales/deals/{d['id']}/items/{line['id']}", headers=self.sales_h,
+                                      json={"quantity": "3", "sku": None, "unit_price": None})
+        self.assertEqual(changed.status_code, 200, changed.text)
+        self.assertEqual((float(changed.json()["total"]), float(changed.json()["unit_price"])), (30.0, 10.0))
+        self.assertEqual(float(self.items(d["id"])["total"]), 30.0)
+        self.assertTrue(any("Line changed: 3 × Widget" in t for t in self.titles("deal", d["id"])))
+        # an empty patch changes nothing at all
+        self.assertEqual(self.w.client.patch(f"{API}/sales/deals/{d['id']}/items/{line['id']}",
+                                             headers=self.sales_h, json={}).status_code, 200)
+        # the same line on another deal isn't found
+        other = self.deal()
+        self.assertEqual(self.w.client.patch(f"{API}/sales/deals/{other['id']}/items/{line['id']}",
+                                             headers=self.sales_h, json={"quantity": "1"}).status_code, 404)
+        self.assertEqual(self.w.client.get(f"{API}/sales/deals/{other['id']}/items",
+                                           headers=self.sales_h).json()["count"], 0)
+        # it's the deal's own rule that decides who may touch the lines
+        self.assertEqual(self.item(d["id"], self.sales2_h, name="Hijack").status_code, 403)
+        self.assertEqual(self.w.client.patch(f"{API}/sales/deals/{d['id']}/items/{line['id']}",
+                                             headers=self.sales2_h, json={"quantity": "9"}).status_code, 403)
+        self.assertEqual(self.w.client.delete(f"{API}/sales/deals/{d['id']}/items/{line['id']}",
+                                              headers=self.sales2_h).status_code, 403)
+        self.assertEqual(self.item(d["id"], self.ro_h, name="Read only").status_code, 403)
+        # read-only can see what the deal is made of, and a manager can change it
+        self.assertEqual(self.items(d["id"], self.ro_h)["count"], 1)
+        self.assertEqual(self.w.client.patch(f"{API}/sales/deals/{d['id']}/items/{line['id']}",
+                                             headers=self.manager_h, json={"unit_price": "12"}).status_code, 200)
+        # removing a line takes it off the total, and it stays off
+        self.assertEqual(self.w.client.delete(f"{API}/sales/deals/{d['id']}/items/{line['id']}",
+                                              headers=self.sales_h).status_code, 204)
+        self.assertEqual((self.items(d["id"])["count"], float(self.items(d["id"])["total"])), (0, 0.0))
+        self.assertEqual(self.w.client.delete(f"{API}/sales/deals/{d['id']}/items/{line['id']}",
+                                              headers=self.sales_h).status_code, 404)
+        self.assertTrue(any("Line removed: 3 × Widget" in t for t in self.titles("deal", d["id"])))
+        # a missing deal is a 404, and nonsense numbers or a nameless line are refused
+        self.assertEqual(self.w.client.get(f"{API}/sales/deals/99999999/items", headers=self.sales_h).status_code, 404)
+        self.assertEqual(self.item(d["id"], name="  ").status_code, 422)
+        self.assertEqual(self.item(d["id"], name="Free", quantity="0").status_code, 422)
+        self.assertEqual(self.item(d["id"], name="Free", unit_price="-1").status_code, 422)
+
     def test_custom_fields_and_lookups(self):
         self.assertEqual(self.w.client.post(f"{API}/sales/deals", headers=self.sales_h,
                                            json={"title": self.name("t"), "source": "carrier pigeon"}).status_code, 422)

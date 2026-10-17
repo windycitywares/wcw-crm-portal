@@ -132,5 +132,7 @@ npm run typecheck
   Pipelines, deals panel on the customer, pipeline card on the dashboard) built (`feat/m4-1-sales-api`, `feat/m4-2-sales-web`); batch 3 (leads API:
   list/filters/summary, own-vs-any + handover, notes/timeline on a lead, convert to customer + deal in one transaction) built
   (`feat/m4-3-leads-api`); batch 3b (leads web: `/leads` with status tabs and counts, the status as a picker in each row, add/edit + convert
-  dialogs, a Leads card on the dashboard and a sidebar entry) built (`feat/m4-3b-leads-web`); next: deal items from the shop catalog. Shop connection needs `CRM_WEBHOOK_URL`/`CRM_WEBHOOK_SECRET`/`CRM_API_TOKEN` on the shop server (shop docs/CRM_SYNC.md) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
+  dialogs, a Leads card on the dashboard and a sidebar entry) built (`feat/m4-3b-leads-web`); batch 4 (deal items API: `deal_items`, lines with quantity × price, the
+  lines total beside the deal's own value, timeline + audit, own-vs-any) built (`feat/m4-4-deal-items-api`); next: deal items web (4b), then the shop catalog picker
+  (4c — needs a `products` resource on the shop's read API). Shop connection needs `CRM_WEBHOOK_URL`/`CRM_WEBHOOK_SECRET`/`CRM_API_TOKEN` on the shop server (shop docs/CRM_SYNC.md) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

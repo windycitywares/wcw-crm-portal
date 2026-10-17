@@ -8,8 +8,8 @@ from app.modules.users.deps import CurrentUser, SessionDep, require
 from app.modules.users.models import User
 
 from .schemas import (
-    Board, DealCreate, DealOut, DealPage, DealUpdate, PipelineIn, PipelineOut, PipelineUpdate, SalesSummary,
-    StageIn, StageOut, StageUpdate,
+    Board, DealCreate, DealItemIn, DealItemOut, DealItems, DealItemUpdate, DealOut, DealPage, DealUpdate,
+    PipelineIn, PipelineOut, PipelineUpdate, SalesSummary, StageIn, StageOut, StageUpdate,
 )
 from .service import SalesService
 
@@ -104,3 +104,27 @@ async def update_deal(session: SessionDep, actor: CurrentUser, deal_id: int, dat
 @router.delete("/deals/{deal_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deal(session: SessionDep, actor: CurrentUser, deal_id: int) -> None:
     await SalesService(session).delete(deal_id, actor)
+
+
+# ---- lines on a deal (products from the shop catalog, or typed in) --------------------------
+
+@router.get("/deals/{deal_id}/items", response_model=DealItems)
+async def list_deal_items(session: SessionDep, deal_id: int) -> DealItems:
+    """What the deal is made of, and what the lines add up to."""
+    return await SalesService(session).items(deal_id)
+
+
+@router.post("/deals/{deal_id}/items", response_model=DealItemOut, status_code=status.HTTP_201_CREATED)
+async def add_deal_item(session: SessionDep, actor: CurrentUser, deal_id: int, data: DealItemIn) -> DealItemOut:
+    return await SalesService(session).add_item(deal_id, data, actor)
+
+
+@router.patch("/deals/{deal_id}/items/{item_id}", response_model=DealItemOut)
+async def update_deal_item(session: SessionDep, actor: CurrentUser, deal_id: int, item_id: int,
+                           data: DealItemUpdate) -> DealItemOut:
+    return await SalesService(session).update_item(deal_id, item_id, data, actor)
+
+
+@router.delete("/deals/{deal_id}/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_deal_item(session: SessionDep, actor: CurrentUser, deal_id: int, item_id: int) -> None:
+    await SalesService(session).remove_item(deal_id, item_id, actor)

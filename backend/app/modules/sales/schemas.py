@@ -151,3 +151,47 @@ class SalesSummary(BaseModel):
     won_count: int
     won_value: Decimal
     lost_count: int
+
+
+class DealItemIn(BaseModel):
+    """A line added to a deal. `quantity` may be fractional (1.5 hours of work is a line too)."""
+
+    name: Annotated[str, Field(min_length=1, max_length=200), AfterValidator(_strip)]
+    sku: Annotated[str | None, Field(default=None, max_length=80), AfterValidator(_strip)] = None
+    shop_product_id: int | None = None
+    quantity: Decimal = Field(default=Decimal("1"), gt=0, le=Decimal("999999.99"))
+    unit_price: Decimal = Field(default=Decimal("0"), ge=0, le=Decimal("9999999999.99"))
+    position: int | None = Field(default=None, ge=0)
+
+
+class DealItemUpdate(BaseModel):
+    name: Annotated[str | None, Field(default=None, max_length=200), AfterValidator(_strip)] = None
+    sku: Annotated[str | None, Field(default=None, max_length=80), AfterValidator(_strip)] = None
+    shop_product_id: int | None = None
+    quantity: Decimal | None = Field(default=None, gt=0, le=Decimal("999999.99"))
+    unit_price: Decimal | None = Field(default=None, ge=0, le=Decimal("9999999999.99"))
+    position: int | None = Field(default=None, ge=0)
+
+
+class DealItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    deal_id: int
+    name: str
+    sku: str | None
+    shop_product_id: int | None
+    quantity: Decimal
+    unit_price: Decimal
+    total: Decimal
+    position: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class DealItems(BaseModel):
+    """Every line on a deal and what they add up to — put it next to the deal's own value."""
+
+    items: list[DealItemOut]
+    count: int
+    total: Decimal

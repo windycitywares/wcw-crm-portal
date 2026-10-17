@@ -7,7 +7,7 @@ from sqlalchemy import Select, func, or_, select
 
 from app.shared.repository import BaseRepository
 
-from .models import Deal, Pipeline, PipelineStage
+from .models import Deal, DealItem, Pipeline, PipelineStage
 
 
 def escape_like(value: str) -> str:
@@ -115,3 +115,23 @@ class DealRepository(BaseRepository[Deal]):
         if status:
             stmt = stmt.where(Deal.status == status)
         return int((await self.session.execute(stmt)).scalar_one())
+
+
+class DealItemRepository(BaseRepository[DealItem]):
+    model = DealItem
+
+    def for_deal(self, deal_id: int) -> Select[tuple[DealItem]]:
+        return self.query().where(DealItem.deal_id == deal_id).order_by(DealItem.position, DealItem.id)
+
+    async def lines(self, deal_id: int) -> list[DealItem]:
+        return list((await self.session.execute(self.for_deal(deal_id))).scalars())
+
+    async def max_position(self, deal_id: int) -> int:
+        stmt = select(func.coalesce(func.max(DealItem.position), -1)).where(DealItem.deal_id == deal_id)
+        return int((await self.session.execute(stmt)).scalar_one())
+
+    async def total(self, deal_id: int) -> Decimal:
+        """Quantity × unit price, added up — what the lines come to (compare it with the deal's value)."""
+        stmt = (select(func.coalesce(func.sum(DealItem.quantity * DealItem.unit_price), 0))
+                .select_from(DealItem).where(DealItem.deal_id == deal_id, DealItem.deleted_at.is_(None)))
+        return Decimal((await self.session.execute(stmt)).scalar_one() or 0).quantize(Decimal("0.01"))
