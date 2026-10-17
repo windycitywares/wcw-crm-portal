@@ -51,8 +51,8 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
-| 1 | Tasks API | `tasks` module (migration 0011): type/priority/status/due/assignee, about any record (timeline lines), own/any/assign rules, views mine/team/created + due filters, recurring (next made on completion), email reminders job, summary counts; `EntityType.labels` for record names | open |
-| 2 | Tasks web | Tasks page (my/team, overdue/today/week tabs, quick add, complete checkbox, edit dialog), Tasks panel on the customer page, sidebar badge | — |
+| 1 | Tasks API | `tasks` module (migration 0011): type/priority/status/due/assignee, about any record (timeline lines), own/any/assign rules, views mine/team/created + due filters, recurring (next made on completion), email reminders job, summary counts; `EntityType.labels` for record names | #27 merged |
+| 2 | Tasks web | Tasks page (my/team, overdue/today/week tabs, quick add, complete checkbox, edit dialog), Tasks panel on the customer page, Your tasks on the dashboard | open |
 | 3 | Tickets API | `tickets` + `ticket_messages` + `sla_policies` (seeded §9): numbering, New→Open→Pending→Resolved→Closed, assign, internal notes vs email replies (outbox), SLA due times in business hours + breach job, timeline on the customer | — |
 | 4 | Tickets web | queue (filters, SLA badges), ticket page (conversation, reply / internal note, status, assign), Settings → SLA policies, canned responses | — |
 | 5 | Tickets from the shop | shop contact-form messages → tickets (shop event + CRM handler) | — |
