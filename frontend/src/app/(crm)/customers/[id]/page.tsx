@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { customersApi, formatMoney, STATUS_LABEL, type Customer } from "@/modules/customers/api";
 import { MergeDialog } from "@/modules/customers/MergeDialog";
+import { RecordTasks } from "@/modules/tasks/RecordTasks";
 import { ShopOrders } from "@/modules/integrations/ShopOrders";
 import { CustomFieldsView } from "@/modules/records/CustomFields";
 import { NotesPanel } from "@/modules/records/NotesPanel";
@@ -215,6 +216,7 @@ export default function CustomerPage() {
         </div>
 
         <div className="grid content-start gap-6">
+          {can("tasks:view") && !deleted && <RecordTasks type="customer" id={customer.id} label={customer.display_name} onChange={changed} />}
           <NotesPanel record={record} onChange={changed} />
           <Timeline record={record} refreshKey={`${refresh}-${customer.updated_at}`} />
         </div>

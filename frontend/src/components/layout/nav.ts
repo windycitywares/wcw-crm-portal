@@ -20,7 +20,10 @@ export const NAV: NavGroup[] = [
   { items: [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" }] },
   {
     label: "Work",
-    items: [{ href: "/customers", label: "Customers", icon: "customers", permission: "customers:view" }],
+    items: [
+      { href: "/tasks", label: "Tasks", icon: "tasks", permission: "tasks:view" },
+      { href: "/customers", label: "Customers", icon: "customers", permission: "customers:view" },
+    ],
   },
   {
     label: "Administration",
