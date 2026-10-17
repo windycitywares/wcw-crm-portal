@@ -59,5 +59,14 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | 5 | Tickets from the shop | shop contact-form messages → tickets (shop event + CRM handler) | open (`feat/m3-5-shop-contacts`) |
 | 5b | Shop side: contact form | the shop emits `contact_message.created` from its outbox when the contact form is submitted (PR in `wcw-shop-portal`) | — |
 
+## M4 Sales (started 2026-10-17)
+
+| # | Batch | Contents | PR |
+|---|-------|----------|----|
+| 1 | Sales API | `sales` module (migration 0014): `pipelines` + `pipeline_stages` (boards + stage order, probability, won/lost column, colour; admin via `lookups:manage`) and `deals` (title, customer, stage, value/currency, probability, expected close, owner, source/lost_reason lookups, custom fields); own-vs-any + assign; **the stage decides the outcome** (dropping a card on the won/lost column wins or loses it) and sets the deal's default probability; `GET /sales/board` (kanban) + `GET /sales/summary` (open value, weighted forecast, won/lost this month); customer timeline; starter "Sales" board seeded once; delete guards (no orphaning open deals); registered `deal` record type; tests | open (`feat/m4-1-sales-api`) |
+| 2 | Sales web | Settings → Pipelines (add/rename/reorder stages, probability, won/lost, colour), Deals page: kanban with drag between stages + list view (filters/sort), new/edit deal dialog (customer picker, value, close date, owner), Sales panel on the customer page, pipeline value on the dashboard | — |
+| 3 | Leads | `leads` table (contact, company, source, owner, notes, custom fields), own-vs-any, list/filters, convert to customer + deal (timeline) | — |
+| 4 | Deal items | `deal_items` from the shop catalog (read API): add/remove products on a deal, line totals vs the deal value | — |
+
 ## Next milestones
-M3 tasks + tickets → M4 sales → M5 campaigns → M6 suppliers → M7 reports.
+M4 sales → M5 campaigns → M6 suppliers → M7 reports.
