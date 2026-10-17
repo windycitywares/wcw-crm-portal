@@ -92,6 +92,13 @@ export interface AudienceMember {
   added_at: string | null;
 }
 
+export interface MembersAdded {
+  added: number;
+  already: number;
+  missing: number;
+  total: number;
+}
+
 export interface Template {
   id: number;
   name: string;
@@ -189,6 +196,13 @@ export const campaignsApi = {
     get: (id: number) => apiFetch<TargetList>(`/campaigns/lists/${id}`),
     members: (id: number, page = 1, pageSize = 25, q?: string) =>
       apiFetch<Page<AudienceMember>>(`/campaigns/lists/${id}/members${qs({ page, page_size: pageSize, q })}`),
+    addMembers: (id: number, customerIds: number[]) =>
+      apiFetch<MembersAdded>(`/campaigns/lists/${id}/members`, {
+        method: "POST",
+        body: JSON.stringify({ customer_ids: customerIds }),
+      }),
+    removeMember: (id: number, customerId: number) =>
+      apiFetch<void>(`/campaigns/lists/${id}/members/${customerId}`, { method: "DELETE" }),
     create: (data: { name: string; description?: string | null; kind?: "static" | "segment"; rules?: SegmentRules | null }) =>
       apiFetch<TargetList>("/campaigns/lists", { method: "POST", body: JSON.stringify(data) }),
     update: (id: number, data: Partial<{ name: string; description?: string | null; rules?: SegmentRules | null }>) =>
