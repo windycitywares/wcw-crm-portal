@@ -94,6 +94,7 @@ export const customersApi = {
   update: (id: number, data: CustomerInput) => apiFetch<Customer>(`/customers/${id}`, json("PATCH", data)),
   remove: (id: number) => apiFetch<void>(`/customers/${id}`, { method: "DELETE" }),
   restore: (id: number) => apiFetch<Customer>(`/customers/${id}/restore`, { method: "POST" }),
+  merge: (keepId: number, otherId: number) => apiFetch<Customer>(`/customers/${keepId}/merge`, json("POST", { other_id: otherId })),
   checkEmail: (email: string, excludeId?: number) =>
     apiFetch<{ exists: boolean; customer_id: number | null; display_name: string | null }>(`/customers/check-email${qs({ email, exclude_id: excludeId })}`),
 };
