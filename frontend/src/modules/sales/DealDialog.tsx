@@ -12,6 +12,7 @@ import { formatDate } from "@/lib/utils";
 import { CustomerPicker } from "@/modules/tickets/CustomerPicker";
 import { useDirectory } from "@/modules/records/useDirectory";
 import { useLookups } from "@/modules/settings/useLookups";
+import { DealItemsPanel } from "./DealItemsPanel";
 import { dealPatch, salesApi, STATUS_LABEL, STATUS_TONE, type Deal, type DealInput, type Pipeline } from "./api";
 
 interface Form {
@@ -102,6 +103,8 @@ export function DealDialog({
   const stages = pipelines.find((p) => p.id === Number(form.pipeline_id))?.stages ?? [];
   const stage = stages.find((s) => s.id === Number(form.stage_id));
   const canAssign = can("sales:edit_any");
+  // The deal's own rule: managers edit anyone's deal, a salesperson their own. The server checks again.
+  const canEdit = can("sales:edit_any") || (can("sales:edit_own") && deal?.owner_id === user?.id);
   const owners = [...people.values()].filter((p) => p.is_active || String(p.id) === form.owner_id).sort((a, b) => a.full_name.localeCompare(b.full_name));
 
   function pickPipeline(id: string) {
@@ -314,6 +317,24 @@ export function DealDialog({
               {(p) => <Textarea {...p} rows={3} maxLength={20000} value={form.description} onChange={(e) => set("description", e.target.value)} />}
             </Field>
           </form>
+        )}
+        {pipelines.length > 0 && (
+          <div className="mt-5 border-t border-line pt-4">
+            {deal ? (
+              <DealItemsPanel
+                dealId={deal.id}
+                currency={form.currency.trim().toUpperCase() || "USD"}
+                dealValue={form.value.trim() === "" ? 0 : form.value}
+                canEdit={canEdit}
+                onUseTotal={(total) => {
+                  set("value", String(total));
+                  toast.push({ title: "Deal value updated", description: "Save the deal to keep it." });
+                }}
+              />
+            ) : (
+              <p className="text-sm text-muted">Save the deal first, then add the products it is made of.</p>
+            )}
+          </div>
         )}
       </Modal>
       <ConfirmDialog

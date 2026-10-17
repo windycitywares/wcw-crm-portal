@@ -111,6 +111,37 @@ export interface PipelineInput {
   is_default?: boolean;
 }
 
+/** One line on a deal: a product from the shop catalog, or a one-off typed in. `total` is quantity × unit price. */
+export interface DealItem {
+  id: number;
+  deal_id: number;
+  name: string;
+  sku: string | null;
+  shop_product_id: number | null;
+  quantity: Money;
+  unit_price: Money;
+  total: Money;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A deal's lines and what they add up to — put next to the deal's own value, never instead of it. */
+export interface DealItems {
+  items: DealItem[];
+  count: number;
+  total: Money;
+}
+
+export interface DealItemInput {
+  name?: string;
+  sku?: string | null;
+  shop_product_id?: number | null;
+  quantity?: Money;
+  unit_price?: Money;
+  position?: number;
+}
+
 export interface StageInput {
   name: string;
   probability?: number;
@@ -171,6 +202,12 @@ export const salesApi = {
   createDeal: (data: DealInput) => apiFetch<Deal>("/sales/deals", json("POST", data)),
   updateDeal: (id: number, data: DealInput) => apiFetch<Deal>(`/sales/deals/${id}`, json("PATCH", data)),
   removeDeal: (id: number) => apiFetch<void>(`/sales/deals/${id}`, { method: "DELETE" }),
+  dealItems: (dealId: number) => apiFetch<DealItems>(`/sales/deals/${dealId}/items`),
+  addDealItem: (dealId: number, data: DealItemInput) => apiFetch<DealItem>(`/sales/deals/${dealId}/items`, json("POST", data)),
+  updateDealItem: (dealId: number, itemId: number, data: DealItemInput) =>
+    apiFetch<DealItem>(`/sales/deals/${dealId}/items/${itemId}`, json("PATCH", data)),
+  removeDealItem: (dealId: number, itemId: number) =>
+    apiFetch<void>(`/sales/deals/${dealId}/items/${itemId}`, { method: "DELETE" }),
   pipelines: () => apiFetch<Pipeline[]>("/sales/pipelines"),
   createPipeline: (data: PipelineInput) => apiFetch<Pipeline>("/sales/pipelines", json("POST", data)),
   updatePipeline: (id: number, data: Partial<PipelineInput>) => apiFetch<Pipeline>(`/sales/pipelines/${id}`, json("PATCH", data)),
