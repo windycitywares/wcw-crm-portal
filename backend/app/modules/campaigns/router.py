@@ -20,7 +20,7 @@ from .schemas import (
     CampaignIn, CampaignOut, CampaignPage, CampaignReport, CampaignSchedule, CampaignStats, CampaignStatus,
     CampaignUpdate, MemberPage, MembersAdded, MembersIn, MergeField, RecipientPage, RecipientStatus,
     RenderedEmail, SegmentField, SuppressionIn, SuppressionOut, SuppressionPage, TargetListIn,
-    TargetListOut, TargetListPage, TargetListUpdate, TemplateIn, TemplateOut, TemplatePage,
+    TargetListOut, TargetListPage, TargetListUpdate, TemplateIn, TemplateOut, TemplatePage, TemplatePreviewIn,
     TemplateUpdate, TestIn, TestSent,
 )
 from .service import CampaignService
@@ -59,6 +59,12 @@ async def list_templates(
 async def create_template(session: SessionDep, actor: Editor, data: TemplateIn) -> TemplateOut:
     """Save a template. Merge fields are rendered with sample data first, so a typo comes back as 422."""
     return await CampaignService(session).create_template(data, actor)
+
+
+@router.post("/templates/preview", response_model=RenderedEmail)
+async def preview_template_draft(session: SessionDep, actor: CurrentUser, data: TemplatePreviewIn) -> RenderedEmail:
+    """Render unsaved editor content through the same sandbox and footer as a stored template."""
+    return await CampaignService(session).preview_draft(data, actor)
 
 
 @router.get("/templates/{template_id}", response_model=TemplateOut)
