@@ -7,6 +7,7 @@ Rules:
   being opened, resolved, closed, reopened and replied to (the ticket keeps its own timeline too);
 - a `note` is internal; a `reply` emails the customer (through the outbox) and stamps the first response,
   which is what the SLA first-response target measures;
+- `canned_responses` are saved answers staff can drop into a reply, managed only by `lookups:manage`;
 - SLA due times are counted in business hours (Admin → Settings → Business hours); the `ticket-sla` job
   flags breaches and shows in the queue.
 """
@@ -33,11 +34,11 @@ from app.modules.settings.service import SettingsService
 from app.modules.users.service import UserService
 
 from .business_hours import add_business_minutes
-from .models import OPEN_STATUSES, SlaPolicy, Ticket, TicketMessage
-from .repository import SlaPolicyRepository, TicketMessageRepository, TicketRepository
+from .models import OPEN_STATUSES, CannedResponse, SlaPolicy, Ticket, TicketMessage
+from .repository import CannedResponseRepository, SlaPolicyRepository, TicketMessageRepository, TicketRepository
 from .schemas import (
-    SlaPolicyCreate, SlaPolicyOut, SlaPolicyUpdate, TicketCreate, TicketMessageIn, TicketMessageOut, TicketOut,
-    TicketPage, TicketSummary, TicketUpdate,
+    CannedResponseCreate, CannedResponseOut, CannedResponseUpdate, SlaPolicyCreate, SlaPolicyOut, SlaPolicyUpdate,
+    TicketCreate, TicketMessageIn, TicketMessageOut, TicketOut, TicketPage, TicketSummary, TicketUpdate,
 )
 
 ENTITY = "ticket"
@@ -98,6 +99,7 @@ class TicketService:
         self.repo = TicketRepository(session)
         self.messages = TicketMessageRepository(session)
         self.sla = SlaPolicyRepository(session)
+        self.canned = CannedResponseRepository(session)
         self.audit = AuditService(session)
         self.timeline = TimelineService(session)
         self.lookups = LookupService(session)
@@ -351,6 +353,50 @@ class TicketService:
                                 changes=diff(before, {**before, **changes}))
         await self.session.commit()
         return SlaPolicyOut.model_validate(policy)
+
+    # ---- canned responses (Admin → Settings → Canned responses) -------------------------
+    async def list_canned(self) -> list[CannedResponseOut]:
+        return [CannedResponseOut.model_validate(r) for r in await self.canned.list_all()]
+
+    async def _get_canned(self, response_id: int) -> CannedResponse:
+        row = await self.canned.get(response_id)
+        if row is None:
+            raise NotFoundError("Canned response not found")
+        return row
+
+    async def create_canned(self, data: CannedResponseCreate, actor) -> CannedResponseOut:
+        values = data.model_dump()
+        if not values.get("title"):
+            raise ValidationFailedError("A canned response needs a title")
+        if not values.get("body"):
+            raise ValidationFailedError("A canned response needs a body")
+        row = await self.canned.add(CannedResponse(**values, created_by=actor.id, updated_by=actor.id))
+        await self.audit.record("canned_response.create", actor=actor, entity_type="canned_response", entity_id=row.id,
+                                changes=diff({}, values))
+        await self.session.commit()
+        return CannedResponseOut.model_validate(row)
+
+    async def update_canned(self, response_id: int, data: CannedResponseUpdate, actor) -> CannedResponseOut:
+        row = await self._get_canned(response_id)
+        changes = data.model_dump(exclude_unset=True)
+        if "title" in changes and not changes["title"]:
+            raise ValidationFailedError("A canned response needs a title")
+        if "body" in changes and not changes["body"]:
+            raise ValidationFailedError("A canned response needs a body")
+        before = {"title": row.title, "body": row.body, "is_active": row.is_active}
+        self.canned.apply(row, changes)
+        row.updated_by = actor.id
+        await self.audit.record("canned_response.update", actor=actor, entity_type="canned_response", entity_id=row.id,
+                                changes=diff(before, {**before, **changes}))
+        await self.session.commit()
+        return CannedResponseOut.model_validate(row)
+
+    async def delete_canned(self, response_id: int, actor) -> None:
+        row = await self._get_canned(response_id)
+        await self.audit.record("canned_response.delete", actor=actor, entity_type="canned_response", entity_id=row.id,
+                                changes={"title": row.title})
+        await self.canned.hard_delete(row)
+        await self.session.commit()
 
     # ---- jobs ---------------------------------------------------------------------------
     async def check_sla(self) -> str | None:

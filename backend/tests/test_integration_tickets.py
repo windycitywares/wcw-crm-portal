@@ -1,4 +1,4 @@
-"""Tickets: business-hours maths, numbering + SLA, status flow, notes vs replies, assign, breach job."""
+"""Tickets: business-hours maths, numbering + SLA, status flow, notes vs replies, assign, breach job, canned responses."""
 
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -208,6 +208,32 @@ class TicketTests(unittest.TestCase):
                                   json={"is_active": False})
         self.assertEqual(off.status_code, 200, off.text)
         self.assertFalse(off.json()["is_active"])
+
+    def test_canned_responses(self):
+        # anyone who can see tickets may read saved replies; only admins/managers may change them
+        url = f"{API}/tickets/canned-responses"
+        self.assertEqual(self.w.client.get(url, headers=self.support_h).status_code, 200)
+        self.assertEqual(self.w.client.post(url, headers=self.support_h,
+                                            json={"title": "Nope", "body": "x"}).status_code, 403)
+        blank = self.w.client.post(url, headers=self.manager_h, json={"title": "   ", "body": "x"})
+        self.assertEqual(blank.status_code, 422)
+        created = self.w.client.post(url, headers=self.manager_h,
+                                     json={"title": f"Where is my parcel {self.w.sfx}", "body": "It's on its way."})
+        self.assertEqual(created.status_code, 201, created.text)
+        row = created.json()
+        self.assertTrue(row["is_active"])
+        listing = self.w.client.get(url, headers=self.support_h).json()
+        self.assertIn(row["id"], [r["id"] for r in listing])
+        edited = self.w.client.patch(f"{url}/{row['id']}", headers=self.manager_h,
+                                     json={"body": "Updated wording.", "is_active": False})
+        self.assertEqual(edited.status_code, 200, edited.text)
+        self.assertEqual(edited.json()["body"], "Updated wording.")
+        self.assertFalse(edited.json()["is_active"])
+        self.assertEqual(self.w.client.patch(f"{url}/{row['id']}", headers=self.manager_h,
+                                             json={"title": " "}).status_code, 422)
+        self.assertEqual(self.w.client.delete(f"{url}/{row['id']}", headers=self.manager_h).status_code, 204)
+        after = self.w.client.get(url, headers=self.support_h).json()
+        self.assertNotIn(row["id"], [r["id"] for r in after])
 
 
 if __name__ == "__main__":

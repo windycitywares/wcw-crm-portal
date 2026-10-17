@@ -7,13 +7,16 @@ from app.core.permissions import Permission
 from app.modules.users.deps import CurrentUser, EmailSenderDep, SessionDep, require
 from app.modules.users.models import User
 
-from .schemas import SlaPolicyCreate, SlaPolicyOut, SlaPolicyUpdate, TicketCreate, TicketMessageIn, TicketMessageOut, TicketOut, TicketPage, TicketSummary, TicketUpdate
+from .schemas import (
+    CannedResponseCreate, CannedResponseOut, CannedResponseUpdate, SlaPolicyCreate, SlaPolicyOut, SlaPolicyUpdate,
+    TicketCreate, TicketMessageIn, TicketMessageOut, TicketOut, TicketPage, TicketSummary, TicketUpdate,
+)
 from .service import TicketService
 
 router = APIRouter(prefix="/tickets", tags=["tickets"], dependencies=[Depends(require(Permission.TICKETS_VIEW))])
 
 Editor = Annotated[User, Depends(require(Permission.TICKETS_EDIT))]
-SlaAdmin = Annotated[User, Depends(require(Permission.LOOKUPS_MANAGE))]
+Admin = Annotated[User, Depends(require(Permission.LOOKUPS_MANAGE))]
 
 
 # ---- static paths first, so they aren't read as a ticket id --------------------------------
@@ -44,13 +47,34 @@ async def list_sla_policies(session: SessionDep) -> list[SlaPolicyOut]:
 
 
 @router.post("/sla-policies", response_model=SlaPolicyOut, status_code=status.HTTP_201_CREATED)
-async def create_sla_policy(session: SessionDep, actor: SlaAdmin, data: SlaPolicyCreate) -> SlaPolicyOut:
+async def create_sla_policy(session: SessionDep, actor: Admin, data: SlaPolicyCreate) -> SlaPolicyOut:
     return await TicketService(session).create_sla(data, actor)
 
 
 @router.patch("/sla-policies/{policy_id}", response_model=SlaPolicyOut)
-async def update_sla_policy(session: SessionDep, actor: SlaAdmin, policy_id: int, data: SlaPolicyUpdate) -> SlaPolicyOut:
+async def update_sla_policy(session: SessionDep, actor: Admin, policy_id: int, data: SlaPolicyUpdate) -> SlaPolicyOut:
     return await TicketService(session).update_sla(policy_id, data, actor)
+
+
+@router.get("/canned-responses", response_model=list[CannedResponseOut])
+async def list_canned_responses(session: SessionDep) -> list[CannedResponseOut]:
+    """Saved replies for the reply box; everyone who can see tickets can read them."""
+    return await TicketService(session).list_canned()
+
+
+@router.post("/canned-responses", response_model=CannedResponseOut, status_code=status.HTTP_201_CREATED)
+async def create_canned_response(session: SessionDep, actor: Admin, data: CannedResponseCreate) -> CannedResponseOut:
+    return await TicketService(session).create_canned(data, actor)
+
+
+@router.patch("/canned-responses/{response_id}", response_model=CannedResponseOut)
+async def update_canned_response(session: SessionDep, actor: Admin, response_id: int, data: CannedResponseUpdate) -> CannedResponseOut:
+    return await TicketService(session).update_canned(response_id, data, actor)
+
+
+@router.delete("/canned-responses/{response_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_canned_response(session: SessionDep, actor: Admin, response_id: int) -> None:
+    await TicketService(session).delete_canned(response_id, actor)
 
 
 # ---- tickets -------------------------------------------------------------------------------

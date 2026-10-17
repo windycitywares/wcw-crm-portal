@@ -127,3 +127,26 @@ class SlaPolicyUpdate(BaseModel):
     first_response_minutes: int | None = Field(default=None, ge=1, le=60 * 24 * 60)
     resolve_minutes: int | None = Field(default=None, ge=1, le=60 * 24 * 60)
     is_active: bool | None = None
+
+
+class CannedResponseOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    body: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class CannedResponseCreate(BaseModel):
+    title: Annotated[str, Field(min_length=1, max_length=120), AfterValidator(_strip)]
+    body: Annotated[str, Field(min_length=1, max_length=20_000), AfterValidator(_strip)]
+    is_active: bool = True
+
+
+class CannedResponseUpdate(BaseModel):
+    title: Annotated[str | None, Field(default=None, max_length=120), AfterValidator(_strip)] = None
+    body: Annotated[str | None, Field(default=None, max_length=20_000), AfterValidator(_strip)] = None
+    is_active: bool | None = None

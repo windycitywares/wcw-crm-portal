@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { Textarea } from "@/components/ui/Field";
+import { Textarea, Select } from "@/components/ui/Field";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { Pill } from "@/components/ui/Pill";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import { cn, formatDateTime } from "@/lib/utils";
-import { ticketsApi, type MessageKind, type Ticket, type TicketMessage } from "./api";
+import { ticketsApi, type CannedResponse, type MessageKind, type Ticket, type TicketMessage } from "./api";
 
 const KIND_LABEL: Record<TicketMessage["direction"], string> = {
   internal: "Internal note",
@@ -27,6 +27,7 @@ export function Conversation({ ticket, onChanged }: { ticket: Ticket; onChanged:
   const [kind, setKind] = useState<MessageKind>("note");
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
+  const [canned, setCanned] = useState<CannedResponse[]>([]);
 
   const load = useCallback(() => {
     ticketsApi
@@ -38,6 +39,13 @@ export function Conversation({ ticket, onChanged }: { ticket: Ticket; onChanged:
   useEffect(() => {
     load();
   }, [load, ticket.updated_at]);
+
+  useEffect(() => {
+    ticketsApi
+      .cannedResponses()
+      .then((rows) => setCanned(rows.filter((r) => r.is_active)))
+      .catch(() => setCanned([]));
+  }, []);
 
   const mayWrite = can("tickets:edit");
   const canReply = ticket.customer_id != null;
@@ -92,21 +100,41 @@ export function Conversation({ ticket, onChanged }: { ticket: Ticket; onChanged:
 
         {mayWrite && (
           <form onSubmit={send} className="grid gap-3 border-t border-line pt-4">
-            <div role="group" aria-label="Message kind" className="inline-flex w-fit rounded-[var(--radius-control)] border border-line bg-surface p-0.5">
-              {(["note", "reply"] as MessageKind[]).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  aria-pressed={kind === k}
-                  onClick={() => setKind(k)}
-                  className={cn(
-                    "rounded-[calc(var(--radius-control)-2px)] px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-accent",
-                    kind === k ? "bg-accent text-on-accent" : "text-ink hover:bg-sand",
-                  )}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div role="group" aria-label="Message kind" className="inline-flex w-fit rounded-[var(--radius-control)] border border-line bg-surface p-0.5">
+                {(["note", "reply"] as MessageKind[]).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={kind === k}
+                    onClick={() => setKind(k)}
+                    className={cn(
+                      "rounded-[calc(var(--radius-control)-2px)] px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-accent",
+                      kind === k ? "bg-accent text-on-accent" : "text-ink hover:bg-sand",
+                    )}
+                  >
+                    {k === "note" ? "Internal note" : "Email reply"}
+                  </button>
+                ))}
+              </div>
+              {canned.length > 0 && (
+                <Select
+                  aria-label="Insert a saved reply"
+                  className="w-full sm:w-72"
+                  value=""
+                  onChange={(e) => {
+                    const picked = canned.find((c) => String(c.id) === e.target.value);
+                    if (picked) setBody((b) => (b.trim() ? `${b.trimEnd()}\n\n${picked.body}` : picked.body));
+                  }}
                 >
-                  {k === "note" ? "Internal note" : "Email reply"}
-                </button>
-              ))}
+                  <option value="">Insert a saved reply…</option>
+                  {canned.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title}
+                    </option>
+                  ))}
+                </Select>
+              )}
             </div>
             <label className="sr-only" htmlFor="ticket-message">
               {kind === "note" ? "Internal note" : "Reply to the customer"}
