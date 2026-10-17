@@ -133,11 +133,17 @@ export const campaignsApi = {
   get: (id: number) => apiFetch<CampaignSummary>(`/campaigns/${id}`),
   create: (data: { name: string; template_id: number; target_list_id: number }) =>
     apiFetch<CampaignSummary>("/campaigns", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: number, data: Partial<{ name: string; template_id: number; target_list_id: number }>) =>
+    apiFetch<CampaignSummary>(`/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  delete: (id: number) => apiFetch<void>(`/campaigns/${id}`, { method: "DELETE" }),
   schedule: (id: number, scheduledAt: string) =>
     apiFetch<CampaignSummary>(`/campaigns/${id}/schedule`, {
       method: "POST",
       body: JSON.stringify({ scheduled_at: scheduledAt }),
     }),
+  send: (id: number) => apiFetch<CampaignSummary>(`/campaigns/${id}/send`, { method: "POST" }),
+  pause: (id: number) => apiFetch<CampaignSummary>(`/campaigns/${id}/pause`, { method: "POST" }),
+  resume: (id: number) => apiFetch<CampaignSummary>(`/campaigns/${id}/resume`, { method: "POST" }),
   stats: (days = 7) => apiFetch<CampaignStats>(`/campaigns/stats${qs({ days })}`),
   report: (id: number) => apiFetch<CampaignReport>(`/campaigns/${id}/report`),
   lists: {

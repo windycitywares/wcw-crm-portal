@@ -53,9 +53,14 @@ export default function CampaignsPage() {
       key: "name",
       header: "Campaign",
       cell: (row) => (
-        <button type="button" className="text-left font-medium text-ink hover:text-accent-strong hover:underline" onClick={() => void openReport(row)}>
-          {row.name}
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" className="text-left font-medium text-ink hover:text-accent-strong hover:underline" onClick={() => void openReport(row)}>
+            {row.name}
+          </button>
+          <ButtonLink href={`/campaigns/${row.id}`} size="sm" variant="secondary">
+            View
+          </ButtonLink>
+        </div>
       ),
     },
     {
