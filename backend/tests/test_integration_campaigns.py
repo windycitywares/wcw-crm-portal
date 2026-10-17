@@ -80,6 +80,44 @@ class TokenTests(unittest.TestCase):
         self.assertIsNone(tokens.read_unsubscribe_token(tokens.sign(7, "open")))
 
 
+class CampaignTrackingUnitTests(unittest.TestCase):
+    def test_record_event_and_report_are_derived_from_campaign_events(self):
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock
+
+        from app.modules.campaigns.models import Campaign, CampaignRecipient, CLICK, OPEN
+        from app.modules.campaigns.service import CampaignService
+
+        service = CampaignService(MagicMock())
+        service.recipients.with_campaign = AsyncMock(return_value=(CampaignRecipient(
+            id=21, campaign_id=7, customer_id=9, email="pink@example.com", status="sent"
+        ), "Spring sale"))
+        service.events.add_once = AsyncMock(return_value=True)
+        service.timeline.record = AsyncMock()
+
+        self.assertTrue(asyncio.run(service.record_event(recipient_id=21, kind=OPEN, url="")))
+        service.timeline.record.assert_awaited_once()
+
+        service._get_campaign = AsyncMock(return_value=Campaign(
+            id=7, name="Spring sale", status="sent", template_id=5,
+            target_list_id=11, created_by=1, updated_by=1,
+        ))
+        service.recipients.counts = AsyncMock(return_value={7: {"pending": 0, "queued": 0, "sent": 4, "failed": 0, "skipped": 1}})
+        service.events.people = AsyncMock(return_value={OPEN: 3, CLICK: 2, "unsubscribe": 1})
+        service.events.links = AsyncMock(return_value=[("https://shop.example.com/sale", 2)])
+        template = MagicMock()
+        template.name = "Spring template"
+        service.templates.get = AsyncMock(return_value=template)
+        service._list_names = AsyncMock(return_value={11: "VIP list"})
+
+        report = asyncio.run(service.report(7))
+        self.assertEqual(report.campaign_id, 7)
+        self.assertEqual(report.opened, 3)
+        self.assertEqual(report.clicked, 2)
+        self.assertEqual(report.delivered, 4)
+        self.assertEqual(report.links[0].url, "https://shop.example.com/sale")
+
+
 @skip_unless_db
 class CampaignTests(unittest.TestCase):
     @classmethod

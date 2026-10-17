@@ -11,17 +11,24 @@ it cannot be guessed. Only the POST acts, so a mail scanner that follows every l
 unsubscribe anyone by accident.
 """
 
+import base64
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Response
+from fastapi.responses import RedirectResponse
 
+from app.core.exceptions import NotFoundError
 from app.core.request import client_ip
 from app.modules.users.deps import SessionDep
 
+from .models import CLICK, OPEN
 from .schemas import UnsubscribeIn, UnsubscribeOut
 from .service import CampaignService
+from .tokens import read_click_token, read_open_token
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
+
+_TRACKING_PIXEL = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==")
 
 
 @router.get("/unsubscribe", response_model=UnsubscribeOut)
@@ -38,3 +45,24 @@ async def unsubscribe(request: Request, session: SessionDep, data: UnsubscribeIn
     """Stop emailing the customer the link belongs to (consent off, address suppressed). No login: the token
     in the email is the proof."""
     return await CampaignService(session).unsubscribe(data, ip=client_ip(request))
+
+
+@router.get("/open")
+async def open_tracking(session: SessionDep, token: Annotated[str, Query(max_length=500)]) -> Response:
+    """Pixel fetch: a notified open is a one-recipient event, and it is idempotent per recipient."""
+    recipient_id = read_open_token(token)
+    if recipient_id is None:
+        raise NotFoundError("That tracking link is not valid any more")
+    await CampaignService(session).record_event(recipient_id, OPEN, url="")
+    return Response(content=_TRACKING_PIXEL, media_type="image/gif")
+
+
+@router.get("/click")
+async def click_tracking(session: SessionDep, token: Annotated[str, Query(max_length=1000)]) -> RedirectResponse:
+    """Wrapped link click: record a single click per recipient and redirect to the real destination."""
+    parsed = read_click_token(token)
+    if parsed is None:
+        raise NotFoundError("That tracking link is not valid any more")
+    recipient_id, destination = parsed
+    await CampaignService(session).record_event(recipient_id, CLICK, url=destination)
+    return RedirectResponse(url=destination, status_code=307)

@@ -56,8 +56,12 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:3000"]
 
-    # The CRM web app (used for links in emails, e.g. password reset).
+    # The CRM web app (used for links in emails, e.g. password reset, and the unsubscribe page).
     site_url: str = "http://localhost:3000"
+
+    # The CRM API as the outside world reaches it. Campaign tracking links — the open pixel and the click
+    # redirect — are fetched by a mail client, not by the web app, so they have to point at the API itself.
+    api_url: str = "http://localhost:8000/api/v1"
 
     # Admin → Deployments: where the server keeps the checkout, the web app and the deploy log.
     deploy_repo_dir: str = str(BACKEND_DIR.parent)

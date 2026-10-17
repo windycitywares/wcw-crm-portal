@@ -1,5 +1,6 @@
 """Queries for campaigns: search the templates, ask the suppression list about an address, read an
-audience (a target list and its members), and follow a campaign's recipients through the email outbox."""
+audience (a target list and its members), follow a campaign's recipients through the email outbox, and count
+what they did with the message once it arrived (`campaign_events`)."""
 
 from __future__ import annotations
 
@@ -17,8 +18,8 @@ from app.shared.repository import BaseRepository
 
 from . import consent, segments
 from .models import (
-    PENDING, QUEUED, RECIPIENT_FAILED, RECIPIENT_SENT, SCHEDULED, SENDING, Campaign, CampaignRecipient,
-    EmailTemplate, Suppression, TargetList, TargetListMember,
+    CLICK, PENDING, QUEUED, RECIPIENT_FAILED, RECIPIENT_SENT, SCHEDULED, SENDING, Campaign, CampaignEvent,
+    CampaignRecipient, EmailTemplate, Suppression, TargetList, TargetListMember,
 )
 
 
@@ -189,6 +190,12 @@ class CampaignRepository(BaseRepository[Campaign]):
         """How many campaigns are waiting for their time (or for email to be switched on)."""
         return await self.count(self.query().where(Campaign.status.in_((SCHEDULED, SENDING))))
 
+    async def started_since(self, since: datetime, *, limit: int = 500) -> list[Campaign]:
+        """Campaigns that went out in a window, newest first — what the dashboard adds up."""
+        stmt = (self.query().where(Campaign.started_at.is_not(None), Campaign.started_at >= since)
+                .order_by(Campaign.started_at.desc(), Campaign.id.desc()).limit(limit))
+        return list(await self.list(stmt))
+
 
 class CampaignRecipientRepository(BaseRepository[CampaignRecipient]):
     model = CampaignRecipient
@@ -256,6 +263,22 @@ class CampaignRecipientRepository(BaseRepository[CampaignRecipient]):
                 .order_by(CampaignRecipient.id).limit(limit))
         return [(row[0], row[1]) for row in (await self.session.execute(stmt)).all()]
 
+    async def by_campaign_customer(self, campaign_id: int, customer_id: int) -> CampaignRecipient | None:
+        """One customer's row in one campaign — how an unsubscribe link (which names the customer, and the
+        campaign for the record only) finds the send it belongs to, and whether they were in it at all."""
+        rows = await self.list(self.query().where(CampaignRecipient.campaign_id == campaign_id,
+                                                 CampaignRecipient.customer_id == customer_id).limit(1))
+        return rows[0] if rows else None
+
+    async def with_campaign(self, recipient_id: int) -> tuple[CampaignRecipient, str] | None:
+        """One recipient with the name of the campaign its message belongs to. The tracking links carry only
+        the recipient id, and the timeline line they write needs the campaign's name to read like a sentence."""
+        stmt = (select(CampaignRecipient, Campaign.name)
+                .join(Campaign, Campaign.id == CampaignRecipient.campaign_id)
+                .where(CampaignRecipient.id == recipient_id).limit(1))
+        row = (await self.session.execute(stmt)).first()
+        return (row[0], row[1]) if row else None
+
     async def counts(self, campaign_ids: Sequence[int]) -> dict[int, dict[str, int]]:
         """Recipients per campaign, by status."""
         if not campaign_ids:
@@ -291,3 +314,53 @@ class CampaignRecipientRepository(BaseRepository[CampaignRecipient]):
             .where(CampaignRecipient.campaign_id == campaign_id, CampaignRecipient.status == QUEUED,
                    CampaignRecipient.outbox_id == EmailOutbox.id, EmailOutbox.status == MAIL_FAILED)
             .values(status=RECIPIENT_FAILED, reason=func.left(EmailOutbox.last_error, 80)))
+
+
+class CampaignEventRepository(BaseRepository[CampaignEvent]):
+    """Tracking rows: what recipients did with the messages they were sent. Every count here is of **people**,
+    never of requests — a mail client that fetches the pixel twice, or somebody who clicks a link again, is
+    still one recipient who opened or clicked.
+    """
+
+    model = CampaignEvent
+
+    async def add_once(self, *, campaign_id: int, recipient_id: int, kind: str, url: str = "") -> bool:
+        """Record one event unless it is already there. False when it was: the unique key is what makes a
+        second open or a second click of the same link a no-op rather than a bigger number."""
+        stmt = (pg_insert(CampaignEvent)
+                .values(campaign_id=campaign_id, recipient_id=recipient_id, kind=kind, url=(url or "")[:500])
+                .on_conflict_do_nothing(index_elements=["recipient_id", "kind", "url"]))
+        result = await self.session.execute(stmt)
+        return bool(result.rowcount)
+
+    async def people(self, campaign_id: int) -> dict[str, int]:
+        """How many recipients opened, clicked or unsubscribed — by kind."""
+        stmt = (select(CampaignEvent.kind, func.count(func.distinct(CampaignEvent.recipient_id)))
+                .where(CampaignEvent.campaign_id == campaign_id)
+                .group_by(CampaignEvent.kind))
+        return {kind: int(n) for kind, n in await self.session.execute(stmt)}
+
+    async def people_for(self, campaign_ids: Sequence[int]) -> dict[int, dict[str, int]]:
+        """The same for several campaigns at once (the dashboard adds up a window of them)."""
+        if not campaign_ids:
+            return {}
+        stmt = (select(CampaignEvent.campaign_id, CampaignEvent.kind,
+                       func.count(func.distinct(CampaignEvent.recipient_id)))
+                .where(CampaignEvent.campaign_id.in_(list(campaign_ids)))
+                .group_by(CampaignEvent.campaign_id, CampaignEvent.kind))
+        out: dict[int, dict[str, int]] = {}
+        for campaign_id, kind, n in await self.session.execute(stmt):
+            out.setdefault(int(campaign_id), {})[kind] = int(n)
+        return out
+
+    async def links(self, campaign_id: int, *, limit: int = 10) -> list[tuple[str, int]]:
+        """Which links were followed, most followed first. One row per recipient, so the number is how many
+        people went that way (the same link clicked twice by one person is one)."""
+        counted = func.count()
+        stmt = (select(CampaignEvent.url, counted)
+                .where(CampaignEvent.campaign_id == campaign_id, CampaignEvent.kind == CLICK,
+                       CampaignEvent.url != "")
+                .group_by(CampaignEvent.url)
+                .order_by(counted.desc(), CampaignEvent.url)
+                .limit(limit))
+        return [(str(url), int(n)) for url, n in await self.session.execute(stmt)]

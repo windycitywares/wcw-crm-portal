@@ -52,3 +52,6 @@ reset_requests_by_ip = RateLimiter(max_hits=10, window_seconds=60 * 60)
 reset_attempts_by_ip = RateLimiter(max_hits=20, window_seconds=15 * 60)
 # Public unsubscribe links: a stranger's mail client, so keep it to a trickle per IP.
 unsubscribe_by_ip = RateLimiter(max_hits=30, window_seconds=15 * 60)
+# Campaign tracking (the open pixel and the click redirect): fetched by mail clients, so the limit is
+# generous — one mail proxy can ask for the images of a whole batch of messages from one address at once.
+tracking_by_ip = RateLimiter(max_hits=600, window_seconds=15 * 60)

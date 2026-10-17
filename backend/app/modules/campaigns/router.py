@@ -17,10 +17,11 @@ from app.modules.users.models import User
 
 from . import render, segments
 from .schemas import (
-    CampaignIn, CampaignOut, CampaignPage, CampaignSchedule, CampaignStatus, CampaignUpdate, MemberPage,
-    MembersAdded, MembersIn, MergeField, RecipientPage, RecipientStatus, RenderedEmail, SegmentField,
-    SuppressionIn, SuppressionOut, SuppressionPage, TargetListIn, TargetListOut, TargetListPage,
-    TargetListUpdate, TemplateIn, TemplateOut, TemplatePage, TemplateUpdate, TestIn, TestSent,
+    CampaignIn, CampaignOut, CampaignPage, CampaignReport, CampaignSchedule, CampaignStats, CampaignStatus,
+    CampaignUpdate, MemberPage, MembersAdded, MembersIn, MergeField, RecipientPage, RecipientStatus,
+    RenderedEmail, SegmentField, SuppressionIn, SuppressionOut, SuppressionPage, TargetListIn,
+    TargetListOut, TargetListPage, TargetListUpdate, TemplateIn, TemplateOut, TemplatePage,
+    TemplateUpdate, TestIn, TestSent,
 )
 from .service import CampaignService
 
@@ -192,6 +193,21 @@ async def list_campaigns(
 async def create_campaign(session: SessionDep, actor: Editor, data: CampaignIn) -> CampaignOut:
     """Write a campaign down: a template plus an audience. It starts as a draft."""
     return await CampaignService(session).create_campaign(data, actor)
+
+
+@router.get("/stats", response_model=CampaignStats)
+async def campaign_stats(
+    session: SessionDep,
+    days: Annotated[int, Query(ge=1, le=365)] = 7,
+) -> CampaignStats:
+    """Summary totals for campaigns that started within the trailing window."""
+    return await CampaignService(session).stats(days=days)
+
+
+@router.get("/{campaign_id}/report", response_model=CampaignReport)
+async def campaign_report(session: SessionDep, campaign_id: int) -> CampaignReport:
+    """What a campaign did after it went out: delivered, opened, clicked and unsubscribed."""
+    return await CampaignService(session).report(campaign_id)
 
 
 @router.get("/{campaign_id}", response_model=CampaignOut)
