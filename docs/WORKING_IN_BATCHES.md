@@ -82,5 +82,13 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | 4 | Tracking + report | delivered / opened (pixel) / clicked (redirect) / unsubscribed per campaign (`campaign_events`), a per-campaign report, campaign stats on the dashboard, sends on the customer timeline | — |
 | 5 | Campaigns web | `/campaigns`: list + report, campaign builder (template, audience, schedule), template editor with the merge-field picker, live preview and test send, Settings → Templates and a suppression-list screen, a list builder (customer search + bulk add; a CSV is parsed in the browser and posted as the customer ids it resolves, so no import endpoint is needed; a segment gets a rule builder from `GET /campaigns/segment-fields`), sidebar entry | — |
 
+## M6 Suppliers (started 2026-10-17)
+
+| # | Batch | Contents | PR |
+|---|-------|----------|----|
+| 1 | Suppliers API | migration 0022: supplier records and normalized contacts; supplier type lookup validation, address/payment/lead-time/currency/rating, custom fields, shared tags/notes/timeline, audit, permissions and tests | in progress |
+| 2 | Supplied products API | `supplier_products`: supplier + shop SKU + supplier SKU, unit cost/currency and MOQ; CRUD, audit and tests | — |
+| 3 | Suppliers web | searchable supplier directory, supplier details, contacts and supplied products, record timeline/tags/custom fields, permission-aware editing | — |
+
 ## Next milestones
-M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → **M5 campaigns (4 of 6 built: templates + suppression, target lists, segments, campaigns + sending; tracking + report and the web are next)** → M6 suppliers → M7 reports.
+M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → M5 campaigns (API complete; campaign web batches are in review through #50) → **M6 suppliers (batch 1 in progress)** → M7 reports.
