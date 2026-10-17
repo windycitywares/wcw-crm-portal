@@ -137,7 +137,9 @@ class CustomerService:
         else:
             customer.unsubscribed_at = _now()
 
-    async def create(self, data: CustomerCreate, actor) -> CustomerOut:
+    async def create(self, data: CustomerCreate, actor, *, commit: bool = True) -> CustomerOut:
+        """Add a customer. Callers that are part of a bigger change (the shop sync, converting a lead) pass
+        `commit=False`, so the customer is committed together with the rest of it."""
         values = data.model_dump(exclude_unset=True)
         if not any(values.get(k) for k in ("first_name", "last_name", "company", "email", "phone")):
             raise ValidationFailedError("Give at least a name, company, email or phone")
@@ -154,7 +156,8 @@ class CustomerService:
         await self.audit.record("customer.create", actor=actor, entity_type=ENTITY, entity_id=customer.id,
                                 changes=diff({}, _snapshot(customer)))
         await self.timeline.record(ENTITY, customer.id, "customer.created", "Customer added", actor=actor)
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
         return await self.get(customer.id)
 
     async def update(self, customer_id: int, data: CustomerUpdate, actor) -> CustomerOut:

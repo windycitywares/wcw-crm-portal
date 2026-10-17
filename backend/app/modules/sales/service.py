@@ -248,7 +248,9 @@ class SalesService:
         )
 
     # ---- deal writes --------------------------------------------------------------------------
-    async def create(self, data: DealCreate, actor) -> DealOut:
+    async def create(self, data: DealCreate, actor, *, commit: bool = True) -> DealOut:
+        """Open a deal. Callers inside a bigger change (converting a lead) pass `commit=False`, so the deal is
+        committed together with it."""
         values = data.model_dump(exclude_unset=True)
         if not values.get("title"):
             raise ValidationFailedError("A deal needs a title")
@@ -278,7 +280,8 @@ class SalesService:
         await self.audit.record("deal.create", actor=actor, entity_type=ENTITY, entity_id=deal.id,
                                 changes=diff({}, _snapshot(deal)))
         await self._line(deal, "deal.created", f"Deal opened: {deal.title}", actor)
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
         return await self.get(deal.id)
 
     async def update(self, deal_id: int, data: DealUpdate, actor) -> DealOut:
