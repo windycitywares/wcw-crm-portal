@@ -48,12 +48,48 @@ export interface TargetList {
   name: string;
   description: string | null;
   kind: "static" | "segment";
-  rules: Record<string, unknown> | null;
+  rules: SegmentRules | null;
   members: number;
   reachable: number;
   updated_by_name: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface SegmentOp {
+  op: string;
+  label: string;
+}
+
+export interface SegmentField {
+  field: string;
+  label: string;
+  value_kind: string;
+  ops: SegmentOp[];
+}
+
+export interface SegmentRule {
+  field: string;
+  op: string;
+  value: unknown;
+}
+
+export interface SegmentRules {
+  match: "all" | "any";
+  rules: SegmentRule[];
+}
+
+export interface AudienceMember {
+  customer_id: number;
+  full_name: string;
+  company: string | null;
+  email: string | null;
+  customer_type: string | null;
+  marketing_consent: boolean;
+  unsubscribed: boolean;
+  suppressed: boolean;
+  reachable: boolean;
+  added_at: string | null;
 }
 
 export interface Template {
@@ -146,13 +182,16 @@ export const campaignsApi = {
   resume: (id: number) => apiFetch<CampaignSummary>(`/campaigns/${id}/resume`, { method: "POST" }),
   stats: (days = 7) => apiFetch<CampaignStats>(`/campaigns/stats${qs({ days })}`),
   report: (id: number) => apiFetch<CampaignReport>(`/campaigns/${id}/report`),
+  segmentFields: () => apiFetch<SegmentField[]>("/campaigns/segment-fields"),
   lists: {
     list: (page = 1, pageSize = 25, kind?: string, q?: string) =>
       apiFetch<Page<TargetList>>(`/campaigns/lists${qs({ page, page_size: pageSize, kind, q })}`),
     get: (id: number) => apiFetch<TargetList>(`/campaigns/lists/${id}`),
-    create: (data: { name: string; description?: string | null; kind?: "static" | "segment"; rules?: Record<string, unknown> | null }) =>
+    members: (id: number, page = 1, pageSize = 25, q?: string) =>
+      apiFetch<Page<AudienceMember>>(`/campaigns/lists/${id}/members${qs({ page, page_size: pageSize, q })}`),
+    create: (data: { name: string; description?: string | null; kind?: "static" | "segment"; rules?: SegmentRules | null }) =>
       apiFetch<TargetList>("/campaigns/lists", { method: "POST", body: JSON.stringify(data) }),
-    update: (id: number, data: Partial<{ name: string; description?: string | null; rules?: Record<string, unknown> | null }>) =>
+    update: (id: number, data: Partial<{ name: string; description?: string | null; rules?: SegmentRules | null }>) =>
       apiFetch<TargetList>(`/campaigns/lists/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     remove: (id: number) => apiFetch<void>(`/campaigns/lists/${id}`, { method: "DELETE" }),
   },
