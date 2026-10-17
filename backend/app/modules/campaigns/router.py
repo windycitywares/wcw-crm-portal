@@ -1,7 +1,7 @@
-"""HTTP surface for campaigns (SPEC §3.6): email templates, previews, test sends, audiences (target lists
-and their members) and the suppression list.
+"""HTTP surface for campaigns (SPEC §3.6): email templates, previews, test sends, audiences (target lists,
+segments and their members) and the suppression list.
 
-Everything here needs `campaigns:view`; writing a template, a list or the suppression list needs
+Everything here needs `campaigns:view`; writing a template, an audience or the suppression list needs
 `campaigns:edit`, and sending a test needs `campaigns:send`.
 """
 
@@ -14,9 +14,9 @@ from app.core.permissions import Permission
 from app.modules.users.deps import CurrentUser, EmailSenderDep, SessionDep, require
 from app.modules.users.models import User
 
-from . import render
+from . import render, segments
 from .schemas import (
-    MemberPage, MembersAdded, MembersIn, MergeField, RenderedEmail, SuppressionIn, SuppressionOut,
+    MemberPage, MembersAdded, MembersIn, MergeField, RenderedEmail, SegmentField, SuppressionIn, SuppressionOut,
     SuppressionPage, TargetListIn, TargetListOut, TargetListPage, TargetListUpdate, TemplateIn, TemplateOut,
     TemplatePage, TemplateUpdate, TestIn, TestSent,
 )
@@ -33,6 +33,13 @@ Sender = Annotated[User, Depends(require(Permission.CAMPAIGNS_SEND))]
 async def merge_fields() -> list[MergeField]:
     """What a template may write: `{{ customer.first_name }}` and the rest (SPEC §3.6)."""
     return [MergeField(**field) for field in render.merge_fields()]
+
+
+@router.get("/segment-fields", response_model=list[SegmentField])
+async def segment_fields() -> list[SegmentField]:
+    """What a segment may be built from: each field, how to ask for its value, and the ops it allows."""
+    return [SegmentField(**field) for field in segments.fields()]
+
 
 
 # ---- email templates ---------------------------------------------------------------------------
@@ -98,6 +105,7 @@ async def list_lists(
 
 @router.post("/lists", response_model=TargetListOut, status_code=status.HTTP_201_CREATED)
 async def create_list(session: SessionDep, actor: Editor, data: TargetListIn) -> TargetListOut:
+    """An audience: a static list you fill by hand, or a segment defined by rules (see `/segment-fields`)."""
     return await CampaignService(session).create_list(data, actor)
 
 
@@ -121,7 +129,7 @@ async def list_members(
     session: SessionDep, page: PageDep, list_id: int,
     q: Annotated[str | None, Query(max_length=120)] = None,
 ) -> MemberPage:
-    """Who is on the list, with the state that decides whether a campaign would reach them."""
+    """Who is in the audience — a static list's members, or the customers a segment matches right now."""
     return await CampaignService(session).members_of(list_id, page, q=q)
 
 

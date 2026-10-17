@@ -5,9 +5,11 @@ inner whitespace, because that whitespace is the email.
 """
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field
+
+from .segments import SegmentRules
 
 Reason = Literal["unsubscribed", "bounced", "complained", "manual"]
 
@@ -164,26 +166,28 @@ class SuppressionPage(BaseModel):
 
 # ---- audiences ---------------------------------------------------------------------------------
 
-ListKind = Literal["static"]
+ListKind = Literal["static", "segment"]
 
 
 class TargetListIn(BaseModel):
     """A target list: the customers a campaign goes to.
 
-    Only the static kind so far — you put customers on it yourself. Segments (rules, re-evaluated at send
-    time) are the next batch, and `kind` is here already so nothing has to move when they land.
+    A `static` list is filled by hand (`POST …/members`). A `segment` carries `rules` instead and is
+    evaluated fresh every time it is used — see `segments.py` for the vocabulary.
     """
 
     name: Name
     description: Annotated[str | None, Field(default=None, max_length=300), AfterValidator(_words)] = None
     kind: ListKind = "static"
+    rules: SegmentRules | None = None
 
 
 class TargetListUpdate(BaseModel):
-    """PATCH: a field left out is not changed; an emptied description clears it."""
+    """PATCH: a field left out is not changed; an emptied description clears it. `kind` is fixed at creation."""
 
     name: Name | None = None
     description: Annotated[str | None, Field(default=None, max_length=300), AfterValidator(_words)] = None
+    rules: SegmentRules | None = None
 
 
 class TargetListOut(BaseModel):
@@ -193,7 +197,8 @@ class TargetListOut(BaseModel):
     name: str
     description: str | None
     kind: str
-    members: int = 0  # live customers on the list
+    rules: dict[str, Any] | None = None  # a segment's rules, so the editor can load and change them
+    members: int = 0  # live customers in the audience (for a segment: the ones matching now)
     reachable: int = 0  # …of those, the ones a campaign could actually email
     updated_by_name: str | None = None
     created_at: datetime
@@ -205,6 +210,20 @@ class TargetListPage(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class SegmentOp(BaseModel):
+    op: str
+    label: str
+
+
+class SegmentField(BaseModel):
+    """One thing a segment can be built from, and the ops it allows: `orders_count` is at least 3."""
+
+    field: str
+    label: str
+    value_kind: str  # how the editor should ask for a value: a lookup, a tag picker, a number, days, yes/no…
+    ops: list[SegmentOp]
 
 
 class MembersIn(BaseModel):
@@ -234,7 +253,7 @@ class MemberOut(BaseModel):
     unsubscribed: bool
     suppressed: bool  # on the suppression list (unsubscribed, bounced, complained or added by hand)
     reachable: bool  # has an address, agreed, has not unsubscribed and is not suppressed
-    added_at: datetime
+    added_at: datetime | None = None  # when they were put on the list; None for a segment (they just match)
 
 
 class MemberPage(BaseModel):

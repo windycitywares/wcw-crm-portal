@@ -3,15 +3,18 @@ suppression list that keeps the CRM out of inboxes that asked it to stop.
 
 - `email_templates` — subject, preheader, HTML and text bodies, with merge fields rendered through a
   sandboxed Jinja2 environment. `version` goes up on every save; the audit log keeps what changed.
-- `target_lists` + `target_list_members` — *who* a campaign goes to. This batch has the static kind: a list
-  of customers put on by hand. `kind` is here from the start because a dynamic segment (rules re-evaluated at
-  send time) is the same thing to a campaign and to the UI, and it arrives in the next batch.
+- `target_lists` + `target_list_members` — *who* a campaign goes to. A static list holds its members in the
+  member table (put on by hand); a segment is the same row with `kind="segment"` and `rules` (a small rule
+  set, see `segments.py`) and no member rows, so it is evaluated fresh every time.
 - `suppressions` — addresses that must never be emailed again, and why (unsubscribed, bounced,
   complained, or added by hand). Soft-deleted rather than dropped, so re-adding an address restores its
   row and the history of why it was there.
 """
 
+from typing import Any
+
 from sqlalchemy import BigInteger, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text as sql_text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.shared.models import AuthorMixin, Base, IdMixin, SoftDeleteMixin, TimestampMixin
@@ -60,6 +63,8 @@ class TargetList(IdMixin, TimestampMixin, AuthorMixin, SoftDeleteMixin, Base):
     name: Mapped[str] = mapped_column(String(120))
     description: Mapped[str | None] = mapped_column(String(300))
     kind: Mapped[str] = mapped_column(String(10), default="static", server_default="static")
+    # A segment's rules (see segments.py); NULL for a static list, which keeps its members in the table below.
+    rules: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
 class TargetListMember(IdMixin, TimestampMixin, Base):

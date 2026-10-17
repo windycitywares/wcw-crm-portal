@@ -11,6 +11,7 @@ from app.core.pagination import PageParams
 from app.modules.customers.models import Customer
 from app.shared.repository import BaseRepository
 
+from . import consent
 from .models import EmailTemplate, Suppression, TargetList, TargetListMember
 
 
@@ -120,21 +121,14 @@ class TargetListMemberRepository(BaseRepository[TargetListMember]):
         return {int(row[0]): int(row[1]) for row in await self.session.execute(stmt)}
 
     async def reachable(self, list_ids: Sequence[int]) -> dict[int, int]:
-        """How many of those a campaign could actually email: an address, consent, no unsubscribe and not
-        on the suppression list (SPEC §3.6 "consent required")."""
+        """How many of those a campaign could actually email (see `consent.conditions()`, SPEC §3.6)."""
         if not list_ids:
             return {}
-        suppressed = (select(Suppression.id)
-                      .where(Suppression.deleted_at.is_(None),
-                             func.lower(Suppression.email) == func.lower(Customer.email)).exists())
         stmt = (select(TargetListMember.list_id, func.count())
                 .join(Customer, Customer.id == TargetListMember.customer_id)
                 .where(TargetListMember.list_id.in_(list(list_ids) or [0]),
                        Customer.deleted_at.is_(None),
-                       Customer.email.is_not(None),
-                       Customer.marketing_consent.is_(True),
-                       Customer.unsubscribed_at.is_(None),
-                       ~suppressed)
+                       *consent.conditions())
                 .group_by(TargetListMember.list_id))
         return {int(row[0]): int(row[1]) for row in await self.session.execute(stmt)}
 

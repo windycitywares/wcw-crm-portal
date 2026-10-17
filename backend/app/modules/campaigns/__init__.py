@@ -1,8 +1,8 @@
 """Campaigns (SPEC §3.6): what a campaign is written from and who it goes to — email templates, audiences
-(target lists) and the suppression list.
+(target lists and segments) and the suppression list.
 
-Built so far: templates (merge fields, preview, test send) and the suppression list, then static target
-lists. Next: dynamic segments, the campaigns themselves with the sender, and tracking.
+Built so far: templates (merge fields, preview, test send), the suppression list, static target lists and
+dynamic segments. Next: the campaigns themselves with the sender, then tracking.
 """
 
 from app.modules import CrmModule
