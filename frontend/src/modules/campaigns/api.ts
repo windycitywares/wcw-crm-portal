@@ -112,6 +112,17 @@ export interface Template {
   updated_at: string;
 }
 
+export type SuppressionReason = "unsubscribed" | "bounced" | "complained" | "manual";
+
+export interface Suppression {
+  id: number;
+  email: string;
+  reason: SuppressionReason;
+  source: string | null;
+  note: string | null;
+  created_at: string;
+}
+
 export interface LinkClicks {
   url: string;
   recipients: number;
@@ -222,5 +233,12 @@ export const campaignsApi = {
       apiFetch<{ subject: string; preheader: string | null; html: string; text: string }>(
         `/campaigns/templates/${id}/preview${qs({ customer_id: customerId })}`,
       ),
+  },
+  suppressions: {
+    list: (page = 1, pageSize = 25, reason?: SuppressionReason, q?: string) =>
+      apiFetch<Page<Suppression>>(`/campaigns/suppressions${qs({ page, page_size: pageSize, reason, q })}`),
+    add: (data: { email: string; reason: SuppressionReason; note?: string | null }) =>
+      apiFetch<Suppression>("/campaigns/suppressions", { method: "POST", body: JSON.stringify(data) }),
+    release: (id: number) => apiFetch<void>(`/campaigns/suppressions/${id}`, { method: "DELETE" }),
   },
 };
