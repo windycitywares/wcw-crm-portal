@@ -9,6 +9,9 @@ Rules:
   stage's `probability` is the default the deal adopts — the weighted forecast is value × probability;
 - a deal about a customer needs read access to that customer; the customer's timeline shows the deal being
   opened, moving stage, being won or lost (the deal keeps its own timeline too);
+- the **lines** on a deal follow the deal's own rule: `sales:edit_own` adds and edits the lines on your own
+  deals. A line total never overwrites the deal's value — the two are shown side by side, so a quote the
+  salesperson typed is not silently replaced by the sum of the products;
 - a pipeline is soft-deleted, and neither a pipeline nor a stage can be removed while it still has open
   deals, so no live work is ever orphaned.
 """
@@ -33,11 +36,11 @@ from app.modules.lookups.service import LookupService
 from app.modules.settings.service import SettingsService
 from app.modules.users.service import UserService
 
-from .models import Deal, Pipeline, PipelineStage
-from .repository import DealRepository, PipelineRepository, PipelineStageRepository
+from .models import Deal, DealItem, Pipeline, PipelineStage
+from .repository import DealItemRepository, DealRepository, PipelineRepository, PipelineStageRepository
 from .schemas import (
-    Board, BoardStage, DealCreate, DealOut, DealPage, DealUpdate, PipelineIn, PipelineOut, PipelineUpdate,
-    SalesSummary, StageIn, StageOut, StageUpdate,
+    Board, BoardStage, DealCreate, DealItemIn, DealItemOut, DealItems, DealItemUpdate, DealOut, DealPage,
+    DealUpdate, PipelineIn, PipelineOut, PipelineUpdate, SalesSummary, StageIn, StageOut, StageUpdate,
 )
 
 ENTITY = "deal"
@@ -89,6 +92,21 @@ def _snapshot(d: Deal) -> dict[str, Any]:
     return out
 
 
+def _quantity(value: Decimal) -> str:
+    """2, 1.5, 10.5 — a quantity without the trailing zeros the money column pads it with."""
+    return f"{value:.2f}".rstrip("0").rstrip(".") or "0"
+
+
+def _item_snapshot(item: DealItem) -> dict[str, Any]:
+    return {"name": item.name, "sku": item.sku, "shop_product_id": item.shop_product_id,
+            "quantity": str(item.quantity), "unit_price": str(item.unit_price), "position": item.position}
+
+
+def _item_title(item: DealItem) -> str:
+    """How a line reads on a timeline: "2 × Windy Widget = 30.00"."""
+    return f"{_quantity(item.quantity)} × {item.name} = {item.total}"
+
+
 async def _exists(session, entity_id: int) -> bool:
     return await DealRepository(session).get(entity_id) is not None
 
@@ -122,6 +140,7 @@ class SalesService:
         self.repo = DealRepository(session)
         self.pipelines = PipelineRepository(session)
         self.stages = PipelineStageRepository(session)
+        self.lines = DealItemRepository(session)
         self.audit = AuditService(session)
         self.timeline = TimelineService(session)
         self.lookups = LookupService(session)
@@ -342,6 +361,77 @@ class SalesService:
         await self.audit.record("deal.delete", actor=actor, entity_type=ENTITY, entity_id=deal.id,
                                 changes={"title": deal.title})
         await self._line(deal, "deal.deleted", f"Deal deleted: {deal.title}", actor)
+        await self.session.commit()
+
+    # ---- lines on a deal (SPEC §3.3: products from the shop catalog, or typed in by hand) ------
+
+    async def _deal_to_change(self, deal_id: int, actor) -> Deal:
+        deal = await self._get(deal_id)
+        if not _may_change(actor, deal):
+            raise PermissionDeniedError("You can only change the lines on your own deals")
+        return deal
+
+    async def _item(self, deal_id: int, item_id: int) -> DealItem:
+        item = await self.lines.get(item_id)
+        if item is None or item.deal_id != deal_id:
+            raise NotFoundError("Line not found")  # or it belongs to another deal
+        return item
+
+    async def _deal_items(self, deal_id: int) -> DealItems:
+        rows = await self.lines.lines(deal_id)
+        return DealItems(items=[DealItemOut.model_validate(i) for i in rows], count=len(rows),
+                         total=await self.lines.total(deal_id))
+
+    async def items(self, deal_id: int) -> DealItems:
+        """The lines on a deal. Anyone who can see sales can see what a deal is made of."""
+        await self._get(deal_id)  # a missing deal is a 404, not an empty list
+        return await self._deal_items(deal_id)
+
+    async def add_item(self, deal_id: int, data: DealItemIn, actor) -> DealItemOut:
+        deal = await self._deal_to_change(deal_id, actor)
+        values = data.model_dump(exclude_unset=True)
+        if not values.get("name"):
+            raise ValidationFailedError("Give the line a name")
+        position = values.pop("position", None)
+        if position is None:
+            position = await self.lines.max_position(deal.id) + 1  # new lines go to the bottom
+        item = DealItem(deal_id=deal.id, position=position, created_by=actor.id, updated_by=actor.id, **values)
+        await self.lines.add(item)
+        await self._line(deal, "deal.item_added", f"Line added: {_item_title(item)}", actor)
+        await self.audit.record("deal_item.create", actor=actor, entity_type=ENTITY, entity_id=deal.id,
+                                changes=_item_snapshot(item) | {"item_id": item.id})
+        await self.session.commit()
+        return DealItemOut.model_validate(item)
+
+    async def update_item(self, deal_id: int, item_id: int, data: DealItemUpdate, actor) -> DealItemOut:
+        deal = await self._deal_to_change(deal_id, actor)
+        item = await self._item(deal_id, item_id)
+        values = data.model_dump(exclude_unset=True)
+        # a form sends null for a field it isn't changing, and a name and money are never empty
+        for key in ("name", "quantity", "unit_price"):
+            if values.get(key) is None:
+                values.pop(key, None)
+        if not values:
+            return DealItemOut.model_validate(item)
+        before = _item_snapshot(item)
+        self.lines.apply(item, values)
+        item.updated_by = actor.id
+        await self.session.flush()
+        changes = diff(before, _item_snapshot(item))
+        if changes:
+            await self._line(deal, "deal.item_changed", f"Line changed: {_item_title(item)}", actor)
+            await self.audit.record("deal_item.update", actor=actor, entity_type=ENTITY, entity_id=deal.id,
+                                    changes=changes | {"item_id": item.id})
+        await self.session.commit()
+        return DealItemOut.model_validate(item)
+
+    async def remove_item(self, deal_id: int, item_id: int, actor) -> None:
+        deal = await self._deal_to_change(deal_id, actor)
+        item = await self._item(deal_id, item_id)
+        await self.lines.soft_delete(item)
+        await self._line(deal, "deal.item_removed", f"Line removed: {_item_title(item)}", actor)
+        await self.audit.record("deal_item.delete", actor=actor, entity_type=ENTITY, entity_id=deal.id,
+                                changes={"item_id": item.id, "name": item.name})
         await self.session.commit()
 
     # ---- pipelines & stages (Admin → Settings → Pipelines) -------------------------------------
