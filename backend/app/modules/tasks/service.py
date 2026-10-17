@@ -42,7 +42,8 @@ def _now() -> datetime:
 
 
 def _snapshot(t: Task) -> dict[str, Any]:
-    return {k: getattr(t, k) for k in TRACKED}
+    """Audit-friendly values (dates as ISO text: the audit log is JSON)."""
+    return {k: (v.isoformat() if isinstance(v, datetime) else v) for k in TRACKED for v in [getattr(t, k)]}
 
 
 def _add_months(value: datetime, months: int) -> datetime:
