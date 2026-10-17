@@ -36,6 +36,7 @@ export const NAV: NavGroup[] = [
       { href: "/settings/email", label: "Email", icon: "mail", permission: "settings:manage" },
       { href: "/settings/business-hours", label: "Business hours", icon: "clock", permission: "settings:manage" },
       { href: "/settings/sla-policies", label: "SLA policies", icon: "alert", permission: "lookups:manage" },
+      { href: "/settings/canned-responses", label: "Canned responses", icon: "copy", permission: "lookups:manage" },
       { href: "/settings/integrations", label: "Integrations", icon: "globe", permission: "settings:manage" },
       { href: "/settings/deployments", label: "Deployments", icon: "download", permission: "settings:manage" },
       { href: "/settings/audit", label: "Audit log", icon: "shield", permission: "audit:view" },

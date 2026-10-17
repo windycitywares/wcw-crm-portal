@@ -4,7 +4,7 @@ from sqlalchemy import Select, func, or_, select
 
 from app.shared.repository import BaseRepository
 
-from .models import OPEN_STATUSES, SlaPolicy, Ticket, TicketMessage
+from .models import OPEN_STATUSES, CannedResponse, SlaPolicy, Ticket, TicketMessage
 
 
 def escape_like(value: str) -> str:
@@ -81,3 +81,13 @@ class SlaPolicyRepository(BaseRepository[SlaPolicy]):
 
     async def active(self) -> list[SlaPolicy]:
         return list((await self.session.execute(self.query().where(SlaPolicy.is_active.is_(True)))).scalars())
+
+
+class CannedResponseRepository(BaseRepository[CannedResponse]):
+    model = CannedResponse
+
+    def ordered(self) -> Select[tuple[CannedResponse]]:
+        return self.query().order_by(CannedResponse.title.asc(), CannedResponse.id.asc())
+
+    async def list_all(self) -> list[CannedResponse]:
+        return list((await self.session.execute(self.ordered())).scalars())

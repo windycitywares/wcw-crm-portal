@@ -103,6 +103,21 @@ export interface SlaPolicyInput {
   is_active?: boolean;
 }
 
+export interface CannedResponse {
+  id: number;
+  title: string;
+  body: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CannedResponseInput {
+  title: string;
+  body: string;
+  is_active?: boolean;
+}
+
 export const STATUS_LABEL: Record<TicketStatus, string> = {
   new: "New",
   open: "Open",
@@ -187,6 +202,10 @@ export const ticketsApi = {
   slaPolicies: () => apiFetch<SlaPolicy[]>("/tickets/sla-policies"),
   createSla: (data: SlaPolicyInput) => apiFetch<SlaPolicy>("/tickets/sla-policies", json("POST", data)),
   updateSla: (id: number, data: Partial<SlaPolicyInput>) => apiFetch<SlaPolicy>(`/tickets/sla-policies/${id}`, json("PATCH", data)),
+  cannedResponses: () => apiFetch<CannedResponse[]>("/tickets/canned-responses"),
+  createCanned: (data: CannedResponseInput) => apiFetch<CannedResponse>("/tickets/canned-responses", json("POST", data)),
+  updateCanned: (id: number, data: Partial<CannedResponseInput>) => apiFetch<CannedResponse>(`/tickets/canned-responses/${id}`, json("PATCH", data)),
+  removeCanned: (id: number) => apiFetch<void>(`/tickets/canned-responses/${id}`, { method: "DELETE" }),
 };
 
 /** Only the fields that actually changed — so saving a ticket never resets its SLA clock. */

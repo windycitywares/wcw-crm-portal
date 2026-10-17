@@ -1,7 +1,8 @@
 """Support tickets (SPEC §3.5): conversations with customers, with response-time targets (SLA).
 
-Three tables:
+Four tables:
 - `sla_policies` — response/resolution targets, counted in *business* minutes (see business_hours.py);
+- `canned_responses` — saved answers staff can drop into a reply (Admin → Settings → Canned responses);
 - `tickets` — one conversation, linked to a customer (and optionally a shop order), assigned to a person;
 - `ticket_messages` — the thread: internal notes, replies emailed to the customer, and the customer's emails in.
 """
@@ -34,6 +35,19 @@ class SlaPolicy(IdMixin, TimestampMixin, AuthorMixin, Base):
     priority: Mapped[str | None] = mapped_column(String(60))  # lookup key (kind ticket_priority); NULL = any
     first_response_minutes: Mapped[int] = mapped_column(Integer)
     resolve_minutes: Mapped[int] = mapped_column(Integer)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
+
+
+class CannedResponse(IdMixin, TimestampMixin, AuthorMixin, Base):
+    """A saved answer (SPEC §3.5) staff can drop into a reply, edited in Admin → Settings → Canned responses.
+
+    Kept as plain text on purpose: a reply is a message body, so there is nothing to template beyond the text.
+    """
+
+    __tablename__ = "canned_responses"
+
+    title: Mapped[str] = mapped_column(String(120))
+    body: Mapped[str] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
 
 
