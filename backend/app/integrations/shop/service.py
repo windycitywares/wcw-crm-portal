@@ -153,7 +153,7 @@ class ShopEventService:
         await self.session.flush()
 
         if data.marketing_opt_in:
-            await self.customers.set_consent_from_shop(customer_id, True, "shop checkout")
+            await self.customers.mark_consent(customer_id, True, "shop checkout")
         count, total, first, last = await self.orders.stats(customer_id)
         await self.customers.set_order_stats(customer_id, count=count, total=total, first=first, last=last)
 
@@ -190,14 +190,14 @@ class ShopEventService:
         data = NewsletterData.model_validate(payload)
         customer_id = await self.customers.sync_from_shop(email=data.email)
         how = f"shop newsletter, {data.source}" if data.source else "shop newsletter"
-        await self.customers.set_consent_from_shop(customer_id, True, how)
+        await self.customers.mark_consent(customer_id, True, how)
         return customer_id
 
     async def _unsubscribed(self, payload: dict[str, Any]) -> int | None:
         data = NewsletterData.model_validate(payload)
         customer_id = await self.customers.find_by_email(data.email)
         if customer_id is not None:
-            await self.customers.set_consent_from_shop(customer_id, False, "shop newsletter")
+            await self.customers.mark_consent(customer_id, False, "shop newsletter")
         return customer_id
 
     # ---- job + admin ---------------------------------------------------------

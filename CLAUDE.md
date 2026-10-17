@@ -141,7 +141,12 @@ npm run typecheck
   memberships following a customer delete or merge) built (`feat/m5-2-target-lists`); batch 2b (segments: a dynamic audience as the same `target_lists` row with
   `kind="segment"` and `rules` — a closed rule vocabulary over customer type, source, status, tags, owner, orders, spend, last/created date and consent, validated on
   save and on read, compiled to a customer query so the audience is always current; the "who matches" view is `GET .../members` and `GET /campaigns/segment-fields`
-  describes the vocabulary for the rule builder) built (`feat/m5-2b-segments`); next: the campaigns themselves with the sender, then tracking.
+  describes the vocabulary for the rule builder) built (`feat/m5-2b-segments`); batch 3 (campaigns + the sender: `campaigns` + `campaign_recipients` (migration
+  0020); starting one copies its audience into recipient rows once — a segment evaluated at that moment — and the `campaigns` job queues one personalized message
+  per recipient into the outbox, only as many at a time as its SMTP limits have room for, copying back sent/failed; who is skipped is decided at send time
+  (`_why_not_reachable`) with the reason kept on their row; draft → scheduled → sending → paused → sent, with schedule/send/pause/resume behind `campaigns:send`;
+  the public unsubscribe link as the first `public_router` — a GET that changes nothing and a POST that acts, both rate-limited) built
+  (`feat/m5-3-campaigns-sender`); next: tracking + the per-campaign report, then the campaigns web.
   Still open from M4: the shop catalog picker (4c — needs a `products` resource on
   the shop's read API). Shop connection needs `CRM_WEBHOOK_URL`/`CRM_WEBHOOK_SECRET`/`CRM_API_TOKEN` on the shop server (shop docs/CRM_SYNC.md) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

@@ -1,8 +1,9 @@
 """HTTP surface for campaigns (SPEC §3.6): email templates, previews, test sends, audiences (target lists,
-segments and their members) and the suppression list.
+segments and their members), the suppression list, and the campaigns themselves.
 
-Everything here needs `campaigns:view`; writing a template, an audience or the suppression list needs
-`campaigns:edit`, and sending a test needs `campaigns:send`.
+Everything here needs `campaigns:view`; writing a template, an audience, the suppression list or a campaign
+needs `campaigns:edit`, and anything that decides to send (a test, a schedule, starting, pausing) needs
+`campaigns:send`. The unsubscribe link a customer clicks is public and lives in `public.py`.
 """
 
 from typing import Annotated
@@ -16,9 +17,10 @@ from app.modules.users.models import User
 
 from . import render, segments
 from .schemas import (
-    MemberPage, MembersAdded, MembersIn, MergeField, RenderedEmail, SegmentField, SuppressionIn, SuppressionOut,
-    SuppressionPage, TargetListIn, TargetListOut, TargetListPage, TargetListUpdate, TemplateIn, TemplateOut,
-    TemplatePage, TemplateUpdate, TestIn, TestSent,
+    CampaignIn, CampaignOut, CampaignPage, CampaignSchedule, CampaignStatus, CampaignUpdate, MemberPage,
+    MembersAdded, MembersIn, MergeField, RecipientPage, RecipientStatus, RenderedEmail, SegmentField,
+    SuppressionIn, SuppressionOut, SuppressionPage, TargetListIn, TargetListOut, TargetListPage,
+    TargetListUpdate, TemplateIn, TemplateOut, TemplatePage, TemplateUpdate, TestIn, TestSent,
 )
 from .service import CampaignService
 
@@ -166,3 +168,84 @@ async def suppress(session: SessionDep, actor: Editor, data: SuppressionIn) -> S
 async def release(session: SessionDep, actor: Editor, suppression_id: int) -> None:
     """Take an address off the list again — a staff decision, audited."""
     await CampaignService(session).release(suppression_id, actor)
+
+
+# ---- campaigns ---------------------------------------------------------------------------------
+# These come last on purpose: `/campaigns/{campaign_id}` would otherwise swallow `/campaigns/lists`.
+
+
+@router.get("", response_model=CampaignPage)
+async def list_campaigns(
+    session: SessionDep, page: PageDep,
+    status_: Annotated[CampaignStatus | None, Query(alias="status")] = None,
+    q: Annotated[str | None, Query(max_length=120)] = None,
+) -> CampaignPage:
+    """The campaigns: where each one is, and how many of its recipients have gone out.
+
+    `audience`/`reachable` are the audience as it is now (what a draft would go to); `recipients` are the
+    ones the campaign was started with.
+    """
+    return await CampaignService(session).list_campaigns(page, status=status_, q=q)
+
+
+@router.post("", response_model=CampaignOut, status_code=status.HTTP_201_CREATED)
+async def create_campaign(session: SessionDep, actor: Editor, data: CampaignIn) -> CampaignOut:
+    """Write a campaign down: a template plus an audience. It starts as a draft."""
+    return await CampaignService(session).create_campaign(data, actor)
+
+
+@router.get("/{campaign_id}", response_model=CampaignOut)
+async def get_campaign(session: SessionDep, campaign_id: int) -> CampaignOut:
+    return await CampaignService(session).get_campaign(campaign_id)
+
+
+@router.patch("/{campaign_id}", response_model=CampaignOut)
+async def update_campaign(session: SessionDep, actor: Editor, campaign_id: int,
+                          data: CampaignUpdate) -> CampaignOut:
+    """Change the name, the template or the audience — only while the campaign has not started."""
+    return await CampaignService(session).update_campaign(campaign_id, data, actor)
+
+
+@router.delete("/{campaign_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_campaign(session: SessionDep, actor: Editor, campaign_id: int) -> None:
+    await CampaignService(session).delete_campaign(campaign_id, actor)
+
+
+@router.post("/{campaign_id}/schedule", response_model=CampaignOut)
+async def schedule_campaign(session: SessionDep, actor: Sender, campaign_id: int,
+                            data: CampaignSchedule) -> CampaignOut:
+    """Put it on the calendar. The job starts it within the minute after its time (SPEC §3.6)."""
+    return await CampaignService(session).schedule_campaign(campaign_id, data, actor)
+
+
+@router.post("/{campaign_id}/unschedule", response_model=CampaignOut)
+async def unschedule_campaign(session: SessionDep, actor: Sender, campaign_id: int) -> CampaignOut:
+    """Take it off the calendar again — nothing has gone out, so it goes back to being a draft."""
+    return await CampaignService(session).unschedule_campaign(campaign_id, actor)
+
+
+@router.post("/{campaign_id}/send", response_model=CampaignOut)
+async def start_campaign(session: SessionDep, actor: Sender, campaign_id: int) -> CampaignOut:
+    """Send it now: the audience is copied in and the job queues the messages, paced to the SMTP limits."""
+    return await CampaignService(session).start_campaign(campaign_id, actor)
+
+
+@router.post("/{campaign_id}/pause", response_model=CampaignOut)
+async def pause_campaign(session: SessionDep, actor: Sender, campaign_id: int) -> CampaignOut:
+    """Hold it: messages already in the outbox still go, but no new recipient is looked at."""
+    return await CampaignService(session).pause_campaign(campaign_id, actor)
+
+
+@router.post("/{campaign_id}/resume", response_model=CampaignOut)
+async def resume_campaign(session: SessionDep, actor: Sender, campaign_id: int) -> CampaignOut:
+    return await CampaignService(session).resume_campaign(campaign_id, actor)
+
+
+@router.get("/{campaign_id}/recipients", response_model=RecipientPage)
+async def list_recipients(
+    session: SessionDep, page: PageDep, campaign_id: int,
+    status_: Annotated[RecipientStatus | None, Query(alias="status")] = None,
+    q: Annotated[str | None, Query(max_length=120)] = None,
+) -> RecipientPage:
+    """Who this campaign went to, and what happened to each message (sent, skipped with a reason, failed)."""
+    return await CampaignService(session).recipients_of(campaign_id, page, status=status_, q=q)

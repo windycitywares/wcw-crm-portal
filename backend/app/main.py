@@ -59,6 +59,12 @@ def create_app(modules: list[CrmModule] | None = None) -> FastAPI:
     for mod in modules:
         for hook in mod.on_startup:
             hook()
+    # Public routers first: a route like `/campaigns/unsubscribe` must not be swallowed by an authenticated
+    # `/campaigns/{campaign_id}` (the first path that matches wins, and the id is validated afterwards).
+    for mod in modules:
+        if mod.public_router is not None:  # no session: only for links a customer clicks (see CrmModule)
+            api.include_router(mod.public_router)
+    for mod in modules:
         if mod.router is not None:
             api.include_router(mod.router)
     app.include_router(api, prefix=settings.api_prefix)

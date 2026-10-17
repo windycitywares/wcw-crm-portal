@@ -53,6 +53,30 @@ class AppTests(unittest.TestCase):
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json(), {"detail": "Customer not found"})
 
+    def test_public_routers_come_before_a_module_wildcard(self):
+        """A public route has to win over an authenticated `/{id}` that would otherwise match it, and it has
+        to work with no session at all."""
+        from app.main import create_app
+        from app.modules import CrmModule
+
+        router = APIRouter(prefix="/things")
+
+        @router.get("/{thing_id}")
+        async def thing(thing_id: int):
+            raise AssertionError("the public route should have matched")
+
+        public = APIRouter(prefix="/things")
+
+        @public.get("/unsubscribe")
+        async def unsubscribe():
+            return {"public": True}
+
+        mod = CrmModule(name="t", router=router, public_router=public)
+        client = TestClient(create_app(modules=[mod]))
+        res = client.get("/api/v1/things/unsubscribe")
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json(), {"public": True})
+
     def test_load_modules_rejects_bad_packages(self):
         from app.modules import load_modules
 
