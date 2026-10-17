@@ -7,6 +7,7 @@ import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { Pill } from "@/components/ui/Pill";
 import { useAuth } from "@/lib/auth";
 import { MyTasksPanel } from "@/modules/tasks/MyTasksPanel";
+import { LeadSummaryCard } from "@/modules/leads/LeadSummaryCard";
 import { SalesSummaryCard } from "@/modules/sales/SalesSummaryCard";
 
 const ROADMAP: { icon: IconName; title: string; text: string; milestone: string }[] = [
@@ -26,6 +27,7 @@ export default function DashboardPage() {
       <PageHeader title={`Welcome, ${first}`} description="Your CRM workspace. Modules appear in the sidebar as they're released." />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         {can("tasks:view") && <MyTasksPanel />}
+        {can("sales:view") && <LeadSummaryCard />}
         {can("sales:view") && <SalesSummaryCard />}
         <Panel>
           <PanelHeader title="Coming next" description="The build order agreed in the CRM spec." />

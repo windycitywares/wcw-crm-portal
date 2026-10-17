@@ -186,6 +186,9 @@ class LeadService:
         if not _may_change(actor, lead):
             raise PermissionDeniedError("You can only change leads you own")
         values = data.model_dump(exclude_unset=True)
+        # a form sends null for a field it isn't changing, and `status` is never empty — so leave it alone
+        if values.get("status") is None:
+            values.pop("status", None)
         if lead.is_converted:
             # once it is a customer, the customer is the live record; the lead keeps its own details
             if "status" in values:
