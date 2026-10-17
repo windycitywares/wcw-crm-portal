@@ -7,12 +7,13 @@ import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { Pill } from "@/components/ui/Pill";
 import { useAuth } from "@/lib/auth";
 import { MyTasksPanel } from "@/modules/tasks/MyTasksPanel";
+import { SalesSummaryCard } from "@/modules/sales/SalesSummaryCard";
 
 const ROADMAP: { icon: IconName; title: string; text: string; milestone: string }[] = [
   { icon: "customers", title: "Customers", text: "Every buyer in one place, with types, tags and their shop orders.", milestone: "Live" },
   { icon: "tasks", title: "Tasks", text: "Calls, follow-ups and to-dos with due dates and reminders.", milestone: "Live" },
   { icon: "ticket", title: "Support tickets", text: "Returns, damages and questions with response-time targets.", milestone: "M3" },
-  { icon: "briefcase", title: "Sales", text: "Leads and deals on a pipeline board.", milestone: "M4" },
+  { icon: "briefcase", title: "Sales", text: "Deals on a pipeline board, with a weighted forecast.", milestone: "Live" },
   { icon: "mail", title: "Campaigns", text: "Email templates, target lists and sending.", milestone: "M5" },
   { icon: "truck", title: "Suppliers", text: "Suppliers, their types and what they supply.", milestone: "M6" },
 ];
@@ -24,11 +25,8 @@ export default function DashboardPage() {
     <>
       <PageHeader title={`Welcome, ${first}`} description="Your CRM workspace. Modules appear in the sidebar as they're released." />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        {can("tasks:view") && (
-          <div className="xl:col-span-2">
-            <MyTasksPanel />
-          </div>
-        )}
+        {can("tasks:view") && <MyTasksPanel />}
+        {can("sales:view") && <SalesSummaryCard />}
         <Panel>
           <PanelHeader title="Coming next" description="The build order agreed in the CRM spec." />
           <ul className="grid gap-px bg-line sm:grid-cols-2">
