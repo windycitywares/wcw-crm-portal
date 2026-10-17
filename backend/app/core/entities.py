@@ -25,6 +25,7 @@ from app.core.permissions import Permission, has_permission
 
 ExistsFn = Callable[[Any, int], Awaitable[bool]]  # (session, entity_id) -> bool
 CanEditFn = Callable[[Any, Any, int], Awaitable[bool]]  # (session, user, entity_id) -> bool
+LabelsFn = Callable[[Any, list[int]], Awaitable[dict[int, str]]]  # (session, ids) -> {id: display name}
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ class EntityType:
     edit: tuple[Permission, ...]
     exists: ExistsFn
     can_edit: CanEditFn | None = None  # optional record-level rule (e.g. "own records only")
+    labels: LabelsFn | None = None  # display names, so other records can show what they point at
 
 
 _REGISTRY: dict[str, EntityType] = {}
@@ -57,6 +59,14 @@ def get_entity_type(key: str) -> EntityType:
         return _REGISTRY[key]
     except KeyError:
         raise NotFoundError(f"Unknown record type: {key}") from None
+
+
+async def entity_labels(session: Any, entity_type: str, ids: list[int]) -> dict[int, str]:
+    """Display names for records of one type (empty when the type has no `labels` function)."""
+    et = _REGISTRY.get(entity_type)
+    if et is None or et.labels is None or not ids:
+        return {}
+    return await et.labels(session, sorted(set(ids)))
 
 
 async def check_entity_access(session: Any, user: Any, entity_type: str, entity_id: int, *, write: bool) -> EntityType:
