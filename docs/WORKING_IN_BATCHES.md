@@ -64,9 +64,9 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
 | 1 | Sales API | `sales` module (migration 0014): `pipelines` + `pipeline_stages` (boards + stage order, probability, won/lost column, colour; admin via `lookups:manage`) and `deals` (title, customer, stage, value/currency, probability, expected close, owner, source/lost_reason lookups, custom fields); own-vs-any + assign; **the stage decides the outcome** (dropping a card on the won/lost column wins or loses it) and sets the deal's default probability; `GET /sales/board` (kanban) + `GET /sales/summary` (open value, weighted forecast, won/lost this month); customer timeline; starter "Sales" board seeded once; delete guards (no orphaning open deals); registered `deal` record type; tests | open (`feat/m4-1-sales-api`) |
-| 2 | Sales web | Settings → Pipelines (add/rename/reorder stages, probability, won/lost, colour), Deals page: kanban with drag between stages + list view (filters/sort), new/edit deal dialog (customer picker, value, close date, owner), Sales panel on the customer page, pipeline value on the dashboard | — |
+| 2 | Sales web | `/sales`: board view (kanban, one column per stage, drag a card to another column — landing on the won/lost column wins or loses the deal) and list view (whose/status/pipeline filters, search, paged, soonest to close first), new/edit deal dialog (stage picker that follows the pipeline, customer picker, value + currency, close date, owner, source, lost reason), Sales panel on the customer page, pipeline value + weighted forecast on the dashboard, Settings → Pipelines (add/rename/delete boards and stages, reorder, probability, won/lost, colour) | open (`feat/m4-2-sales-web`, depends on 1) |
 | 3 | Leads | `leads` table (contact, company, source, owner, notes, custom fields), own-vs-any, list/filters, convert to customer + deal (timeline) | — |
 | 4 | Deal items | `deal_items` from the shop catalog (read API): add/remove products on a deal, line totals vs the deal value | — |
 
 ## Next milestones
-M4 sales → M5 campaigns → M6 suppliers → M7 reports.
+M4 sales (2 of 4 batches built) → M5 campaigns → M6 suppliers → M7 reports.
