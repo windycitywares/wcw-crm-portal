@@ -126,6 +126,6 @@ npm run typecheck
 ## Status
 
 - 2026-10-16: M0 live — https://crm.windycitywares.com (web) + https://crm-api.windycitywares.com (API), auto-deploy cron
-  on the server. M1 and M2 done (customers, shop sync, import/export, merge); **M3 in progress — tasks done, tickets API built
-  (`feat/m3-3-tickets-api`), next: tickets web**. Shop connection needs `CRM_WEBHOOK_URL`/`CRM_WEBHOOK_SECRET`/`CRM_API_TOKEN` on the shop server (shop docs/CRM_SYNC.md) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
+  on the server. M1 and M2 done (customers, shop sync, import/export, merge); **M3 in progress — tasks done, tickets API and web built
+  (`feat/m3-3-tickets-api`, `feat/m3-4-tickets-web`), next: tickets from the shop**. Shop connection needs `CRM_WEBHOOK_URL`/`CRM_WEBHOOK_SECRET`/`CRM_API_TOKEN` on the shop server (shop docs/CRM_SYNC.md) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

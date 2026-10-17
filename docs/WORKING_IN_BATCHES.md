@@ -54,7 +54,8 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | 1 | Tasks API | `tasks` module (migration 0011): type/priority/status/due/assignee, about any record (timeline lines), own/any/assign rules, views mine/team/created + due filters, recurring (next made on completion), email reminders job, summary counts; `EntityType.labels` for record names | #27 merged |
 | 2 | Tasks web | Tasks page (my/team, overdue/today/week tabs, quick add, complete checkbox, edit dialog), Tasks panel on the customer page, Your tasks on the dashboard | #28 merged |
 | 3 | Tickets API | `tickets` + `ticket_messages` + `sla_policies` (seeded §9): numbering, New→Open→Pending→Resolved→Closed, assign, internal notes vs email replies (outbox), SLA due times in business hours + breach job, timeline on the customer | open (`feat/m3-3-tickets-api`) |
-| 4 | Tickets web | queue (filters, SLA badges), ticket page (conversation, reply / internal note, status, assign), Settings → SLA policies, canned responses | — |
+| 4 | Tickets web | queue (filters, SLA badges), ticket page (conversation, reply / internal note, status, assign), Tickets panel on the customer page, Settings → SLA policies | open (`feat/m3-4-tickets-web`) |
+| 4b | Canned responses | `canned_responses` table + CRUD (admins), picker in the reply box | — |
 | 5 | Tickets from the shop | shop contact-form messages → tickets (shop event + CRM handler) | — |
 
 ## Next milestones
