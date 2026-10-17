@@ -138,7 +138,10 @@ npm run typecheck
   batch 1 (campaigns API foundation: `email_templates` with merge fields rendered in a sandboxed Jinja2 environment, a save-time render check, preview and test send
   through the outbox, `version` + audit; `suppressions` (soft-deleted, re-adding restores the row) and signed unsubscribe links) built (`feat/m5-1-campaigns-api`);
   batch 2 (campaigns API: target lists — the audiences a campaign goes to; members added in bulk, searched and paged, `members` and `reachable` counts, and
-  memberships following a customer delete or merge) built (`feat/m5-2-target-lists`); next: segments, then the campaigns themselves, sending and tracking.
+  memberships following a customer delete or merge) built (`feat/m5-2-target-lists`); batch 2b (segments: a dynamic audience as the same `target_lists` row with
+  `kind="segment"` and `rules` — a closed rule vocabulary over customer type, source, status, tags, owner, orders, spend, last/created date and consent, validated on
+  save and on read, compiled to a customer query so the audience is always current; the "who matches" view is `GET .../members` and `GET /campaigns/segment-fields`
+  describes the vocabulary for the rule builder) built (`feat/m5-2b-segments`); next: the campaigns themselves with the sender, then tracking.
   Still open from M4: the shop catalog picker (4c — needs a `products` resource on
   the shop's read API). Shop connection needs `CRM_WEBHOOK_URL`/`CRM_WEBHOOK_SECRET`/`CRM_API_TOKEN` on the shop server (shop docs/CRM_SYNC.md) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

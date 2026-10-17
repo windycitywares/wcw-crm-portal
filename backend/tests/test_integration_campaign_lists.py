@@ -90,9 +90,15 @@ class TargetListTests(unittest.TestCase):
         self.assertEqual(self.w.client.get(f"{API}/campaigns/lists/{made['id']}",
                                            headers=self.marketing_h).status_code, 404)
 
-    def test_segments_are_not_here_yet(self):
+    def test_static_lists_refuse_rules(self):
+        """A static list picks its members by hand; rules belong to a segment."""
         res = self.w.client.post(f"{API}/campaigns/lists", headers=self.marketing_h,
-                                 json={"name": self.name("segment"), "kind": "segment"})
+                                 json={"name": self.name("static"), "rules": {
+                                     "rules": [{"field": "orders_count", "op": "gte", "value": 2}]}})
+        self.assertEqual(res.status_code, 422, res.text)
+        made = self.make_list()
+        res = self.w.client.patch(f"{API}/campaigns/lists/{made['id']}", headers=self.marketing_h,
+                                  json={"rules": {"rules": [{"field": "orders_count", "op": "gte", "value": 2}]}})
         self.assertEqual(res.status_code, 422, res.text)
 
     # ---- members ------------------------------------------------------------------------------

@@ -17,12 +17,14 @@ Rules:
 - the suppression list is soft-deleted: re-adding an address restores its row, keeping the history of why
   it was there. The campaign sender (next batch) asks `suppressed()` before every send; a customer's own
   `unsubscribed_at` is the other half of the same rule and is read at send time.
-- an **audience** is a target list of customers (the static kind so far; dynamic segments, whose rules are
-  re-evaluated at send time, are the next batch). A list row carries two numbers: `members` — the live
-  customers on it — and `reachable` — the ones a campaign could actually email: an address, consent, no
-  unsubscribe, and not on the suppression list. Membership changes are audited one row per customer, so
-  "who put them on this list?" always has an answer. Merging two customers moves their memberships to the
-  one that stayed (see `merge.py`).
+- an **audience** is a target list of customers: either a **static** list, whose members are put on by hand,
+  or a **segment** — the same row with `kind="segment"` and `rules`, which is a query, not a stored list, so
+  it is always current and nothing has to be synced (see `segments.py`). Either way a list row carries two
+  numbers: `members` — the live customers in it (for a segment: the ones matching now) — and `reachable` —
+  the ones a campaign could actually email: an address, consent, no unsubscribe, and not on the suppression
+  list (see `consent.py`). Membership changes are audited one row per customer, so "who put them on this
+  list?" always has an answer. Merging two customers moves their memberships to the one that stayed
+  (see `merge.py`).
 """
 
 from __future__ import annotations
@@ -44,13 +46,13 @@ from app.modules.settings.groups import EmailSettings
 from app.modules.settings.service import SettingsService
 from app.modules.users.service import UserService
 
-from . import render
+from . import render, segments
 from .models import EmailTemplate, Suppression, TargetList, TargetListMember
 from .repository import (
     EmailTemplateRepository, SuppressionRepository, TargetListMemberRepository, TargetListRepository,
 )
 from .schemas import (
-    MemberOut, MemberPage, MembersAdded, MembersIn, RenderedEmail, SuppressionIn, SuppressionOut,
+    MemberOut, MemberPage, MembersAdded, MembersIn, RenderedEmail, SegmentField, SuppressionIn, SuppressionOut,
     SuppressionPage, TargetListIn, TargetListOut, TargetListPage, TargetListUpdate, TemplateIn, TemplateOut,
     TemplatePage, TemplateSummary, TemplateUpdate, TestIn, TestSent,
 )
@@ -70,6 +72,10 @@ def _snapshot(template: EmailTemplate) -> dict[str, Any]:
     return snap
 
 
+def _list_snapshot(target: TargetList) -> dict[str, Any]:
+    return {"name": target.name, "description": target.description, "rules": target.rules}
+
+
 class CampaignService:
     def __init__(self, session: AsyncSession, email_sender: EmailSender | None = None):
         self.session = session
@@ -77,6 +83,7 @@ class CampaignService:
         self.suppressions = SuppressionRepository(session)
         self.lists = TargetListRepository(session)
         self.members = TargetListMemberRepository(session)
+        self.customers = CustomerRepository(session)  # the customer table, for segments and member lookups
         self.audit = AuditService(session)
         self.settings = SettingsService(session)
         self.lookups = LookupService(session)
@@ -225,7 +232,7 @@ class CampaignService:
         if customer_id is None:
             return None
         await check_entity_access(self.session, actor, "customer", customer_id, write=False)
-        customer = await CustomerRepository(self.session).get(customer_id)
+        customer = await self.customers.get(customer_id)
         if customer is None:
             raise NotFoundError("Customer not found")
         return customer
@@ -295,9 +302,7 @@ class CampaignService:
     async def list_lists(self, params: PageParams, *, kind: str | None = None,
                          q: str | None = None) -> TargetListPage:
         rows, total = await self.lists.paginate(self.lists.search(kind=kind, q=q), params)
-        ids = [row.id for row in rows]
-        members = await self.members.counts(ids)
-        reachable = await self.members.reachable(ids)
+        members, reachable = await self._audience_counts(rows)
         people = await self._people() if any(row.updated_by for row in rows) else {}
         items = []
         for row in rows:
@@ -308,6 +313,22 @@ class CampaignService:
             items.append(item)
         return TargetListPage(items=items, total=total, page=params.page, page_size=params.page_size)
 
+    async def _audience_counts(self, rows: list[TargetList]) -> tuple[dict[int, int], dict[int, int]]:
+        """`members`/`reachable` per list: counted in the member table for a static list, and as a query
+        over the customers for a segment (which is why a segment is always up to date)."""
+        static_ids = [row.id for row in rows if row.kind != "segment"]
+        members = await self.members.counts(static_ids)
+        reachable = await self.members.reachable(static_ids)
+        for row in rows:
+            if row.kind == "segment":
+                members[row.id] = await self._segment_count(row.rules, reachable=False)
+                reachable[row.id] = await self._segment_count(row.rules, reachable=True)
+        return members, reachable
+
+    async def _segment_count(self, rules: dict[str, Any] | None, *, reachable: bool) -> int:
+        result = await self.session.execute(segments.count_stmt(rules, reachable=reachable))
+        return int(result.scalar_one())
+
     async def _get_list(self, list_id: int) -> TargetList:
         target = await self.lists.get(list_id)
         if target is None:
@@ -316,8 +337,7 @@ class CampaignService:
 
     async def get_list(self, list_id: int) -> TargetListOut:
         target = await self._get_list(list_id)
-        members = await self.members.counts([target.id])
-        reachable = await self.members.reachable([target.id])
+        members, reachable = await self._audience_counts([target])
         people = await self._people() if target.updated_by else {}
         out = TargetListOut.model_validate(target)
         out.members = members.get(target.id, 0)
@@ -333,8 +353,16 @@ class CampaignService:
     async def create_list(self, data: TargetListIn, actor) -> TargetListOut:
         values = data.model_dump(exclude_unset=True)
         await self._check_list_name(values["name"])
-        target = TargetList(name=values["name"], description=values.get("description"),
-                            kind=values.get("kind", "static"), created_by=actor.id, updated_by=actor.id)
+        kind = values.get("kind", "static")
+        rules = values.get("rules")
+        if kind == "segment" and not rules:
+            raise ValidationFailedError("A segment needs at least one rule, or it would be every customer")
+        if kind == "static" and rules:
+            raise ValidationFailedError(
+                "A static list picks its members by hand — make it a segment to use rules")
+        target = TargetList(name=values["name"], description=values.get("description"), kind=kind,
+                            rules=rules if kind == "segment" else None, created_by=actor.id,
+                            updated_by=actor.id)
         await self.lists.add(target)
         await self.audit.record("target_list.create", actor=actor, entity_type=LIST, entity_id=target.id,
                                 changes={"name": target.name, "kind": target.kind})
@@ -342,15 +370,22 @@ class CampaignService:
         return await self.get_list(target.id)
 
     async def update_list(self, list_id: int, data: TargetListUpdate, actor) -> TargetListOut:
-        """PATCH: a field left out is not changed; an emptied description clears it."""
+        """PATCH: a field left out is not changed; an emptied description clears it. A segment's rules can be
+        rewritten at any time — it is a query, not a stored list. `kind` is fixed when the list is created.
+        """
         target = await self._get_list(list_id)
         values = data.model_dump(exclude_unset=True)
+        if "rules" in values:
+            if target.kind != "segment":
+                raise ValidationFailedError("Only a segment has rules — this list picks its members by hand")
+            if not values["rules"]:
+                raise ValidationFailedError("A segment needs at least one rule, or it would be every customer")
         values = {k: v for k, v in values.items() if v is not None or k == "description"}
         if values.get("name"):
             await self._check_list_name(values["name"], keep=target.id)
-        before = {"name": target.name, "description": target.description}
+        before = _list_snapshot(target)
         self.lists.apply(target, values)
-        changes = diff(before, {"name": target.name, "description": target.description})
+        changes = diff(before, _list_snapshot(target))
         if changes:
             target.updated_by = actor.id
             await self.audit.record("target_list.update", actor=actor, entity_type=LIST, entity_id=target.id,
@@ -367,14 +402,20 @@ class CampaignService:
         await self.session.commit()
 
     async def members_of(self, list_id: int, params: PageParams, *, q: str | None = None) -> MemberPage:
-        """Who is on the list, with the state that decides whether a campaign would reach them."""
+        """Who is in the audience — the members, for a static list; the customers matching a segment's rules
+        right now, for a segment — each with the state that decides whether a campaign would reach them."""
         target = await self._get_list(list_id)
-        rows, total = await self.members.page(target.id, params, q=q)
+        if target.kind == "segment":
+            customers, total = await self.customers.paginate(segments.members_stmt(target.rules, q=q), params)
+            rows: list[tuple[TargetListMember | None, Customer]] = [(None, customer) for customer in customers]
+        else:
+            rows, total = await self.members.page(target.id, params, q=q)
         suppressed = await self.suppressed([c.email for _, c in rows if c.email])
         return MemberPage(items=[self._member_out(member, customer, suppressed) for member, customer in rows],
                           total=total, page=params.page, page_size=params.page_size)
 
-    def _member_out(self, member: TargetListMember, customer: Customer, suppressed: set[str]) -> MemberOut:
+    def _member_out(self, member: TargetListMember | None, customer: Customer,
+                    suppressed: set[str]) -> MemberOut:
         email = (customer.email or "").lower()
         blocked = bool(email) and email in suppressed
         return MemberOut(
@@ -384,7 +425,7 @@ class CampaignService:
             unsubscribed=customer.unsubscribed_at is not None, suppressed=blocked,
             reachable=bool(email) and customer.marketing_consent and customer.unsubscribed_at is None
             and not blocked,
-            added_at=member.created_at)
+            added_at=member.created_at if member is not None else None)
 
     async def add_members(self, list_id: int, data: MembersIn, actor) -> MembersAdded:
         """Put customers on a list. Already there, or not a live customer: skipped, and told so."""
@@ -392,8 +433,7 @@ class CampaignService:
         if target.kind != "static":
             raise ValidationFailedError("A segment picks its own members — add customers to a static list")
         wanted = list(dict.fromkeys(data.customer_ids))  # keep the order, drop repeats
-        customers = CustomerRepository(self.session)
-        live = {c.id for c in await customers.list(customers.search(ids=wanted))}
+        live = {c.id for c in await self.customers.list(self.customers.search(ids=wanted))}
         already = await self.members.among(target.id, wanted)
         added = 0
         for customer_id in wanted:
@@ -414,6 +454,8 @@ class CampaignService:
     async def remove_member(self, list_id: int, customer_id: int, actor) -> None:
         """Take a customer off a list. The row goes; the audit log keeps who took them off."""
         target = await self._get_list(list_id)
+        if target.kind != "static":
+            raise ValidationFailedError("A segment picks its own members — take customers off a static list")
         member = await self.members.by_pair(target.id, customer_id)
         if member is None:
             raise NotFoundError("That customer is not on this list")
