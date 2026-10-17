@@ -413,6 +413,45 @@ class CampaignSendTests(unittest.TestCase):
         recipient = self.recipients(campaign["id"])["items"][0]
         self.assertEqual((recipient["status"], recipient["reason"]), ("skipped", "suppressed"))
 
+    def test_campaign_tracking_and_report(self):
+        from app.modules.campaigns import tokens
+        from app.modules.campaigns.models import CampaignRecipient
+
+        person = self.customer(first_name="Nora")
+        campaign = self.campaign(self.template(), self.audience([person]))
+        self.start(campaign["id"])
+        self.dispatch()
+        self.deliver(FakeTransport())
+
+        async def fetch_recipient_id(session):
+            stmt = select(CampaignRecipient.id).where(CampaignRecipient.campaign_id == campaign["id"],
+                                                     CampaignRecipient.customer_id == person["id"])
+            return (await session.execute(stmt)).scalar_one()
+
+        recipient_id = run(fetch_recipient_id)
+        open_res = self.w.client.get(f"{API}/campaigns/open", params={"token": tokens.open_url(recipient_id, base_url="https://crm.example.com")})
+        self.assertEqual(open_res.status_code, 200, open_res.text)
+        self.assertEqual(open_res.headers.get("content-type", "").startswith("image/gif"), True)
+
+        dest = "https://shop.example.com/sale?x=1"
+        click_res = self.w.client.get(f"{API}/campaigns/click",
+                                      params={"token": tokens.click_url(recipient_id, dest, base_url="https://crm.example.com")},
+                                      allow_redirects=False)
+        self.assertEqual(click_res.status_code, 307, click_res.text)
+        self.assertEqual(click_res.headers.get("location"), dest)
+
+        report = self.w.client.get(f"{API}/campaigns/{campaign['id']}/report", headers=self.marketing_h).json()
+        self.assertEqual(report["opened"], 1)
+        self.assertEqual(report["clicked"], 1)
+        self.assertEqual(report["delivered"], 1)
+        self.assertEqual(report["links"][0]["url"], dest)
+
+        stats = self.w.client.get(f"{API}/campaigns/stats", headers=self.marketing_h, params={"days": 7}).json()
+        self.assertEqual(stats["campaigns"], 1)
+        self.assertEqual(stats["sent"], 1)
+        self.assertEqual(stats["opened"], 1)
+        self.assertEqual(stats["clicked"], 1)
+
     # ---- permissions ----------------------------------------------------------------------------
     def test_permissions(self):
         template = self.template()

@@ -36,12 +36,18 @@ Rules:
 - the **unsubscribe link** in a campaign email works without a login: the token is the proof (see
   `tokens.py`). It answers a GET without changing anything (so a mail scanner cannot unsubscribe anyone),
   and a POST turns consent off, suppresses the address and writes down which campaign it came from.
+- **tracking** (SPEC §3.6) works the same way, from the other end: every link in a queued message is wrapped
+  so following it comes back to us (and then sends the customer on to where the link pointed — the destination
+  is inside the signed token, so a link can only ever redirect where that email pointed), and a one-pixel
+  image at the end of the message says it was opened. Both are written to `campaign_events` **once per
+  recipient**, so the report counts people rather than requests; an open or a click lands on the customer's
+  timeline the first time only. A preview and a test send are not tracked: they are the words, not a send.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import Select
@@ -53,6 +59,7 @@ from app.core.entities import check_entity_access
 from app.core.exceptions import ConflictError, NotFoundError, TooManyRequestsError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.integrations.email import EmailSender, Mail, get_email_sender
+from app.modules.activity.service import TimelineService
 from app.modules.audit.service import AuditService, diff
 from app.modules.customers.models import Customer
 from app.modules.customers.repository import CustomerRepository
@@ -65,21 +72,23 @@ from app.modules.users.service import UserService
 
 from . import render, segments
 from .models import (
-    DRAFT, PAUSED, QUEUED, RECIPIENT_FAILED, RECIPIENT_SENT, RECIPIENT_STATUSES, SCHEDULED, SENDING, SENT,
-    SKIPPED, Campaign, EmailTemplate, Suppression, TargetList, TargetListMember,
+    CLICK, DRAFT, OPEN, PAUSED, QUEUED, RECIPIENT_FAILED, RECIPIENT_SENT, RECIPIENT_STATUSES, SCHEDULED,
+    SENDING, SENT, SKIPPED, UNSUBSCRIBED, Campaign, EmailTemplate, Suppression, TargetList, TargetListMember,
 )
 from .repository import (
-    CampaignRecipientRepository, CampaignRepository, EmailTemplateRepository, SuppressionRepository,
-    TargetListMemberRepository, TargetListRepository,
+    CampaignEventRepository, CampaignRecipientRepository, CampaignRepository, EmailTemplateRepository,
+    SuppressionRepository, TargetListMemberRepository, TargetListRepository,
 )
 from .schemas import (
-    CampaignIn, CampaignOut, CampaignPage, CampaignSchedule, CampaignSummary, MemberOut, MemberPage,
-    MembersAdded, MembersIn, RecipientCounts, RecipientOut, RecipientPage, RenderedEmail, SegmentField,
-    SuppressionIn, SuppressionOut, SuppressionPage, TargetListIn, TargetListOut, TargetListPage,
-    TargetListUpdate, TemplateIn, TemplateOut, TemplatePage, TemplateSummary, TemplateUpdate, TestIn, TestSent,
-    UnsubscribeIn, UnsubscribeOut,
+    CampaignIn, CampaignOut, CampaignPage, CampaignReport, CampaignSchedule, CampaignStats, CampaignSummary,
+    LinkClicks, MemberOut, MemberPage, MembersAdded, MembersIn, RecipientCounts, RecipientOut, RecipientPage,
+    RenderedEmail, SegmentField, SuppressionIn, SuppressionOut, SuppressionPage, TargetListIn, TargetListOut,
+    TargetListPage, TargetListUpdate, TemplateIn, TemplateOut, TemplatePage, TemplateSummary, TemplateUpdate,
+    TestIn, TestSent, UnsubscribeIn, UnsubscribeOut,
 )
-from .tokens import read_unsubscribe_token, unsubscribe_url
+from .tokens import (
+    click_url, open_url, read_click_token, read_open_token, read_unsubscribe_token, unsubscribe_url,
+)
 
 ENTITY = "email_template"
 SUPPRESSION = "suppression"
@@ -125,7 +134,9 @@ class CampaignService:
         self.customers = CustomerRepository(session)  # the customer table, for segments and member lookups
         self.campaigns = CampaignRepository(session)
         self.recipients = CampaignRecipientRepository(session)
+        self.events = CampaignEventRepository(session)
         self.audit = AuditService(session)
+        self.timeline = TimelineService(session)
         self.settings = SettingsService(session)
         self.lookups = LookupService(session)
         self.outbox = MailService(session)  # campaigns queue into the outbox; the mail job sends them
@@ -169,13 +180,19 @@ class CampaignService:
         return {"customer": fields, "sender_name": prefs.from_name, "unsubscribe_url": unsubscribe}
 
     async def _render(self, *, subject: str, preheader: str | None, html: str, text: str,
-                      customer: Customer | None, campaign_id: int | None = None) -> RenderedEmail:
+                      customer: Customer | None, campaign_id: int | None = None,
+                      recipient_id: int | None = None) -> RenderedEmail:
         """What one customer would get in their inbox: subject, preheader, HTML and text, footer included.
 
         `campaign_id` is only noted on the unsubscribe link, so the report can say which campaign someone
         left from. The footer, and with it the link, is added here — no template can leave it out.
+
+        `recipient_id` is what makes a message a **tracked** one (SPEC §3.6): every web link in it is wrapped
+        so a click comes back to us, and the one-pixel image an open is recorded by is added at the end. It is
+        passed only when a real message is queued — a preview and a test send show the words as written.
         """
         prefs: EmailSettings = await self.settings.get_model("email")  # type: ignore[assignment]
+        api = get_settings().api_url.rstrip("/")  # tracking links are fetched by a mail client, not the web app
         context = await self._context(customer, campaign_id)
         rendered_subject = render.render(subject, context).strip()
         if not rendered_subject:
@@ -184,9 +201,14 @@ class CampaignService:
                 "“{{ customer.full_name }}”")
         body = render.render(html, context, html=True)
         rendered_text = render.render(text, context)
+        if recipient_id is not None:
+            who = recipient_id
+            body = render.track_links(body, lambda url: click_url(who, url, base_url=api))
         body, rendered_text = render.with_footer(body, rendered_text, sender_name=prefs.from_name,
                                                 footer_address=prefs.footer_address,
                                                 unsubscribe_url=context["unsubscribe_url"])
+        if recipient_id is not None:  # after the footer, so the unsubscribe link stays a plain link
+            body = f"{body}\n{render.tracking_pixel(open_url(recipient_id, base_url=api))}\n"
         rendered_preheader = render.render(preheader, context).strip() if preheader else None
         return RenderedEmail(subject=rendered_subject, preheader=rendered_preheader, html=body,
                              text=rendered_text)
@@ -754,6 +776,93 @@ class CampaignService:
         return RecipientPage(items=items, total=total, page=params.page, page_size=params.page_size,
                              counts=_recipient_counts(counts.get(campaign.id)))
 
+    async def record_event(self, recipient_id: int, kind: str, *, url: str = "") -> bool:
+        """Record one campaign event for a recipient and add it to the customer timeline once."""
+        row = await self.recipients.with_campaign(recipient_id)
+        if row is None:
+            return False
+        recipient, campaign_name = row
+        added = await self.events.add_once(campaign_id=recipient.campaign_id, recipient_id=recipient_id,
+                                          kind=kind, url=url)
+        if not added:
+            return False
+        if kind == OPEN:
+            message = f"Campaign email opened: {campaign_name}"
+        elif kind == CLICK:
+            message = f"Campaign link clicked: {campaign_name}"
+        elif kind == UNSUBSCRIBED:
+            message = f"Customer unsubscribed from {campaign_name}"
+        else:
+            message = f"Campaign tracking: {campaign_name}"
+        await self.timeline.record("customer", recipient.customer_id, "campaign.tracked", message,
+                                   data={"campaign_id": recipient.campaign_id, "campaign": campaign_name,
+                                         "kind": kind, "url": url or None})
+        return True
+
+    async def report(self, campaign_id: int) -> CampaignReport:
+        """Per-campaign tracking report: delivered, opened, clicked and unsubscribed counts."""
+        campaign = await self._get_campaign(campaign_id)
+        counts = await self.recipients.counts([campaign.id])
+        recipient_counts = _recipient_counts(counts.get(campaign.id))
+        people = await self.events.people(campaign.id)
+        delivered = recipient_counts.sent
+        opened = people.get(OPEN, 0)
+        clicked = people.get(CLICK, 0)
+        unsubscribed = people.get(UNSUBSCRIBED, 0)
+        template = await self.templates.get(campaign.template_id, include_deleted=True)
+        target_list_name = (await self._list_names([campaign])).get(campaign.target_list_id)
+        return CampaignReport(
+            campaign_id=campaign.id,
+            name=campaign.name,
+            status=campaign.status,
+            scheduled_at=campaign.scheduled_at,
+            started_at=campaign.started_at,
+            finished_at=campaign.finished_at,
+            template_name=template.name if template else None,
+            target_list_name=target_list_name,
+            recipients=recipient_counts,
+            delivered=delivered,
+            opened=opened,
+            clicked=clicked,
+            unsubscribed=unsubscribed,
+            open_rate=(opened / delivered) if delivered else None,
+            click_rate=(clicked / delivered) if delivered else None,
+            links=[LinkClicks(url=url, recipients=n) for url, n in await self.events.links(campaign.id)],
+        )
+
+    async def stats(self, days: int = 7) -> CampaignStats:
+        """Aggregated campaign activity over a trailing window for the dashboard."""
+        if days < 1:
+            raise ValidationFailedError("Pick a window of at least one day")
+        since = _now() - timedelta(days=days)
+        rows = await self.campaigns.started_since(since, limit=500)
+        if not rows:
+            return CampaignStats(days=days)
+        ids = [row.id for row in rows]
+        counts = await self.recipients.counts(ids)
+        people = await self.events.people_for(ids)
+        sent = failed = skipped = opened = clicked = unsubscribed = 0
+        for campaign in rows:
+            row_counts = _recipient_counts(counts.get(campaign.id))
+            sent += row_counts.sent
+            failed += row_counts.failed
+            skipped += row_counts.skipped
+            opened += people.get(campaign.id, {}).get(OPEN, 0)
+            clicked += people.get(campaign.id, {}).get(CLICK, 0)
+            unsubscribed += people.get(campaign.id, {}).get(UNSUBSCRIBED, 0)
+        return CampaignStats(
+            days=days,
+            campaigns=len(rows),
+            sent=sent,
+            opened=opened,
+            clicked=clicked,
+            unsubscribed=unsubscribed,
+            failed=failed,
+            skipped=skipped,
+            open_rate=(opened / sent) if sent else None,
+            click_rate=(clicked / sent) if sent else None,
+        )
+
     # ---- the dispatcher (background job) -----------------------------------------------------------
     def _audience_of(self, target: TargetList) -> Select[tuple[int, str | None]]:
         return (self.recipients.audience(rules=target.rules) if target.kind == "segment"
@@ -795,7 +904,12 @@ class CampaignService:
         room = await self.outbox.room(settings)
         queued = skipped = finished = 0
         for index, campaign in enumerate(active[:max_campaigns]):
-            await self.recipients.sync_outbox(campaign.id)  # learn what the outbox did with our messages
+            # learn what the outbox did with our messages, and announce what has gone on the timeline — a
+            # message is put there when it has been sent, not when it was queued in the outbox
+            for _, customer_id in await self.recipients.sync_outbox(campaign.id):
+                await self.timeline.record("customer", customer_id, "campaign.sent",
+                                           f"Campaign email sent: {campaign.name}",
+                                           data={"campaign_id": campaign.id, "campaign": campaign.name})
             if room > 0:  # nothing may go out right now: queue nothing, and let the next run try again
                 share = min(batch, max(1, room // (len(active) - index)))  # a fair slice between campaigns
                 sent, passed = await self._queue(campaign, share)
@@ -896,6 +1010,10 @@ class CampaignService:
             await CustomerService(self.session).mark_consent(customer.id, False, how)
         if customer.email:
             await self._suppress(customer.email, reason="unsubscribed", source="link", note=how, actor=None)
+        if data.campaign_id is not None:
+            recipient = await self.recipients.by_campaign_customer(data.campaign_id, customer.id)
+            if recipient is not None:
+                await self.record_event(recipient.id, UNSUBSCRIBED)
         await self.audit.record("campaign.unsubscribe", entity_type=CAMPAIGN, entity_id=data.campaign_id,
                                 ip=ip, changes={"customer_id": customer.id, "email": customer.email})
         await self.session.commit()

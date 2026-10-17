@@ -362,6 +362,57 @@ class RecipientPage(BaseModel):
     counts: RecipientCounts = RecipientCounts()  # the whole campaign, not just this page
 
 
+class LinkClicks(BaseModel):
+    """One link in a campaign, and how many recipients followed it."""
+
+    url: str
+    recipients: int
+
+
+class CampaignReport(BaseModel):
+    """What a campaign did after it went out (SPEC §3.6 tracking).
+
+    `delivered` is what the mail server accepted: SMTP hands back no receipt, so this is "handed over" rather
+    than "arrived in an inbox". `opened`, `clicked` and `unsubscribed` count **recipients**, not requests — one
+    person who reads a message three times is one open. And an open is a request for the one-pixel image, so a
+    reader whose mail client does not load images is not counted: these are signals to learn from, not a truth.
+    The rates are shares of what was delivered, and `None` when nothing was (a rate of nothing is not 0%).
+    """
+
+    campaign_id: int
+    name: str
+    status: str
+    scheduled_at: datetime | None
+    started_at: datetime | None
+    finished_at: datetime | None
+    template_name: str | None = None
+    target_list_name: str | None = None
+    recipients: RecipientCounts = RecipientCounts()
+    delivered: int = 0
+    opened: int = 0
+    clicked: int = 0
+    unsubscribed: int = 0
+    open_rate: float | None = None
+    click_rate: float | None = None
+    links: list[LinkClicks] = []
+
+
+class CampaignStats(BaseModel):
+    """Campaign email over a window, for the dashboard (SPEC §3.6): the same numbers as a report, added up
+    over the campaigns that started going out in the window."""
+
+    days: int
+    campaigns: int = 0
+    sent: int = 0  # messages handed to the mail server
+    opened: int = 0
+    clicked: int = 0
+    unsubscribed: int = 0
+    failed: int = 0
+    skipped: int = 0
+    open_rate: float | None = None
+    click_rate: float | None = None
+
+
 class UnsubscribeIn(BaseModel):
     """The token from the link in the email — the only proof needed — and the campaign the link came from,
     when it carried one (for the record: "they left from the Spring sale")."""

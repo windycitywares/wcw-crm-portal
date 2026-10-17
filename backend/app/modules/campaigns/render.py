@@ -7,11 +7,16 @@ sample data when it is saved, so a typo is caught at the desk and not by a custo
 
 Every rendered message ends with the compliance footer — the postal address from Admin → Settings → Email
 and the customer's own unsubscribe link — whether the template remembered to include one or not.
+
+Tracking (SPEC §3.6) happens here too, on the way out: `track_links` wraps the links in a message so a click
+is recorded and redirected, and `tracking_pixel` is the one-pixel image an open is recorded by. Both belong to
+a rendered message rather than to a template, so a preview and a test send show the words as written.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from html import unescape
 from typing import Any
 
@@ -26,6 +31,7 @@ _TAG_BLOCK = re.compile(r"<(script|style)\b.*?</\1>", re.S | re.I)
 _BLOCK_END = re.compile(r"</?(p|div|h[1-6]|li|ul|ol|table|tr|blockquote)\b[^>]*>", re.I)
 _BREAK = re.compile(r"<br\s*/?>", re.I)
 _ANY_TAG = re.compile(r"<[^>]+>")
+_HREF = re.compile(r'(<a\b[^>]*?\bhref\s*=\s*)(["\'])(.*?)\2', re.I | re.S)
 
 # What a template may say. Anything else is a typo and stops the render (SPEC §3.6 merge fields).
 MERGE_FIELDS: tuple[tuple[str, str], ...] = (
@@ -114,3 +120,28 @@ def with_footer(html: str, text: str, *, sender_name: str, footer_address: str,
     text_address = f"{footer_address}\n" if footer_address else ""
     text = f"{text.rstrip()}\n\n--\n{sender_name}\n{text_address}Unsubscribe: {unsubscribe_url}\n"
     return html, text
+
+
+def track_links(html: str, wrap: Callable[[str], str]) -> str:
+    """Rewrite the links in a message so a click comes back to us (SPEC §3.6).
+
+    Only web links are wrapped: a `mailto:`, a `tel:` or a jump to an anchor inside the message is not an HTTP
+    request, and wrapping one would only break it. This runs **before** the footer is added, so the unsubscribe
+    link stays a plain link — it is a compliance link, not something to measure.
+    """
+    def swap(match: re.Match[str]) -> str:
+        start, quote, url = match.group(1), match.group(2), unescape(match.group(3)).strip()
+        if not url.lower().startswith(("http://", "https://")):
+            return match.group(0)
+        return f"{start}{quote}{wrap(url)}{quote}"
+
+    return _HREF.sub(swap, html)
+
+
+def tracking_pixel(url: str) -> str:
+    """The 1×1 image at the end of a message that an open is recorded by (SPEC §3.6).
+
+    It is an image, so a customer who reads their email with images turned off is simply not counted as having
+    opened it — which is why this is a signal to learn from, not a number to believe.
+    """
+    return f'<img src="{url}" alt="" width="1" height="1" style="border:0;height:1px;width:1px" />'

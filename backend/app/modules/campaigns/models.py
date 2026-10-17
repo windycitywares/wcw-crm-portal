@@ -12,6 +12,9 @@ suppression list that keeps the CRM out of inboxes that asked it to stop.
 - `campaigns` + `campaign_recipients` — one send: a template, an audience and a time. When a campaign
   starts, the audience is copied into recipient rows (a segment is evaluated then, once) and every
   recipient is followed through the email outbox: queued, sent, skipped with a reason, or failed.
+- `campaign_events` — what a recipient did with the message afterwards: opened it (the mail client fetched
+  the one-pixel image), followed a link (the click was redirected through us), or stopped the email. One row
+  per recipient per thing done, so the report counts people rather than requests.
 """
 
 from datetime import datetime
@@ -39,6 +42,10 @@ RECIPIENT_STATUSES = (PENDING, QUEUED, RECIPIENT_SENT, RECIPIENT_FAILED, SKIPPED
 # What kind of audience a list is: a static list holds its members in a table, a segment holds the rules
 # that pick them (see segments.py).
 KINDS = ("static", "segment")
+
+# What a recipient did with the message (SPEC §3.6 tracking): opened it, followed a link, or stopped the email.
+OPEN, CLICK, UNSUBSCRIBED = "open", "click", "unsubscribe"
+EVENT_KINDS = (OPEN, CLICK, UNSUBSCRIBED)
 
 
 class EmailTemplate(IdMixin, TimestampMixin, AuthorMixin, SoftDeleteMixin, Base):
@@ -121,7 +128,7 @@ class CampaignRecipient(IdMixin, TimestampMixin, Base):
 
     The audience is copied in when the campaign starts — a segment is evaluated at that moment, once, so what
     went out is what was true then. Each row then follows its message through the outbox (`outbox_id`), which
-    is what the per-campaign report (next batch) counts.
+    is what the per-campaign report counts, together with the `campaign_events` the message comes back with.
     """
 
     __tablename__ = "campaign_recipients"
@@ -139,4 +146,31 @@ class CampaignRecipient(IdMixin, TimestampMixin, Base):
     outbox_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("email_outbox.id", ondelete="SET NULL"))
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CampaignEvent(IdMixin, TimestampMixin, Base):
+    """What one recipient did with one message (SPEC §3.6 tracking), written when it happens.
+
+    `created_at` is when it happened. There is **one row per recipient per thing done** — and, for a click,
+    per link — so the report counts people, not requests: a mail client that fetches the pixel twice, or a
+    link somebody clicks again, adds nothing (the unique key makes the second write a no-op). Only the first
+    one is on the customer's timeline, for the same reason.
+
+    `url` is the link that was followed; it is empty for an open, which is not a link at all (the message
+    asked for the pixel) and for an unsubscribe (the customer followed the footer's own link, which is not
+    tracked as a click). `campaign_id` is a deliberate shortcut — it is implied by the recipient, but the
+    report is asked by campaign and this keeps it off a join.
+    """
+
+    __tablename__ = "campaign_events"
+    __table_args__ = (
+        UniqueConstraint("recipient_id", "kind", "url", name="uq_campaign_events_recipient_kind_url"),
+        Index("ix_campaign_events_campaign_kind", "campaign_id", "kind"),
+    )
+
+    campaign_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("campaigns.id", ondelete="CASCADE"))
+    recipient_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("campaign_recipients.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(12))  # open, click or unsubscribe
+    url: Mapped[str] = mapped_column(String(500), default="", server_default="")
 
