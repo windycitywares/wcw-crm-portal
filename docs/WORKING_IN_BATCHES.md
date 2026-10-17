@@ -56,7 +56,8 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | 3 | Tickets API | `tickets` + `ticket_messages` + `sla_policies` (seeded §9): numbering, New→Open→Pending→Resolved→Closed, assign, internal notes vs email replies (outbox), SLA due times in business hours + breach job, timeline on the customer | open (`feat/m3-3-tickets-api`) |
 | 4 | Tickets web | queue (filters, SLA badges), ticket page (conversation, reply / internal note, status, assign), Tickets panel on the customer page, Settings → SLA policies | open (`feat/m3-4-tickets-web`) |
 | 4b | Canned responses | `canned_responses` table + CRUD (admins), picker in the reply box | open (`feat/m3-4b-canned-responses`) |
-| 5 | Tickets from the shop | shop contact-form messages → tickets (shop event + CRM handler) | — |
+| 5 | Tickets from the shop | shop contact-form messages → tickets (shop event + CRM handler) | open (`feat/m3-5-shop-contacts`) |
+| 5b | Shop side: contact form | the shop emits `contact_message.created` from its outbox when the contact form is submitted (PR in `wcw-shop-portal`) | — |
 
 ## Next milestones
 M3 tasks + tickets → M4 sales → M5 campaigns → M6 suppliers → M7 reports.

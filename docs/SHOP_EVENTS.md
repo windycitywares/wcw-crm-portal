@@ -70,6 +70,17 @@ old one is kept under *Other emails*. Send for customer accounts only, not staff
 - The customer's timeline gets a line when the status changes (not for `pending`).
 - `marketing_opt_in: true` records consent ("shop checkout"); `false` never removes it.
 
+### `contact_message.created` — someone used the shop's contact form (send on every submit)
+```json
+{"name": "Jane Doe", "email": "jane@example.com", "phone": null, "subject": "Where is my order?",
+ "message": "It hasn't arrived yet.", "order_number": "WCW-1042"}
+```
+`email` and `message` are required; the rest is used when present. The CRM finds or creates the customer
+and opens a **support ticket** for the message (SPEC §3.5): unassigned, priority *Normal*, type *Other*, with
+the message as its description. A quoted `order_number` links the ticket to that shop order (case-insensitive).
+Answering happens in **CRM → Tickets** — a reply emails the customer through the outbox. The shop keeps its own
+contact inbox until it is retired (SPEC §9, decision 3).
+
 ### `newsletter.subscribed`
 ```json
 {"email": "jane@example.com", "source": "site"}

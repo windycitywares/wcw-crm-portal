@@ -64,6 +64,18 @@ class NewsletterData(_Loose):
     source: str | None = Field(default=None, max_length=20)
 
 
+class ContactData(_Loose):
+    """A shop contact-form message (SPEC §3.5). The CRM opens a ticket for it, so `email` and `message`
+    are required; the rest is used when present."""
+
+    email: str = Field(max_length=320)
+    name: str | None = Field(default=None, max_length=200)
+    phone: str | None = Field(default=None, max_length=40)
+    subject: str | None = Field(default=None, max_length=200)
+    message: str = Field(min_length=1, max_length=20_000)
+    order_number: str | None = Field(default=None, max_length=32)
+
+
 class ShopStatus(BaseModel):
     enabled: bool
     secret_set: bool

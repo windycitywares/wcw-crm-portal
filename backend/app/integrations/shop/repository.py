@@ -51,6 +51,14 @@ class ShopOrderRepository(BaseRepository[ShopOrder]):
     async def get_order(self, order_id: int) -> ShopOrder | None:
         return await self.session.get(ShopOrder, order_id)
 
+    async def by_number(self, number: str | None) -> ShopOrder | None:
+        """Find a copy of an order by the number the customer quotes (shop numbers are unique, any case)."""
+        number = (number or "").strip()
+        if not number:
+            return None
+        stmt = select(ShopOrder).where(func.lower(ShopOrder.number) == number.lower())
+        return (await self.session.execute(stmt)).scalars().first()
+
     async def stats(self, customer_id: int) -> tuple[int, Decimal, datetime | None, datetime | None]:
         stmt = select(
             func.count(), func.coalesce(func.sum(ShopOrder.grand_total - ShopOrder.refunded_total), 0),

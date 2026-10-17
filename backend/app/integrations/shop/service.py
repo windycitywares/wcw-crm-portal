@@ -3,6 +3,7 @@
 Event types (docs/SHOP_EVENTS.md):
 - customer.upserted        a shop account was created or changed → find/create the customer, link the account
 - order.updated            an order was placed or changed → customer, order copy, totals, timeline
+- contact_message.created  a shop contact-form message → find/create the customer, open a ticket
 - newsletter.subscribed    → marketing consent (creates the customer if needed)
 - newsletter.unsubscribed  → consent withdrawn (only for customers we already have)
 Anything else is stored and marked "ignored", so the shop can send new types before the CRM handles them.
@@ -21,14 +22,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, ValidationFailedError
 from app.core.pagination import PageParams
-from app.modules.activity.service import TimelineService
+from app.modules.activity.service import TimelineService, preview
 from app.modules.customers.service import CustomerService
+from app.modules.lookups.service import LookupService
 from app.modules.settings.service import SettingsService
+from app.modules.tickets.schemas import TicketCreate
+from app.modules.tickets.service import TicketService
 
 from . import signing
 from .models import DONE, FAILED, IGNORED, PENDING, ShopEvent, ShopOrder
 from .repository import ShopEventRepository, ShopOrderRepository
-from .schemas import CustomerData, Envelope, NewsletterData, OrderData, ShopEventOut, ShopEventPage, ShopStatus
+from .schemas import (
+    ContactData, CustomerData, Envelope, NewsletterData, OrderData, ShopEventOut, ShopEventPage, ShopStatus,
+)
 from .settings import ShopSettings
 
 log = logging.getLogger("wcw.crm.shop")
@@ -61,10 +67,12 @@ class ShopEventService:
         self.orders = ShopOrderRepository(session)
         self.customers = CustomerService(session)
         self.timeline = TimelineService(session)
+        self.tickets = TicketService(session)
         self.quiet = False  # backfill: no timeline lines for history
         self.handlers: dict[str, Callable[[dict[str, Any]], Awaitable[int | None]]] = {
             "customer.upserted": self._customer,
             "order.updated": self._order,
+            "contact_message.created": self._contact,
             "newsletter.subscribed": self._subscribed,
             "newsletter.unsubscribed": self._unsubscribed,
         }
@@ -155,6 +163,22 @@ class ShopEventService:
                 title += f" — {_money(data.grand_total, data.currency)}"
             await self.timeline.record("customer", customer_id, "shop.order", title,
                                        data={"order_id": data.id, "number": data.number, "status": data.status})
+        return customer_id
+
+    async def _contact(self, payload: dict[str, Any]) -> int:
+        """A shop contact-form message opens a ticket (SPEC §3.5), so it lands in the support queue instead
+        of only being visible in the shop. The customer is found or created first, so the ticket is linked."""
+        data = ContactData.model_validate(payload)
+        customer_id = await self.customers.sync_from_shop(email=data.email, full_name=data.name, phone=data.phone)
+        order = await self.orders.by_number(data.order_number)
+        try:
+            ticket_type: str | None = await LookupService(self.session).require("ticket_type", "other")
+        except (NotFoundError, ValidationFailedError):
+            ticket_type = None  # someone removed the "Other" type: file the ticket untyped rather than fail
+        subject = (data.subject or "").strip() or f"Shop contact: {preview(data.message)}"
+        await self.tickets.create(TicketCreate(
+            subject=subject, description=data.message, ticket_type=ticket_type, priority="normal",
+            customer_id=customer_id, shop_order_id=order.id if order else None), actor=None, commit=False)
         return customer_id
 
     async def apply_data(self, event_type: str, data: dict[str, Any]) -> int | None:
