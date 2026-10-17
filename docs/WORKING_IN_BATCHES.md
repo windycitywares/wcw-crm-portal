@@ -90,5 +90,12 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | 2 | Supplied products API | `supplier_products`: supplier + shop SKU + supplier SKU, unit cost/currency and MOQ; CRUD, audit and tests | — |
 | 3 | Suppliers web | searchable supplier directory, supplier details, contacts and supplied products, record timeline/tags/custom fields, permission-aware editing | — |
 
+## M7 Reports (started 2026-10-17)
+
+| # | Batch | Contents | PR |
+|---|-------|----------|----|
+| 1 | Reports API | overview composed from sales/ticket/campaign summaries; customer type/source/status breakdowns; ticket type/status/priority and SLA counts; supplier type/status/rating summary; permissions and tests | in progress |
+| 2 | Reports web | reports page for sales forecast, ticket/SLA, campaign performance, customer mix and supplier summary; CSV export for tabular views | — |
+
 ## Next milestones
-M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → M5 campaigns (API complete; campaign web batches are in review through #50) → **M6 suppliers (batch 1 in progress)** → M7 reports.
+M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → M5 campaigns (API complete; campaign web batches are in review through #50) → M6 suppliers (API/web batches are in review through #53) → **M7 reports (batch 1 in progress)**.
