@@ -280,7 +280,12 @@ class CustomerService:
                                        data={"fields": list(changes)})
         return customer.id
 
-    async def set_consent_from_shop(self, customer_id: int, consent: bool, how: str) -> None:
+    async def mark_consent(self, customer_id: int, consent: bool, how: str) -> None:
+        """Consent learned from outside the CRM's own edit screen (the shop, an unsubscribe link).
+
+        Stamps the consent fields, puts it on the customer's timeline in a human's words and audits it with
+        where it came from. Staff changing consent by hand go through `update` instead.
+        """
         customer = await self._get(customer_id)
         was = customer.marketing_consent
         if consent and not customer.marketing_consent:

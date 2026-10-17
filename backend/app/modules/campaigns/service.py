@@ -25,43 +25,71 @@ Rules:
   list (see `consent.py`). Membership changes are audited one row per customer, so "who put them on this
   list?" always has an answer. Merging two customers moves their memberships to the one that stayed
   (see `merge.py`).
+- a **campaign** is a template plus an audience plus a time (SPEC §3.6: draft → scheduled → sending → paused
+  → sent), and it never sends anything itself: when it
+  starts, its audience is copied into `campaign_recipients` (a segment is evaluated then, once) and the
+  dispatcher job queues one personalized message per recipient into the email outbox, only as many at a time
+  as the SMTP limits allow. The outbox does the sending, the pacing and the retrying, and the dispatcher
+  copies back what happened: sent, or failed with the reason. Anyone without consent, unsubscribed or
+  suppressed is skipped, with the reason kept on their row — compliance is checked at send time, not when
+  the audience was written.
+- the **unsubscribe link** in a campaign email works without a login: the token is the proof (see
+  `tokens.py`). It answers a GET without changing anything (so a mail scanner cannot unsubscribe anyone),
+  and a POST turns consent off, suppresses the address and writes down which campaign it came from.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import rate_limit
 from app.core.config import get_settings
 from app.core.entities import check_entity_access
-from app.core.exceptions import ConflictError, NotFoundError, ValidationFailedError
+from app.core.exceptions import ConflictError, NotFoundError, TooManyRequestsError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.integrations.email import EmailSender, Mail, get_email_sender
 from app.modules.audit.service import AuditService, diff
 from app.modules.customers.models import Customer
 from app.modules.customers.repository import CustomerRepository
+from app.modules.customers.service import CustomerService
 from app.modules.lookups.service import LookupService
+from app.modules.mail.service import MailService
 from app.modules.settings.groups import EmailSettings
 from app.modules.settings.service import SettingsService
 from app.modules.users.service import UserService
 
 from . import render, segments
-from .models import EmailTemplate, Suppression, TargetList, TargetListMember
+from .models import (
+    DRAFT, PAUSED, QUEUED, RECIPIENT_FAILED, RECIPIENT_SENT, RECIPIENT_STATUSES, SCHEDULED, SENDING, SENT,
+    SKIPPED, Campaign, EmailTemplate, Suppression, TargetList, TargetListMember,
+)
 from .repository import (
-    EmailTemplateRepository, SuppressionRepository, TargetListMemberRepository, TargetListRepository,
+    CampaignRecipientRepository, CampaignRepository, EmailTemplateRepository, SuppressionRepository,
+    TargetListMemberRepository, TargetListRepository,
 )
 from .schemas import (
-    MemberOut, MemberPage, MembersAdded, MembersIn, RenderedEmail, SegmentField, SuppressionIn, SuppressionOut,
-    SuppressionPage, TargetListIn, TargetListOut, TargetListPage, TargetListUpdate, TemplateIn, TemplateOut,
-    TemplatePage, TemplateSummary, TemplateUpdate, TestIn, TestSent,
+    CampaignIn, CampaignOut, CampaignPage, CampaignSchedule, CampaignSummary, MemberOut, MemberPage,
+    MembersAdded, MembersIn, RecipientCounts, RecipientOut, RecipientPage, RenderedEmail, SegmentField,
+    SuppressionIn, SuppressionOut, SuppressionPage, TargetListIn, TargetListOut, TargetListPage,
+    TargetListUpdate, TemplateIn, TemplateOut, TemplatePage, TemplateSummary, TemplateUpdate, TestIn, TestSent,
+    UnsubscribeIn, UnsubscribeOut,
 )
-from .tokens import unsubscribe_url
+from .tokens import read_unsubscribe_token, unsubscribe_url
 
 ENTITY = "email_template"
 SUPPRESSION = "suppression"
 LIST = "target_list"
+CAMPAIGN = "campaign"
 TRACKED = ("name", "subject", "preheader", "version")
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def _snapshot(template: EmailTemplate) -> dict[str, Any]:
@@ -76,6 +104,17 @@ def _list_snapshot(target: TargetList) -> dict[str, Any]:
     return {"name": target.name, "description": target.description, "rules": target.rules}
 
 
+def _campaign_snapshot(campaign: Campaign) -> dict[str, Any]:
+    return {"name": campaign.name, "status": campaign.status, "template_id": campaign.template_id,
+            "target_list_id": campaign.target_list_id, "scheduled_at": campaign.scheduled_at}
+
+
+def _recipient_counts(counts: dict[str, int] | None) -> RecipientCounts:
+    """The five statuses always add up to `total`, so a row nobody has touched reads all zeroes."""
+    known = {status: int((counts or {}).get(status, 0)) for status in RECIPIENT_STATUSES}
+    return RecipientCounts(total=sum(known.values()), **known)
+
+
 class CampaignService:
     def __init__(self, session: AsyncSession, email_sender: EmailSender | None = None):
         self.session = session
@@ -84,9 +123,12 @@ class CampaignService:
         self.lists = TargetListRepository(session)
         self.members = TargetListMemberRepository(session)
         self.customers = CustomerRepository(session)  # the customer table, for segments and member lookups
+        self.campaigns = CampaignRepository(session)
+        self.recipients = CampaignRecipientRepository(session)
         self.audit = AuditService(session)
         self.settings = SettingsService(session)
         self.lookups = LookupService(session)
+        self.outbox = MailService(session)  # campaigns queue into the outbox; the mail job sends them
         self.mail = email_sender
         self._directory: dict[int, str] | None = None
 
@@ -105,7 +147,7 @@ class CampaignService:
                 return value.label
         return key
 
-    async def _context(self, customer: Customer | None) -> dict[str, Any]:
+    async def _context(self, customer: Customer | None, campaign_id: int | None = None) -> dict[str, Any]:
         """The merge fields for one customer — or the sample ones for nobody in particular."""
         base = get_settings().site_url.rstrip("/")
         if customer is None:
@@ -122,15 +164,19 @@ class CampaignService:
                 "customer_type": await self._type_label(customer.customer_type),
                 "owner_name": people.get(customer.owner_id) if customer.owner_id else "",
             }
-            unsubscribe = unsubscribe_url(customer.id, base_url=base)
+            unsubscribe = unsubscribe_url(customer.id, base_url=base, campaign_id=campaign_id)
         prefs: EmailSettings = await self.settings.get_model("email")  # type: ignore[assignment]
         return {"customer": fields, "sender_name": prefs.from_name, "unsubscribe_url": unsubscribe}
 
     async def _render(self, *, subject: str, preheader: str | None, html: str, text: str,
-                      customer: Customer | None) -> RenderedEmail:
-        """What one customer would get in their inbox: subject, preheader, HTML and text, footer included."""
+                      customer: Customer | None, campaign_id: int | None = None) -> RenderedEmail:
+        """What one customer would get in their inbox: subject, preheader, HTML and text, footer included.
+
+        `campaign_id` is only noted on the unsubscribe link, so the report can say which campaign someone
+        left from. The footer, and with it the link, is added here — no template can leave it out.
+        """
         prefs: EmailSettings = await self.settings.get_model("email")  # type: ignore[assignment]
-        context = await self._context(customer)
+        context = await self._context(customer, campaign_id)
         rendered_subject = render.render(subject, context).strip()
         if not rendered_subject:
             raise ValidationFailedError(
@@ -266,19 +312,36 @@ class CampaignService:
         existing = await self.suppressions.by_email(email, include_deleted=True)
         if existing is not None and existing.deleted_at is None:
             raise ConflictError(f"{email} is already on the suppression list")
+        suppression = await self._suppress(email, reason=data.reason, source="staff", note=data.note,
+                                           actor=actor)
+        await self.session.commit()
+        return SuppressionOut.model_validate(suppression)
+
+    async def _suppress(self, email: str, *, reason: str, source: str, note: str | None,
+                        actor) -> Suppression:
+        """Put an address on the list (or restore its row), whoever decided it: staff, or the customer
+        themselves through an unsubscribe link. An address already on it is left as it is. The caller commits.
+        """
+        actor_id = actor.id if actor else None
+        email = (email or "").strip().lower()
+        if not email:
+            raise ValidationFailedError("An account with no email address cannot be suppressed")
+        existing = await self.suppressions.by_email(email, include_deleted=True)
+        if existing is not None and existing.deleted_at is None:
+            return existing
         if existing is not None:
-            existing.reason, existing.note, existing.source = data.reason, data.note, "staff"
-            existing.updated_by = actor.id
+            existing.reason, existing.note, existing.source = reason, note, source
+            existing.updated_by = actor_id
             await self.suppressions.restore(existing)
             suppression = existing
         else:
             suppression = await self.suppressions.add(Suppression(
-                email=email, reason=data.reason, note=data.note, source="staff",
-                created_by=actor.id, updated_by=actor.id))
+                email=email, reason=reason, note=note, source=source,
+                created_by=actor_id, updated_by=actor_id))
         await self.audit.record("suppression.create", actor=actor, entity_type=SUPPRESSION,
-                                entity_id=suppression.id, changes={"email": email, "reason": data.reason})
-        await self.session.commit()
-        return SuppressionOut.model_validate(suppression)
+                                entity_id=suppression.id,
+                                changes={"email": email, "reason": reason, "source": source})
+        return suppression
 
     async def release(self, suppression_id: int, actor) -> None:
         """Take an address off the list: it may be emailed again (staff decision, not a customer's)."""
@@ -414,6 +477,26 @@ class CampaignService:
         return MemberPage(items=[self._member_out(member, customer, suppressed) for member, customer in rows],
                           total=total, page=params.page, page_size=params.page_size)
 
+    @staticmethod
+    def _why_not_reachable(customer: Customer, suppressed: set[str]) -> str | None:
+        """Why a campaign would skip this customer — None when it would email them (SPEC §3.6).
+
+        The one place this rule is written, so the audience counts, the member list and the sender cannot
+        drift apart: a customer who said no must never be emailed by any of them. The reasons are asked from
+        the most particular to the most general, so the one kept on a skipped recipient is the useful one.
+        """
+        if customer.deleted_at is not None:
+            return "customer deleted"
+        if not customer.email:
+            return "no email address"
+        if customer.unsubscribed_at is not None:
+            return "unsubscribed"
+        if customer.email.lower() in suppressed:
+            return "suppressed"  # bounced, complained, or put on the list by hand
+        if not customer.marketing_consent:
+            return "no marketing consent"
+        return None
+
     def _member_out(self, member: TargetListMember | None, customer: Customer,
                     suppressed: set[str]) -> MemberOut:
         email = (customer.email or "").lower()
@@ -423,8 +506,7 @@ class CampaignService:
             full_name=customer.full_name, company=customer.company, email=customer.email,
             customer_type=customer.customer_type, marketing_consent=customer.marketing_consent,
             unsubscribed=customer.unsubscribed_at is not None, suppressed=blocked,
-            reachable=bool(email) and customer.marketing_consent and customer.unsubscribed_at is None
-            and not blocked,
+            reachable=self._why_not_reachable(customer, suppressed) is None,
             added_at=member.created_at if member is not None else None)
 
     async def add_members(self, list_id: int, data: MembersIn, actor) -> MembersAdded:
@@ -464,3 +546,357 @@ class CampaignService:
         await self.audit.record("target_list.member_remove", actor=actor, entity_type=LIST,
                                 entity_id=target.id, changes={"customer_id": customer_id})
         await self.session.commit()
+
+    # ---- campaigns ---------------------------------------------------------------------------------
+    async def _template_names(self, rows: Sequence[Campaign]) -> dict[int, str]:
+        ids = list({row.template_id for row in rows})
+        templates = await self.templates.list(
+            self.templates.query(include_deleted=True).where(EmailTemplate.id.in_(ids or [0])))
+        return {template.id: template.name for template in templates}
+
+    async def _list_names(self, rows: Sequence[Campaign]) -> dict[int, str]:
+        """Names of the audiences these campaigns use, deleted ones included: a campaign that has gone out
+        still says who it went to, even after the list was archived."""
+        ids = list({row.target_list_id for row in rows})
+        lists = await self.lists.list(self.lists.query(include_deleted=True).where(TargetList.id.in_(ids or [0])))
+        return {target.id: target.name for target in lists}
+
+    async def _audiences_for(self, list_ids: Sequence[int]) -> tuple[dict[int, int], dict[int, int]]:
+        """`members`/`reachable` for these audiences as they are now (a draft shows what it would go to)."""
+        wanted = list(dict.fromkeys(list_ids))
+        rows = list(await self.lists.list(
+            self.lists.query(include_deleted=True).where(TargetList.id.in_(wanted or [0]))))
+        return await self._audience_counts(rows)
+
+    async def list_campaigns(self, params: PageParams, *, status: str | None = None,
+                             q: str | None = None) -> CampaignPage:
+        rows, total = await self.campaigns.paginate(self.campaigns.search(status=status, q=q), params)
+        counts = await self.recipients.counts([row.id for row in rows])
+        templates = await self._template_names(rows)
+        names = await self._list_names(rows)
+        members, reachable = await self._audiences_for([row.target_list_id for row in rows])
+        people = await self._people() if any(row.updated_by for row in rows) else {}
+        items = []
+        for row in rows:
+            item = CampaignSummary.model_validate(row)
+            item.template_name = templates.get(row.template_id)
+            item.target_list_name = names.get(row.target_list_id)
+            item.audience = members.get(row.target_list_id, 0)
+            item.reachable = reachable.get(row.target_list_id, 0)
+            item.recipients = _recipient_counts(counts.get(row.id))
+            item.updated_by_name = people.get(row.updated_by) if row.updated_by else None
+            items.append(item)
+        return CampaignPage(items=items, total=total, page=params.page, page_size=params.page_size)
+
+    async def _get_campaign(self, campaign_id: int) -> Campaign:
+        campaign = await self.campaigns.get(campaign_id)
+        if campaign is None:
+            raise NotFoundError("Campaign not found")
+        return campaign
+
+    async def get_campaign(self, campaign_id: int) -> CampaignOut:
+        """One campaign: what it is written from, who it goes to, and where its recipients are."""
+        campaign = await self._get_campaign(campaign_id)
+        templates = await self._template_names([campaign])
+        names = await self._list_names([campaign])
+        counts = await self.recipients.counts([campaign.id])
+        members, reachable = await self._audiences_for([campaign.target_list_id])
+        target = await self.lists.get(campaign.target_list_id, include_deleted=True)
+        people = await self._people() if campaign.updated_by else {}
+        out = CampaignOut.model_validate(campaign)
+        out.template_name = templates.get(campaign.template_id)
+        out.target_list_name = names.get(campaign.target_list_id)
+        out.target_list_kind = target.kind if target else "static"
+        out.audience = members.get(campaign.target_list_id, 0)
+        out.reachable = reachable.get(campaign.target_list_id, 0)
+        out.recipients = _recipient_counts(counts.get(campaign.id))
+        out.updated_by_name = people.get(campaign.updated_by) if campaign.updated_by else None
+        return out
+
+    async def _check_campaign_name(self, name: str, *, keep: int | None = None) -> None:
+        other = await self.campaigns.by_name(name)
+        if other is not None and other.id != keep:
+            raise ConflictError(f"There is already a campaign called “{other.name}”")
+
+    async def _check_parts(self, template_id: int, list_id: int) -> None:
+        """A campaign is a template and an audience: both must exist and be live (a deleted one is in the
+        archive, not in the pickers)."""
+        if await self.templates.get(template_id) is None:
+            raise ValidationFailedError("Pick a template — that is the words of the campaign")
+        if await self.lists.get(list_id) is None:
+            raise ValidationFailedError("Pick an audience — that is who the campaign goes to")
+
+    async def create_campaign(self, data: CampaignIn, actor) -> CampaignOut:
+        """Write a campaign down. It starts as a draft: scheduling and sending are separate steps."""
+        values = data.model_dump()
+        await self._check_campaign_name(values["name"])
+        await self._check_parts(values["template_id"], values["target_list_id"])
+        campaign = await self.campaigns.add(Campaign(
+            name=values["name"], template_id=values["template_id"], target_list_id=values["target_list_id"],
+            status=DRAFT, created_by=actor.id, updated_by=actor.id))
+        await self.audit.record("campaign.create", actor=actor, entity_type=CAMPAIGN, entity_id=campaign.id,
+                                changes=diff({}, _campaign_snapshot(campaign)))
+        await self.session.commit()
+        return await self.get_campaign(campaign.id)
+
+    async def update_campaign(self, campaign_id: int, data: CampaignUpdate, actor) -> CampaignOut:
+        """Change a campaign that has not started. Once it is going out, its template and its audience are
+        part of what was sent, and changing them would be a lie."""
+        campaign = await self._get_campaign(campaign_id)
+        if campaign.status not in (DRAFT, SCHEDULED):
+            raise ValidationFailedError(
+                "This campaign has already gone out (or is going out) — its template and audience are part "
+                "of what was sent")
+        values = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None}
+        if not values:
+            return await self.get_campaign(campaign.id)
+        if values.get("name"):
+            await self._check_campaign_name(values["name"], keep=campaign.id)
+        await self._check_parts(values.get("template_id", campaign.template_id),
+                                values.get("target_list_id", campaign.target_list_id))
+        before = _campaign_snapshot(campaign)
+        self.campaigns.apply(campaign, values)
+        campaign.updated_by = actor.id
+        changes = diff(before, _campaign_snapshot(campaign))
+        if changes:
+            await self.audit.record("campaign.update", actor=actor, entity_type=CAMPAIGN,
+                                    entity_id=campaign.id, changes=changes)
+        await self.session.commit()
+        return await self.get_campaign(campaign.id)
+
+    async def delete_campaign(self, campaign_id: int, actor) -> None:
+        """Soft-delete a campaign: it goes out of the lists, and the dispatcher stops picking it up. A paused
+        one can go (nothing more is queued); one that is going out has to be paused first."""
+        campaign = await self._get_campaign(campaign_id)
+        if campaign.status == SENDING:
+            raise ValidationFailedError("This campaign is going out — pause it before deleting it")
+        await self.campaigns.soft_delete(campaign)
+        await self.audit.record("campaign.delete", actor=actor, entity_type=CAMPAIGN, entity_id=campaign.id,
+                                changes={"name": campaign.name, "status": campaign.status})
+        await self.session.commit()
+
+    async def schedule_campaign(self, campaign_id: int, data: CampaignSchedule, actor) -> CampaignOut:
+        """Put a campaign on the calendar. The job picks it up within the minute after its time."""
+        campaign = await self._get_campaign(campaign_id)
+        if campaign.status not in (DRAFT, SCHEDULED):
+            raise ValidationFailedError("Only a campaign that has not started can be put on the calendar")
+        when = data.scheduled_at
+        if when.tzinfo is None:  # the API works in UTC; a bare time is UTC too
+            when = when.replace(tzinfo=timezone.utc)
+        if when <= _now():
+            raise ValidationFailedError("Pick a time in the future — to send it now, use “send”")
+        before = _campaign_snapshot(campaign)
+        campaign.scheduled_at, campaign.status = when, SCHEDULED
+        campaign.updated_by = actor.id
+        await self.audit.record("campaign.schedule", actor=actor, entity_type=CAMPAIGN, entity_id=campaign.id,
+                                changes=diff(before, _campaign_snapshot(campaign)))
+        await self.session.commit()
+        return await self.get_campaign(campaign.id)
+
+    async def unschedule_campaign(self, campaign_id: int, actor) -> CampaignOut:
+        """Take a campaign off the calendar — it has not gone out, so it goes back to being a draft."""
+        campaign = await self._get_campaign(campaign_id)
+        if campaign.status != SCHEDULED:
+            raise ValidationFailedError("Only a scheduled campaign can be taken off the calendar")
+        before = _campaign_snapshot(campaign)
+        campaign.scheduled_at, campaign.status = None, DRAFT
+        campaign.updated_by = actor.id
+        await self.audit.record("campaign.unschedule", actor=actor, entity_type=CAMPAIGN,
+                                entity_id=campaign.id, changes=diff(before, _campaign_snapshot(campaign)))
+        await self.session.commit()
+        return await self.get_campaign(campaign.id)
+
+    async def start_campaign(self, campaign_id: int, actor) -> CampaignOut:
+        """Send it now: the audience is copied in and the job takes it from there."""
+        campaign = await self._get_campaign(campaign_id)
+        if campaign.status not in (DRAFT, SCHEDULED):
+            raise ValidationFailedError("This campaign is already going out, or has gone out")
+        if await self._audience_size(campaign.target_list_id) == 0:
+            raise ValidationFailedError(
+                "There is nobody in this audience — put customers on the list (or loosen the segment's "
+                "rules) before sending")
+        await self._begin(campaign, actor)
+        await self.session.commit()
+        return await self.get_campaign(campaign.id)
+
+    async def pause_campaign(self, campaign_id: int, actor) -> CampaignOut:
+        """Hold a campaign: messages already in the outbox still go, but no new recipient is looked at."""
+        campaign = await self._get_campaign(campaign_id)
+        if campaign.status != SENDING:
+            raise ValidationFailedError("Only a campaign that is going out can be paused")
+        campaign.status, campaign.updated_by = PAUSED, actor.id
+        await self.audit.record("campaign.pause", actor=actor, entity_type=CAMPAIGN, entity_id=campaign.id,
+                                changes={"status": [SENDING, PAUSED]})
+        await self.session.commit()
+        return await self.get_campaign(campaign.id)
+
+    async def resume_campaign(self, campaign_id: int, actor) -> CampaignOut:
+        campaign = await self._get_campaign(campaign_id)
+        if campaign.status != PAUSED:
+            raise ValidationFailedError("Only a paused campaign can be resumed")
+        campaign.status, campaign.updated_by = SENDING, actor.id
+        await self.audit.record("campaign.resume", actor=actor, entity_type=CAMPAIGN, entity_id=campaign.id,
+                                changes={"status": [PAUSED, SENDING]})
+        await self.session.commit()
+        return await self.get_campaign(campaign.id)
+
+    async def recipients_of(self, campaign_id: int, params: PageParams, *, status: str | None = None,
+                            q: str | None = None) -> RecipientPage:
+        """Who this campaign went to (or would go to), what happened to each message, and where the whole
+        campaign is at (the counts are for all of it, not just this page)."""
+        campaign = await self._get_campaign(campaign_id)
+        rows, total = await self.recipients.page(campaign.id, params, status=status, q=q)
+        counts = await self.recipients.counts([campaign.id])
+        items = [RecipientOut(customer_id=customer.id, full_name=customer.full_name,
+                             company=customer.company, email=recipient.email, status=recipient.status,
+                             reason=recipient.reason, sent_at=recipient.sent_at)
+                 for recipient, customer in rows]
+        return RecipientPage(items=items, total=total, page=params.page, page_size=params.page_size,
+                             counts=_recipient_counts(counts.get(campaign.id)))
+
+    # ---- the dispatcher (background job) -----------------------------------------------------------
+    def _audience_of(self, target: TargetList) -> Select[tuple[int, str | None]]:
+        return (self.recipients.audience(rules=target.rules) if target.kind == "segment"
+                else self.recipients.audience(list_id=target.id))
+
+    async def _audience_size(self, list_id: int) -> int:
+        target = await self.lists.get(list_id, include_deleted=True)
+        return await self.recipients.audience_size(self._audience_of(target)) if target else 0
+
+    async def _begin(self, campaign: Campaign, actor=None) -> int:
+        """Start a campaign: copy its audience in as recipients (once) and mark it as going out."""
+        before = _campaign_snapshot(campaign)
+        campaign.status, campaign.started_at, campaign.finished_at = SENDING, _now(), None
+        target = await self.lists.get(campaign.target_list_id, include_deleted=True)
+        copied = await self.recipients.snapshot(campaign.id, self._audience_of(target)) if target else 0
+        await self.audit.record("campaign.start", actor=actor, entity_type=CAMPAIGN, entity_id=campaign.id,
+                                changes={**diff(before, _campaign_snapshot(campaign)), "recipients": copied})
+        return copied
+
+    async def dispatch_due(self, *, max_campaigns: int = 5, batch: int = 100) -> str | None:
+        """The background job (every minute): start the campaigns whose time has come, queue what the outbox
+        has room for, and close the ones that are done. Returns a line for the job log.
+
+        Nothing is sent from here: a personalized message is queued into the email outbox, which paces itself
+        to the SMTP limits and retries what fails. This job only decides who, and how many at a time — never
+        more than could go out right now, so no message ever waits long enough to expire unsent.
+        """
+        settings: EmailSettings = await self.settings.get_model("email")  # type: ignore[assignment]
+        due = await self.campaigns.due(_now())
+        active = await self.campaigns.sending(limit=max_campaigns)
+        if not settings.enabled:
+            waiting = len(due) + len(active)
+            return f"email is off — {waiting} campaign(s) waiting" if waiting else None
+        started = 0
+        for campaign in due[:max_campaigns]:
+            await self._begin(campaign)
+            active.append(campaign)
+            started += 1
+        room = await self.outbox.room(settings)
+        queued = skipped = finished = 0
+        for index, campaign in enumerate(active[:max_campaigns]):
+            await self.recipients.sync_outbox(campaign.id)  # learn what the outbox did with our messages
+            if room > 0:  # nothing may go out right now: queue nothing, and let the next run try again
+                share = min(batch, max(1, room // (len(active) - index)))  # a fair slice between campaigns
+                sent, passed = await self._queue(campaign, share)
+                queued, skipped, room = queued + sent, skipped + passed, room - sent
+            if await self._close(campaign):
+                finished += 1
+        await self.session.commit()
+        if not any((started, queued, skipped, finished)):
+            return None
+        return f"started {started}, queued {queued}, skipped {skipped}, finished {finished}"
+
+    async def _queue(self, campaign: Campaign, take: int) -> tuple[int, int]:
+        """Look at up to `take` recipients: queue one personalized message for each one a campaign may
+        email, and mark the rest as skipped with the reason. Returns (queued, skipped)."""
+        rows = await self.recipients.pending(campaign.id, take)
+        if not rows:
+            return 0, 0
+        template = await self.templates.get(campaign.template_id, include_deleted=True)
+        if template is None:  # nothing to render (the foreign key makes this all but impossible)
+            return 0, 0
+        blocked = await self.suppressed([customer.email for _, customer in rows if customer and customer.email])
+        queued = skipped = 0
+        for recipient, customer in rows:
+            if customer is None:  # the customer row is gone: nothing to render, and nobody to write to
+                recipient.status, recipient.reason = SKIPPED, "customer deleted"
+                skipped += 1
+                continue
+            reason = self._why_not_reachable(customer, blocked)
+            if reason is not None:  # consent is checked now, not when the audience was written
+                recipient.status, recipient.reason = SKIPPED, reason
+                skipped += 1
+                continue
+            rendered = await self._render(subject=template.subject, preheader=template.preheader,
+                                          html=template.html, text=template.text, customer=customer,
+                                          campaign_id=campaign.id)
+            message = await self.outbox.queue(
+                Mail(to=customer.email or "", subject=rendered.subject, text=rendered.text, html=rendered.html),
+                category="campaign")
+            recipient.status, recipient.outbox_id, recipient.reason = QUEUED, message.id, None
+            queued += 1
+        await self.session.flush()
+        return queued, skipped
+
+    async def _close(self, campaign: Campaign) -> bool:
+        """A campaign with nothing left waiting or queued is done."""
+        if campaign.status != SENDING:
+            return False
+        if (await self.recipients.open_counts([campaign.id])).get(campaign.id, 0):
+            return False
+        campaign.status, campaign.finished_at = SENT, _now()
+        counts = (await self.recipients.counts([campaign.id])).get(campaign.id, {})
+        await self.audit.record("campaign.finish", entity_type=CAMPAIGN, entity_id=campaign.id,
+                                changes={"sent": counts.get(RECIPIENT_SENT, 0),
+                                         "skipped": counts.get(SKIPPED, 0),
+                                         "failed": counts.get(RECIPIENT_FAILED, 0)})
+        return True
+
+    # ---- the unsubscribe link (no login: the token is the proof) -----------------------------------
+    async def _from_token(self, token: str) -> Customer:
+        customer_id = read_unsubscribe_token(token)  # None when forged, malformed or expired
+        customer = await self.customers.get(customer_id, include_deleted=True) if customer_id else None
+        if customer is None:
+            raise NotFoundError("That unsubscribe link is not valid any more")
+        return customer
+
+    @staticmethod
+    def _limit_unsubscribe(ip: str | None) -> None:
+        """A public endpoint that does database work: keep a script to a trickle (per worker, like the rest)."""
+        if ip is None:
+            return
+        if rate_limit.unsubscribe_by_ip.is_blocked(ip):
+            raise TooManyRequestsError("Too many unsubscribe requests — try again later")
+        rate_limit.unsubscribe_by_ip.hit(ip)
+
+    async def unsubscribe_info(self, token: str, *, ip: str | None = None) -> UnsubscribeOut:
+        """Who an unsubscribe link belongs to, and whether they have already stopped.
+
+        Changes nothing on purpose: a page can show the customer who they are before they confirm, and a mail
+        scanner that follows every link in an email cannot unsubscribe anyone by accident.
+        """
+        self._limit_unsubscribe(ip)
+        customer = await self._from_token(token)
+        return UnsubscribeOut(name=customer.full_name, email=customer.email or "",
+                              unsubscribed=customer.unsubscribed_at is not None
+                              or not customer.marketing_consent)
+
+    async def unsubscribe(self, data: UnsubscribeIn, *, ip: str | None = None) -> UnsubscribeOut:
+        """Stop emailing the customer the link belongs to: consent off, the address on the suppression list,
+        and the campaign the link came from written down (SPEC §3.6 compliance)."""
+        self._limit_unsubscribe(ip)
+        customer = await self._from_token(data.token)
+        how = "unsubscribe link"
+        if data.campaign_id is not None:
+            campaign = await self.campaigns.get(data.campaign_id, include_deleted=True)
+            if campaign is not None:
+                how = f"unsubscribe link, campaign “{campaign.name}”"
+        if customer.deleted_at is None:  # a deleted customer is not written to, but is still suppressed
+            await CustomerService(self.session).mark_consent(customer.id, False, how)
+        if customer.email:
+            await self._suppress(customer.email, reason="unsubscribed", source="link", note=how, actor=None)
+        await self.audit.record("campaign.unsubscribe", entity_type=CAMPAIGN, entity_id=data.campaign_id,
+                                ip=ip, changes={"customer_id": customer.id, "email": customer.email})
+        await self.session.commit()
+        return UnsubscribeOut(name=customer.full_name, email=customer.email or "", unsubscribed=True)

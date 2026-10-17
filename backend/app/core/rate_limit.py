@@ -50,3 +50,5 @@ failed_logins_by_ip = RateLimiter(max_hits=30, window_seconds=15 * 60)
 reset_requests_by_email = RateLimiter(max_hits=3, window_seconds=60 * 60)
 reset_requests_by_ip = RateLimiter(max_hits=10, window_seconds=60 * 60)
 reset_attempts_by_ip = RateLimiter(max_hits=20, window_seconds=15 * 60)
+# Public unsubscribe links: a stranger's mail client, so keep it to a trickle per IP.
+unsubscribe_by_ip = RateLimiter(max_hits=30, window_seconds=15 * 60)

@@ -55,6 +55,11 @@ def read_unsubscribe_token(token: str, *, now: float | None = None) -> int | Non
     return read(token, UNSUBSCRIBE, now=now)
 
 
-def unsubscribe_url(customer_id: int, *, base_url: str) -> str:
-    """The public page a customer lands on — the web app, not the API, so it works without a login."""
-    return f"{base_url.rstrip('/')}/unsubscribe?token={sign(customer_id)}"
+def unsubscribe_url(customer_id: int, *, base_url: str, campaign_id: int | None = None) -> str:
+    """The public page a customer lands on — the web app, not the API, so it works without a login.
+
+    `campaign_id` is added for the record only ("they left from the Spring sale"): it is not signed, because
+    the token is what grants the action and a wrong campaign id could never widen it.
+    """
+    url = f"{base_url.rstrip('/')}/unsubscribe?token={sign(customer_id)}"
+    return f"{url}&c={campaign_id}" if campaign_id else url

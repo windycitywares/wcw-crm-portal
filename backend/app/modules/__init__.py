@@ -8,9 +8,9 @@ Each feature package (`app/modules/<name>/`) exposes a `module` object:
 
     module = CrmModule(name="customers", router=router, models="app.modules.customers.models")
 
-and is listed once in `INSTALLED_MODULES`. `app.main` mounts every router; Alembic imports every
-`models` path so autogenerate sees all tables; `on_startup` hooks subscribe event handlers.
-Nothing else needs editing to add a module.
+and is listed once in `INSTALLED_MODULES`. `app.main` mounts every router (and every `public_router`, which is
+for links that must work without a session); Alembic imports every `models` path so autogenerate sees all
+tables; `on_startup` hooks subscribe event handlers. Nothing else needs editing to add a module.
 """
 
 from __future__ import annotations
@@ -47,6 +47,10 @@ INSTALLED_MODULES: tuple[str, ...] = (
 class CrmModule:
     name: str
     router: APIRouter | None = None
+    # Routes that must work **without a session** — a link a customer clicks in an email, nothing else.
+    # Mounted under the same prefix as `router`, but with no module-wide permission dependency, so keep it
+    # empty unless a route really has to be public: authenticated routes belong in `router`.
+    public_router: APIRouter | None = None
     models: str | None = None  # dotted path of the models module, imported for metadata
     on_startup: tuple[Callable[[], None], ...] = field(default_factory=tuple)
     # Default data, run by `python -m app.seed` (and every deploy). Must never change existing rows.

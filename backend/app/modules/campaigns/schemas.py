@@ -261,3 +261,118 @@ class MemberPage(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+# ---- campaigns ---------------------------------------------------------------------------------
+
+CampaignStatus = Literal["draft", "scheduled", "sending", "paused", "sent"]
+RecipientStatus = Literal["pending", "queued", "sent", "failed", "skipped"]
+
+
+class CampaignIn(BaseModel):
+    """A new campaign: the template it is written from and the audience it goes to. It starts as a draft —
+    scheduling it and sending it are separate steps (and a separate permission)."""
+
+    name: Name
+    template_id: int
+    target_list_id: int
+
+
+class CampaignUpdate(BaseModel):
+    """PATCH. A field left out — or sent as null — is not changed. Only a campaign that has not started can
+    be edited."""
+
+    name: Name | None = None
+    template_id: int | None = None
+    target_list_id: int | None = None
+
+
+class CampaignSchedule(BaseModel):
+    """When a campaign should go out. In the future: to send one right now, use `…/send`."""
+
+    scheduled_at: datetime
+
+
+class RecipientCounts(BaseModel):
+    """Where a campaign's audience is at, by recipient status. The five always add up to `total`."""
+
+    total: int = 0
+    pending: int = 0  # still to be looked at by the dispatcher
+    queued: int = 0  # in the email outbox, on its way
+    sent: int = 0  # handed to the mail server
+    failed: int = 0  # the outbox gave up on it (see the recipient's reason)
+    skipped: int = 0  # never sent, with the reason (no consent, unsubscribed, suppressed…)
+
+
+class CampaignSummary(BaseModel):
+    """A row in the campaign list.
+
+    `audience`/`reachable` are the audience *now* (a segment is re-counted every time, which is why a draft
+    shows the number it would go to), while `recipients` are the ones copied in when it started.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    status: str
+    scheduled_at: datetime | None
+    started_at: datetime | None
+    finished_at: datetime | None
+    template_name: str | None = None
+    target_list_name: str | None = None
+    audience: int = 0
+    reachable: int = 0
+    recipients: RecipientCounts = RecipientCounts()
+    updated_by_name: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class CampaignOut(CampaignSummary):
+    template_id: int
+    target_list_id: int
+    target_list_kind: str = "static"
+
+
+class CampaignPage(BaseModel):
+    items: list[CampaignSummary]
+    total: int
+    page: int
+    page_size: int
+
+
+class RecipientOut(BaseModel):
+    """One customer in a campaign, and what happened to their message."""
+
+    customer_id: int
+    full_name: str
+    company: str | None
+    email: str
+    status: str
+    reason: str | None  # why it was skipped, or why sending gave up
+    sent_at: datetime | None
+
+
+class RecipientPage(BaseModel):
+    items: list[RecipientOut]
+    total: int
+    page: int
+    page_size: int
+    counts: RecipientCounts = RecipientCounts()  # the whole campaign, not just this page
+
+
+class UnsubscribeIn(BaseModel):
+    """The token from the link in the email — the only proof needed — and the campaign the link came from,
+    when it carried one (for the record: "they left from the Spring sale")."""
+
+    token: str = Field(max_length=500)
+    campaign_id: int | None = None
+
+
+class UnsubscribeOut(BaseModel):
+    """Who the link belongs to, and whether they are unsubscribed now."""
+
+    name: str
+    email: str
+    unsubscribed: bool
