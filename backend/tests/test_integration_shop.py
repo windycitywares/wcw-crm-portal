@@ -129,6 +129,43 @@ class ShopWebhookTests(unittest.TestCase):
         self.assertFalse(c["marketing_consent"])
         self.assertIsNotNone(c["unsubscribed_at"])
 
+    def test_contact_message_opens_a_ticket(self):
+        email = self.w.email("asker")
+        base = next(self.shop_ids)
+        self.order(base, email, "paid", updated_at="2026-10-10T10:00:00Z")
+        res = self.send("contact_message.created", {
+            "name": "Pan Da", "email": email, "phone": "312-555-0199",
+            "subject": "Where is my order?", "message": "It has not arrived yet, please check.",
+            "order_number": f"WCW-{base}"})
+        self.assertEqual(res.json(), {"status": "accepted"})
+
+        cid = self.find(email)
+        self.assertIsNotNone(cid)  # a contact form from an unknown address creates the customer
+        tickets = self.w.client.get(f"{API}/tickets", headers=self.admin_h, params={"customer_id": cid}).json()
+        self.assertEqual(tickets["total"], 1)
+        t = tickets["items"][0]
+        self.assertEqual((t["subject"], t["status"], t["ticket_type"], t["priority"]),
+                         ("Where is my order?", "new", "other", "normal"))
+        self.assertIsNone(t["assignee_id"])  # the shop can't assign: it lands unassigned
+        self.assertEqual(t["shop_order_id"], base)  # the order the customer quoted is linked
+        self.assertIn("not arrived", t["description"])
+        self.assertIsNotNone(t["first_response_due_at"])  # SLA taken from the seeded Normal policy
+        timeline = self.w.client.get(f"{API}/entities/customer/{cid}/timeline", headers=self.admin_h).json()["items"]
+        self.assertTrue(any(a["kind"] == "ticket.created" for a in timeline))
+
+        # a message with no subject is named after its text; one that quotes no order links nothing
+        email2 = self.w.email("asker2")
+        self.send("contact_message.created", {"email": email2, "message": "Do you ship to Canada?"})
+        t2 = self.w.client.get(f"{API}/tickets", headers=self.admin_h,
+                               params={"customer_id": self.find(email2)}).json()["items"][0]
+        self.assertTrue(t2["subject"].startswith("Shop contact: Do you ship to Canada?"))
+        self.assertIsNone(t2["shop_order_id"])
+
+        # with no email there is nobody to reply to: stored, marked failed and not retried
+        self.send("contact_message.created", {"message": "hello"})
+        failed = self.w.client.get(f"{API}/integrations/shop/events", headers=self.admin_h, params={"status": "failed"}).json()
+        self.assertTrue(any(e["event_type"] == "contact_message.created" for e in failed["items"]))
+
     def test_bad_and_unknown_events_and_admin_views(self):
         unknown = self.send("review.created", {"id": 5})
         self.assertEqual(unknown.status_code, 200)

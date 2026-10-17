@@ -8,6 +8,8 @@ Rules:
 - a `note` is internal; a `reply` emails the customer (through the outbox) and stamps the first response,
   which is what the SLA first-response target measures;
 - `canned_responses` are saved answers staff can drop into a reply, managed only by `lookups:manage`;
+- a shop contact-form message opens a ticket for the customer (integration §6, `contact_message.created`):
+  it is created by the system, so it lands unassigned;
 - SLA due times are counted in business hours (Admin → Settings → Business hours); the `ticket-sla` job
   flags breaches and shows in the queue.
 """
@@ -199,21 +201,26 @@ class TicketService:
         return out
 
     # ---- writes -------------------------------------------------------------------------
-    async def create(self, data: TicketCreate, actor) -> TicketOut:
+    async def create(self, data: TicketCreate, actor=None, *, commit: bool = True) -> TicketOut:
+        """Open a ticket. `actor` is the staff user, or None for a system ticket (the shop webhook), which
+        skips the permission checks and lands unassigned. Shop callers pass `commit=False`, so the ticket is
+        committed together with the rest of the shop event."""
         values = data.model_dump(exclude_unset=True)
         if not values.get("subject"):
             raise ValidationFailedError("A ticket needs a subject")
-        if values.get("customer_id") is not None:
-            await check_entity_access(self.session, actor, "customer", values["customer_id"], write=False)
-        if "assignee_id" not in values:
-            values["assignee_id"] = actor.id
-        self._check_assignee(actor, values.get("assignee_id"))
+        if actor is not None:
+            if values.get("customer_id") is not None:
+                await check_entity_access(self.session, actor, "customer", values["customer_id"], write=False)
+            if "assignee_id" not in values:
+                values["assignee_id"] = actor.id
+            self._check_assignee(actor, values.get("assignee_id"))
         values["priority"] = await self.lookups.require("ticket_priority", values.get("priority") or "normal")
         if values.get("ticket_type"):
             values["ticket_type"] = await self.lookups.require("ticket_type", values["ticket_type"])
         if values.get("custom_fields") is not None:
             values["custom_fields"] = await self.fields.validate(ENTITY, values["custom_fields"] or {})
-        ticket = Ticket(**{k: v for k, v in values.items() if v is not None}, created_by=actor.id, updated_by=actor.id)
+        who = actor.id if actor is not None else None
+        ticket = Ticket(**{k: v for k, v in values.items() if v is not None}, created_by=who, updated_by=who)
         await self.repo.add(ticket)
         ticket.number = f"T-{ticket.id:06d}"
         await self._apply_sla(ticket, ticket.created_at or _now())
@@ -222,7 +229,8 @@ class TicketService:
                                 changes=diff({}, _snapshot(ticket)))
         await self._record(ticket, "ticket.created", f"Ticket {ticket.number} opened", actor,
                            customer_title=f"Ticket {ticket.number} opened: {ticket.subject}")
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
         return await self.get(ticket.id)
 
     async def update(self, ticket_id: int, data: TicketUpdate, actor) -> TicketOut:
