@@ -47,5 +47,15 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | 6a | Import/export | CSV/Excel export (list filters, formula-safe) and import (column matching, dry run, skip/update, row errors, tags) for `data:export` | #24 merged |
 | 6b | Merge duplicates | merge two customers (keep one, move notes/tags/timeline/orders, audit); generic `RecordsMerged` event that shared modules subscribe to | #25 merged |
 
+## M3 Tasks + support tickets (started 2026-10-16)
+
+| # | Batch | Contents | PR |
+|---|-------|----------|----|
+| 1 | Tasks API | `tasks` module (migration 0011): type/priority/status/due/assignee, about any record (timeline lines), own/any/assign rules, views mine/team/created + due filters, recurring (next made on completion), email reminders job, summary counts; `EntityType.labels` for record names | open |
+| 2 | Tasks web | Tasks page (my/team, overdue/today/week tabs, quick add, complete checkbox, edit dialog), Tasks panel on the customer page, sidebar badge | — |
+| 3 | Tickets API | `tickets` + `ticket_messages` + `sla_policies` (seeded §9): numbering, New→Open→Pending→Resolved→Closed, assign, internal notes vs email replies (outbox), SLA due times in business hours + breach job, timeline on the customer | — |
+| 4 | Tickets web | queue (filters, SLA badges), ticket page (conversation, reply / internal note, status, assign), Settings → SLA policies, canned responses | — |
+| 5 | Tickets from the shop | shop contact-form messages → tickets (shop event + CRM handler) | — |
+
 ## Next milestones
 M3 tasks + tickets → M4 sales → M5 campaigns → M6 suppliers → M7 reports.

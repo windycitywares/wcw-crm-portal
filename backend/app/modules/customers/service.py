@@ -51,11 +51,17 @@ async def _can_edit(session, user, entity_id: int) -> bool:
     return customer is not None and customer.owner_id == user.id
 
 
+async def _labels(session, ids: list[int]) -> dict[int, str]:
+    rows = await CustomerRepository(session).list(CustomerRepository(session).query(include_deleted=True)
+                                                  .where(Customer.id.in_(ids)))
+    return {c.id: c.display_name for c in rows}
+
+
 def register() -> None:
     register_entity(EntityType(
         key=ENTITY, label="Customer",
         view=(Permission.CUSTOMERS_VIEW,), edit=(Permission.CUSTOMERS_EDIT_OWN, Permission.CUSTOMERS_EDIT_ANY),
-        exists=_exists, can_edit=_can_edit,
+        exists=_exists, can_edit=_can_edit, labels=_labels,
     ))
 
 
