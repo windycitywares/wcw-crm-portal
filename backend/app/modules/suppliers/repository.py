@@ -2,7 +2,7 @@ from sqlalchemy import Select, func, or_, select
 
 from app.shared.repository import BaseRepository
 
-from .models import Supplier, SupplierContact
+from .models import Supplier, SupplierContact, SupplierProduct
 
 
 class SupplierRepository(BaseRepository[Supplier]):
@@ -47,3 +47,32 @@ class SupplierRepository(BaseRepository[Supplier]):
 
 class SupplierContactRepository(BaseRepository[SupplierContact]):
     model = SupplierContact
+
+
+class SupplierProductRepository(BaseRepository[SupplierProduct]):
+    model = SupplierProduct
+
+    def search(self, supplier_id: int, *, q: str | None = None) -> Select[tuple[SupplierProduct]]:
+        stmt = self.query().where(SupplierProduct.supplier_id == supplier_id)
+        if q:
+            pattern = f"%{q.strip().lower()}%"
+            stmt = stmt.where(or_(
+                func.lower(SupplierProduct.shop_sku).like(pattern),
+                func.lower(SupplierProduct.supplier_sku).like(pattern),
+                func.lower(SupplierProduct.description).like(pattern),
+            ))
+        return stmt.order_by(func.lower(SupplierProduct.shop_sku), SupplierProduct.id)
+
+    async def by_supplier_sku(self, supplier_id: int, sku: str) -> SupplierProduct | None:
+        stmt = self.query().where(
+            SupplierProduct.supplier_id == supplier_id,
+            SupplierProduct.supplier_sku == sku,
+        )
+        return (await self.session.execute(stmt)).scalar_one_or_none()
+
+    async def product(self, supplier_id: int, product_id: int) -> SupplierProduct | None:
+        stmt = self.query().where(
+            SupplierProduct.supplier_id == supplier_id,
+            SupplierProduct.id == product_id,
+        )
+        return (await self.session.execute(stmt)).scalar_one_or_none()

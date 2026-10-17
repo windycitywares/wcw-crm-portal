@@ -86,8 +86,8 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
-| 1 | Suppliers API | migration 0022: supplier records and normalized contacts; supplier type lookup validation, address/payment/lead-time/currency/rating, custom fields, shared tags/notes/timeline, audit, permissions and tests | in progress |
-| 2 | Supplied products API | `supplier_products`: supplier + shop SKU + supplier SKU, unit cost/currency and MOQ; CRUD, audit and tests | — |
+| 1 | Suppliers API | migration 0022: supplier records and normalized contacts; supplier type lookup validation, address/payment/lead-time/currency/rating, custom fields, shared tags/notes/timeline, audit, permissions and tests | #51 open |
+| 2 | Supplied products API | `supplier_products`: supplier + shop SKU + supplier SKU, unit cost/currency and MOQ; CRUD, audit and tests | in progress |
 | 3 | Suppliers web | searchable supplier directory, supplier details, contacts and supplied products, record timeline/tags/custom fields, permission-aware editing | — |
 
 ## Next milestones
