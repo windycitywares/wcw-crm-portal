@@ -186,6 +186,8 @@ class TaskService:
     # ---- writes -------------------------------------------------------------------------------
     async def create(self, data: TaskCreate, actor) -> TaskOut:
         values = data.model_dump(exclude_unset=True)
+        if not values.get("title"):
+            raise ValidationFailedError("A task needs a title")
         owner_id = values.pop("owner_id", None) or actor.id
         self._check_owner(actor, owner_id)
         await self._check_related(actor, values.get("related_type"), values.get("related_id"))
