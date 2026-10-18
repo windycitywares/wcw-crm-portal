@@ -149,4 +149,13 @@ npm run typecheck
   (`feat/m5-3-campaigns-sender`); next: tracking + the per-campaign report, then the campaigns web.
   Still open from M4: the shop catalog picker (4c — needs a `products` resource on
   the shop's read API). Shop connection needs `CRM_WEBHOOK_URL`/`CRM_WEBHOOK_SECRET`/`CRM_API_TOKEN` on the shop server (shop docs/CRM_SYNC.md) — batch plan and PR status in `docs/WORKING_IN_BATCHES.md`.
+- 2026-10-17: **M5 campaigns complete** — batch 4 (tracking + report: `campaign_events` with one row per recipient/kind/URL so counts are people, not
+  requests; an open pixel, a click redirect whose destination is signed inside the token, a per-campaign report, campaign stats on the dashboard, and sends on
+  the customer timeline) merged (#43–#45); batch 5 (campaigns web: `/campaigns` list + builder, template editor with merge fields, live preview and test send,
+  list and segment builders, CSV audience import, Settings → Templates and the suppression screen, sidebar entry) merged (#46–#48 and #50), with the
+  template-workflow polish still on `feat/m5-5d-template-workflow`. **M6 suppliers started** — batch 1 (supplier directory + contacts API, migration 0022)
+  merged (#51); batch 2 (supplied products API) and batch 3 (supplier directory web) built on `feat/m6-2-supplier-products` / `feat/m6-3-suppliers-web`.
+  **M7 reports** — batch 1 (cross-module reports API: `/reports/overview`, `/reports/customers`, `/reports/tickets`, `/reports/suppliers`) merged (#54);
+  batch 2 (reports web: sales forecast, ticket/SLA, campaign performance, customer mix, supplier summary and CSV export) built on `feat/m7-2-reports-web`
+  — the last batch in the plan.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.
