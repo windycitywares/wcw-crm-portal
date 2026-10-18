@@ -225,4 +225,13 @@ npm run typecheck
   something to answer, so the customer's next message finds its way back. No migration. The contract is `docs/INBOX_CHANNELS.md`. Built on `feat/m8-6-other-channels`,
   which sits on batches 1–5. Next: the connectors themselves (the shop's chat widget, an Etsy poller, an SMS gateway — the last needs a provider and credentials) and
   retiring the shop's inbox; matching a sender known only by phone is the other half of SMS. Plan of record: `docs/WORKING_IN_BATCHES.md`.
+
+- 2026-10-18: **M8 batch 7 (phone-only sender matching)** — an SMS or a chat with no address still tells staff who wrote
+  in: the message carries `from.phone`; the CRM matches it to an existing customer by digits (punctuation and NANP country
+  code ignored) but **never creates a customer from a number alone** — a phone is shared and recycled, and a wrong record is
+  harder to undo than an unlinked ticket. The number is stored on the message (`ticket_messages.from_phone`, migration 0028)
+  so staff can see it and link the ticket by hand; an email always outranks a phone when both are present. Staff can also
+  find the customer by pasting the whole number into the search box (digits ≥ 7) — the merge keeps only the kept record's
+  phone (only live rows match). Pure tests (`test_text.py`) + intake/customers DB tests. Built on `main` (M8 batches 1–6 merged
+  into `main`). Next: the connectors themselves and retiring the shop's inbox.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

@@ -42,6 +42,19 @@ sig = "sha256=" + hmac.new(secret.encode(), f"{ts}.".encode() + body, hashlib.sh
 }
 ```
 
+A text message would omit the email and carry a phone instead:
+
+```json
+{
+  "id": "sms-7a1b9c2d",
+  "channel": "phone",
+  "at": "2026-10-18T14:05:00Z",
+  "body": "Hi, I'd like to check on my order",
+  "from": {"phone": "+13125550142", "name": "John Smith"},
+  "files": []
+}
+```
+
 | Field | |
 |---|---|
 | `id` | required. The channel's own id for the message (1–200 chars). **Posting the same id again is safe** — the CRM answers `{"status":"duplicate"}` and files nothing more, so a connector may retry freely. |
@@ -49,7 +62,11 @@ sig = "sha256=" + hmac.new(secret.encode(), f"{ts}.".encode() + body, hashlib.sh
 | `body` | the message text, at most 20,000 characters. A message that is nothing but a file may leave it out. |
 | `subject` | optional. Without one the ticket is named "Live chat: <its first words>". |
 | `at` | when the customer sent it (ISO 8601). The ticket and its first message are dated then, not when the CRM heard about it. |
-| `from` | who wrote in: `email` finds or creates that customer (an existing name is never overwritten); `name` fills in a blank one. A chat from nobody the CRM can name is still filed — staff link it by hand. |
+| `from` | who wrote in: `email` finds or creates that customer (an existing name is never overwritten);
+`name` fills in a blank one; `phone` (digits, spaces, punctuation — any format) finds an existing
+customer by number only, never creates one (a phone is shared and recycled; a wrong record is
+harder to undo than an unlinked ticket). An email always outranks a phone when both are present.
+A chat from nobody the CRM can name is still filed — staff link it by hand. |
 | `thread` | the `id` of the message this one answers. The answer joins that ticket and reopens it instead of opening a second one. |
 | `files` | up to 10 files, each at most 15 MB once decoded, base64 in `data`. A file the CRM won't keep is left out and *counted* in the message ("1 file came with this message and couldn't be kept"). |
 
