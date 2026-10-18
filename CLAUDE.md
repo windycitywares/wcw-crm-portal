@@ -156,6 +156,11 @@ npm run typecheck
   template-workflow polish still on `feat/m5-5d-template-workflow`. **M6 suppliers started** — batch 1 (supplier directory + contacts API, migration 0022)
   merged (#51); batch 2 (supplied products API) and batch 3 (supplier directory web) built on `feat/m6-2-supplier-products` / `feat/m6-3-suppliers-web`.
   **M7 reports** — batch 1 (cross-module reports API: `/reports/overview`, `/reports/customers`, `/reports/tickets`, `/reports/suppliers`) merged (#54);
-  batch 2 (reports web: sales forecast, ticket/SLA, campaign performance, customer mix, supplier summary and CSV export) built on `feat/m7-2-reports-web`
-  — the last batch in the plan.
+  batch 2 (reports web: sales forecast, ticket/SLA, campaign performance, customer mix, supplier summary and CSV export) merged (#55) — the last batch in the plan.
+- 2026-10-17: **post-v1 campaign-mail follow-ups started** (v1 is done; `docs/SPEC.md` §3.9 keeps everything else out of scope for now). Follow-up 1 fixes a
+  shipped bug found while starting follow-up 2: the campaign sender rendered every real message **without a `recipient_id`**, so no open pixel and no wrapped
+  links ever went out and `campaign_events` stayed empty — the tracking endpoints all worked, and the tests minted their own tokens, so nothing caught it. The
+  fix is one argument in `_queue`, plus a regression test that follows the open and click links **out of the message that was actually sent** and then reads
+  the report. Built on `fix/campaign-tracking-links`. Follow-up 2 (the `List-Unsubscribe` header and the one-click POST behind it) and follow-up 3 (whether a
+  test send should be tracked at all) are not started.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

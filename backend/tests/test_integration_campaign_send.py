@@ -413,6 +413,40 @@ class CampaignSendTests(unittest.TestCase):
         recipient = self.recipients(campaign["id"])["items"][0]
         self.assertEqual((recipient["status"], recipient["reason"]), ("skipped", "suppressed"))
 
+    def test_a_sent_campaign_carries_the_tracking_links(self):
+        """The links have to be *in the message* for the report to see anything. This follows them out of the
+        email that was queued, rather than minting a token here — which is how the bug this covers hid: every
+        endpoint worked, nothing was ever sent through them."""
+        destination = "https://shop.example.com/sale?x=1"
+        person = self.customer(first_name="Nora")
+        template = self.template(
+            html='<p>Hi {{ customer.first_name }}</p><p><a href="' + destination + '">Sale</a></p>')
+        campaign = self.campaign(template, self.audience([person]))
+        self.start(campaign["id"])
+        transport = FakeTransport()
+        self.dispatch()
+        self.deliver(transport)
+
+        sent = next(mail for mail in transport.sent if mail.to == person["email"])
+        self.assertNotIn(destination, sent.html)  # the real address hides behind the redirect
+        self.assertEqual(sent.html.count("/campaigns/click?token="), 1)  # ...and only the sale link is wrapped
+        self.assertIn("/unsubscribe?token=", sent.html)  # the footer link stays a plain link, not a tracking one
+        pixel = re.search(r'/campaigns/open\?token=([^"\s>]+)', sent.html)
+        click = re.search(r'/campaigns/click\?token=([^"\s>]+)', sent.html)
+        self.assertIsNotNone(pixel, "the message carries no open pixel")
+        self.assertIsNotNone(click, "the message carries no wrapped link")
+
+        opened = self.w.client.get(f"{API}/campaigns/open", params={"token": pixel.group(1)})
+        self.assertEqual(opened.status_code, 200, opened.text)
+        followed = self.w.client.get(f"{API}/campaigns/click", params={"token": click.group(1)},
+                                     allow_redirects=False)
+        self.assertEqual(followed.status_code, 307, followed.text)
+        self.assertEqual(followed.headers.get("location"), destination)
+
+        report = self.w.client.get(f"{API}/campaigns/{campaign['id']}/report", headers=self.marketing_h).json()
+        self.assertEqual((report["delivered"], report["opened"], report["clicked"]), (1, 1, 1))
+        self.assertEqual([link["url"] for link in report["links"]], [destination])
+
     def test_campaign_tracking_and_report(self):
         from app.modules.campaigns import tokens
         from app.modules.campaigns.models import CampaignRecipient
