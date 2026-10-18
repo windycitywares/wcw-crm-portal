@@ -10,7 +10,7 @@ or a stand-in in tests.
 """
 
 from .inbound import (
-    InboundMailbox, InboundMessage, ImapInboundMailbox, MailboxConfig, MailboxError, MailboxStatus,
+    InboundMailbox, InboundMessage, ImapInboundMailbox, MailFile, MailboxConfig, MailboxError, MailboxStatus,
     mailbox_for, parse_message, set_mailbox_factory,
 )
 from .sender import (
@@ -20,6 +20,7 @@ from .sender import (
 
 __all__ = [
     "EmailSender", "InboundMailbox", "InboundMessage", "ImapInboundMailbox", "LogEmailSender", "Mail",
-    "MailboxConfig", "MailboxError", "MailboxStatus", "SmtpConfig", "SmtpEmailSender", "get_email_sender",
-    "mailbox_for", "parse_message", "set_email_sender", "set_email_sender_factory", "set_mailbox_factory",
+    "MailFile", "MailboxConfig", "MailboxError", "MailboxStatus", "SmtpConfig", "SmtpEmailSender",
+    "get_email_sender", "mailbox_for", "parse_message", "set_email_sender", "set_email_sender_factory",
+    "set_mailbox_factory",
 ]

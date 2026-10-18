@@ -156,6 +156,26 @@ Outgoing email (password resets, later campaigns) waits in the outbox until the 
 switched on in Admin → Settings → Email; use the **Send test email** button there to check it. Until then,
 admins set passwords in **Users**.
 
+## 8. Files customers send (attachments)
+
+Mail that arrives on a mailbox the CRM reads is filed with whatever came with it — a photo of the damage, a
+PDF invoice — kept against the ticket it belongs to. A message may bring up to 10 files of 15 MB each;
+anything past that is counted, and the message itself says it was left behind.
+
+The files live on the server's own disk, **outside the checkout** (a deploy replaces the checkout, and a
+customer's photo has to outlive it):
+
+```
+~/apps/crm/wcw-crm-files/<aa>/<sha256>     # the default; the ATTACHMENTS_DIR setting overrides it
+```
+
+- Created on first use, owned by the app's own user: nothing to set up before the first message arrives.
+- A file is named after the sha256 of its own bytes, so the same file sent twice is stored once.
+- **Back this directory up with the database.** The rows know a file's name, type and size; the bytes are
+  only here. Losing it doesn't break anything, but the files are gone for good.
+- Removing a file (or a record that held it) drops the stored bytes only when nothing else points at them,
+  so the directory is normally at least as small as the records suggest.
+
 ## Troubleshooting
 
 Gotchas found during the first install (2026-10-16), handled by `deploy/first-setup.sh`:

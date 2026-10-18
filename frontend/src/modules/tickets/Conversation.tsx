@@ -9,6 +9,7 @@ import { Segmented } from "@/components/ui/Segmented";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import { cn, formatDateTime } from "@/lib/utils";
+import { Attachments } from "@/modules/records/Attachments";
 import { ticketsApi, type CannedResponse, type MessageKind, type Ticket, type TicketMessage } from "./api";
 
 const KIND_LABEL: Record<TicketMessage["direction"], string> = {
@@ -103,6 +104,9 @@ export function Conversation({ ticket, onChanged }: { ticket: Ticket; onChanged:
             ))}
           </ol>
         )}
+
+        {/* What the customer sent with their message: the ticket's files, not the thread's. */}
+        <Attachments record={{ type: "ticket", id: ticket.id }} canEdit={mayWrite} refreshKey={ticket.updated_at} />
 
         {mayWrite && (
           <form onSubmit={send} className="grid gap-3 border-t border-line pt-4">

@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     web_app_dir: str = str(Path.home() / "apps" / "crm" / "wcw-crm-web")
     deploy_log: str = str(Path.home() / "logs" / "wcw-crm-deploy.log")
 
+    # Files kept for records (SPEC §4.2, attachments). Deliberately outside the checkout: a deploy pulls
+    # into `deploy_repo_dir` and replaces it, and a customer's photo has to outlive that. The directory is
+    # created on first use, so nothing has to be set up on the server before the first message arrives.
+    attachments_dir: str = str(Path.home() / "apps" / "crm" / "wcw-crm-files")
+
     # First admin account, created by `python -m app.seed` when no admin exists.
     admin_email: str | None = None
     admin_password: str | None = None
