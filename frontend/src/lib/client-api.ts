@@ -63,7 +63,10 @@ export async function apiFetch<T = unknown>(path: string, init: RequestInit = {}
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, { ...init, headers, cache: "no-store" });
-  } catch {
+  } catch (err) {
+    // Say where it tried to go: a build with the wrong NEXT_PUBLIC_API_URL looks exactly like a dead
+    // server from here, and the browser's own "failed to fetch" never says which address it was.
+    console.error(`Could not reach the API at ${API_URL}${path}`, err);
     throw new ApiRequestError(0, "Can't reach the CRM server. Check your connection and try again.");
   }
   if (res.status === 204) return undefined as T;

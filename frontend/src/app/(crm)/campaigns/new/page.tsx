@@ -8,6 +8,11 @@ import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { useAuth } from "@/lib/auth";
 import { campaignsApi, type TargetList, type TemplateSummary } from "@/modules/campaigns/api";
 
+/** Name the picker that didn't load, and what the API said about why. */
+function picker(label: string, reason: unknown): string {
+  return `${label}: ${reason instanceof Error ? reason.message : "couldn't be loaded"}`;
+}
+
 export default function NewCampaignPage() {
   const { can } = useAuth();
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
@@ -19,13 +24,20 @@ export default function NewCampaignPage() {
 
   useEffect(() => {
     void (async () => {
-      try {
-        const [tpls, listPage] = await Promise.all([campaignsApi.templates.list(1, 100), campaignsApi.lists.list(1, 100)]);
-        setTemplates(tpls.items);
-        setLists(listPage.items);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Couldn't load campaign options");
-      }
+      // Loaded apart, not as one `Promise.all`: the pickers fail independently, and "can't reach the CRM
+      // server" for the pair of them says nothing about which half is missing. Whatever did load stays
+      // usable, and the message names the picker that did not.
+      const [templatesResult, listsResult] = await Promise.allSettled([
+        campaignsApi.templates.list(1, 100),
+        campaignsApi.lists.list(1, 100),
+      ]);
+      if (templatesResult.status === "fulfilled") setTemplates(templatesResult.value.items);
+      if (listsResult.status === "fulfilled") setLists(listsResult.value.items);
+      const failed = [
+        templatesResult.status === "rejected" ? picker("Templates", templatesResult.reason) : null,
+        listsResult.status === "rejected" ? picker("Audiences", listsResult.reason) : null,
+      ].filter((part) => part !== null);
+      if (failed.length > 0) setError(`Couldn't load the campaign options — ${failed.join("; ")}`);
     })();
   }, []);
 

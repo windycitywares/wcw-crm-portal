@@ -194,4 +194,5 @@ Gotchas found during the first install (2026-10-16), handled by `deploy/first-se
 | API 503 / 500 | `~/repos/wcw-crm-portal/backend/stderr.log`; Setup Python App → Restart |
 | Web 503 | `~/apps/crm/wcw-crm-web/stderr.log`; `bash ~/repos/wcw-crm-portal/deploy/update-web.sh` |
 | "Can't reach the CRM server" on the login page | `crm-api` SSL certificate, `CORS_ORIGINS` in `production.env`/`.env`, API health |
+| "Can't reach the CRM server" after signing in | the request never got an answer a browser could read: API host/CORS, API down, or a request the proxy gave up on. An API **crash** answers `500` with CORS headers (see `unexpected_errors` in `app/main.py`), so it reads "Request failed (500)" — look at `~/repos/wcw-crm-portal/backend/stderr.log` |
 | Deploy didn't happen | `tail -50 ~/logs/wcw-crm-deploy.log`; `crontab -l` |
