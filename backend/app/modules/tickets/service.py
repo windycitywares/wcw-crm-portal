@@ -38,6 +38,7 @@ from app.modules.lookups.service import LookupService
 from app.modules.settings.groups import BusinessHours, EmailSettings
 from app.modules.settings.service import SettingsService
 from app.modules.users.service import UserService
+from app.shared.time import utcnow
 
 from .business_hours import add_business_minutes
 from .models import OPEN_STATUSES, CannedResponse, SlaPolicy, Ticket, TicketMessage
@@ -69,10 +70,6 @@ SLA_SEED: tuple[tuple[str, str, int, int], ...] = (
     ("Normal", "normal", 480, 1440),  # 1 / 3 business days
     ("Low", "low", 960, 2400),        # 2 / 5 business days
 )
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _snapshot(t: Ticket) -> dict[str, Any]:
@@ -114,7 +111,7 @@ class TicketService:
 
     # ---- helpers ------------------------------------------------------------------------
     async def _hours(self) -> BusinessHours:
-        return await SettingsService(self.session).get_model("business_hours")  # type: ignore[return-value]
+        return await SettingsService(self.session).get_model("business_hours", factory=BusinessHours)
 
     async def _policy_for(self, ticket_type: str | None, priority: str | None) -> SlaPolicy | None:
         best: tuple[int, SlaPolicy] | None = None
@@ -143,7 +140,7 @@ class TicketService:
         customer_ids = [t.customer_id for t in tickets if t.customer_id]
         names = await entity_labels(self.session, "customer", customer_ids) if customer_ids else {}
         people = {u.id: u.full_name for u in await UserService(self.session).directory()}
-        now = _now()
+        now = utcnow()
         out = []
         for t in tickets:
             item = TicketOut.model_validate(t)
@@ -188,7 +185,7 @@ class TicketService:
         return (await self._out([await self._get(ticket_id)]))[0]
 
     async def summary(self, user) -> TicketSummary:
-        now = _now()
+        now = utcnow()
         open_states = (Ticket.status.in_(OPEN_STATUSES),)
         return TicketSummary(
             open=await self.repo.count_where(*open_states),
@@ -238,7 +235,7 @@ class TicketService:
             ticket.created_at = ticket.updated_at = opened_at
         await self.repo.add(ticket)
         ticket.number = f"T-{ticket.id:06d}"
-        await self._apply_sla(ticket, ticket.created_at or _now())
+        await self._apply_sla(ticket, ticket.created_at or utcnow())
         await self.session.flush()
         await self.audit.record("ticket.create", actor=actor, entity_type=ENTITY, entity_id=ticket.id,
                                 changes=diff({}, _snapshot(ticket)))
@@ -273,7 +270,7 @@ class TicketService:
         before = _snapshot(ticket)
         self.repo.apply(ticket, values)
         if resla:
-            await self._apply_sla(ticket, ticket.created_at or _now())
+            await self._apply_sla(ticket, ticket.created_at or utcnow())
         if new_status is not None and new_status != ticket.status:
             await self._set_status(ticket, new_status, actor)
         ticket.updated_by = actor.id
@@ -291,10 +288,10 @@ class TicketService:
             raise ValidationFailedError(f"A {ticket.status} ticket can't be marked {status}")
         ticket.status = status
         if status == "resolved":
-            ticket.resolved_at = ticket.resolved_at or _now()
+            ticket.resolved_at = ticket.resolved_at or utcnow()
         elif status == "closed":
-            ticket.resolved_at = ticket.resolved_at or _now()
-            ticket.closed_at = _now()
+            ticket.resolved_at = ticket.resolved_at or utcnow()
+            ticket.closed_at = utcnow()
         elif status == "open":
             ticket.resolved_at = ticket.closed_at = None
         kind = STATUS_KINDS.get(status, "ticket.status")
@@ -326,7 +323,7 @@ class TicketService:
                 to=email or "", subject=f"Re: [{ticket.number}] {ticket.subject}", text=data.body,
                 headers=headers))
             if ticket.first_responded_at is None:
-                ticket.first_responded_at = _now()
+                ticket.first_responded_at = utcnow()
         if ticket.status == "new":
             await self._set_status(ticket, "open", actor)
         ticket.updated_by = actor.id
@@ -343,7 +340,7 @@ class TicketService:
     async def _reply_id(self, ticket: Ticket, message: TicketMessage) -> str:
         """Our own `Message-ID` for a reply, built from the ticket and the message so that a retry keeps
         the same one — a second attempt must not look like a second message in the customer's mail client."""
-        settings: EmailSettings = await SettingsService(self.session).get_model("email")  # type: ignore[assignment]
+        settings: EmailSettings = await SettingsService(self.session).get_model("email", factory=EmailSettings)
         domain = str(settings.from_address).split("@")[-1] or "windycitywares.com"
         return f"{ticket.number or ticket.id}.{message.id}@{domain}"
 
@@ -486,7 +483,7 @@ class TicketService:
     # ---- jobs ---------------------------------------------------------------------------
     async def check_sla(self) -> str | None:
         """`ticket-sla` job: flag first-response and resolve targets that have been missed."""
-        now = _now()
+        now = utcnow()
         first = resolve = 0
         for ticket in await self.repo.unresolved_with_due():
             if ticket.first_response_due_at and ticket.first_responded_at is None \

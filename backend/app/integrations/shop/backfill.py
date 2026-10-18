@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ValidationFailedError
 from app.modules.audit.service import AuditService
 from app.modules.settings.service import SettingsService
+from app.shared.time import utcnow
 
 from .client import ShopApiError, shop_client
 from .models import ShopBackfill
@@ -32,10 +33,6 @@ class BackfillOut(BaseModel):
     error: str | None
     started_at: datetime | None
     finished_at: datetime | None
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class ShopBackfillService:
@@ -77,7 +74,7 @@ class ShopBackfillService:
             raise ValidationFailedError(f"Can't reach the shop: {result['detail']}")
         row = await self._row()
         row.status, row.phase, row.after_id, row.counts, row.error = "running", PHASES[0], 0, {}, None
-        row.started_by, row.started_at, row.finished_at = actor.id, _now(), None
+        row.started_by, row.started_at, row.finished_at = actor.id, utcnow(), None
         await self.audit.record("shop.backfill.start", actor=actor, entity_type="settings")
         await self.session.commit()
         return self._out(row)
@@ -85,7 +82,7 @@ class ShopBackfillService:
     async def cancel(self, actor) -> BackfillOut:
         row = await self._row()
         if row.status == "running":
-            row.status, row.finished_at, row.error = "idle", _now(), "Stopped by an admin"
+            row.status, row.finished_at, row.error = "idle", utcnow(), "Stopped by an admin"
             await self.audit.record("shop.backfill.cancel", actor=actor, entity_type="settings")
         await self.session.commit()
         return self._out(row)
@@ -122,10 +119,10 @@ class ShopBackfillService:
                     if i + 1 < len(PHASES):
                         row.phase, row.after_id = PHASES[i + 1], 0
                     else:
-                        row.status, row.finished_at = "done", _now()
+                        row.status, row.finished_at = "done", utcnow()
                 await self.session.commit()
         except ShopApiError as exc:
-            row.status, row.error, row.finished_at = "failed", str(exc)[:1000], _now()
+            row.status, row.error, row.finished_at = "failed", str(exc)[:1000], utcnow()
             await self.session.commit()
             return f"shop backfill failed: {exc}"
         return f"shop backfill: {done} records ({row.status}, {row.phase})" if done or row.status == "done" else None

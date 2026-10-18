@@ -35,6 +35,7 @@ from app.modules.customfields.service import CustomFieldService
 from app.modules.lookups.service import LookupService
 from app.modules.settings.service import SettingsService
 from app.modules.users.service import UserService
+from app.shared.time import utcnow
 
 from .models import Deal, DealItem, Pipeline, PipelineStage
 from .repository import DealItemRepository, DealRepository, PipelineRepository, PipelineStageRepository
@@ -58,10 +59,6 @@ STARTER_STAGES: tuple[tuple[str, int, bool, bool, str], ...] = (
     ("Lost", 0, False, True, "danger"),
 )
 DEFAULT_PIPELINE = "Sales"
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _stage_status(stage: PipelineStage | None) -> str:
@@ -292,7 +289,7 @@ class SalesService:
         deal = Deal(**{k: v for k, v in values.items() if v is not None}, owner_id=owner_id,
                     created_by=actor.id, updated_by=actor.id)
         if deal.status in ("won", "lost"):
-            deal.closed_at = _now()
+            deal.closed_at = utcnow()
         elif deal.stage_id is not None:
             deal.position = await self.repo.max_position(deal.stage_id) + 1
         await self.repo.add(deal)
@@ -331,7 +328,7 @@ class SalesService:
         self.repo.apply(deal, values)
         if deal.status in ("won", "lost"):
             if deal.closed_at is None or moved:
-                deal.closed_at = _now()
+                deal.closed_at = utcnow()
             if deal.status == "won":
                 deal.lost_reason = None  # a won deal isn't a lost one
         else:

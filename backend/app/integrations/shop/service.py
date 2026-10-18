@@ -29,6 +29,7 @@ from app.modules.lookups.service import LookupService
 from app.modules.settings.service import SettingsService
 from app.modules.tickets.schemas import TicketCreate
 from app.modules.tickets.service import TicketService
+from app.shared.time import utcnow
 
 from .models import DONE, FAILED, IGNORED, PENDING, ShopEvent, ShopOrder
 from .repository import ShopEventRepository, ShopOrderRepository
@@ -50,10 +51,6 @@ class WebhookRejected(Exception):
     def __init__(self, status_code: int, detail: str):
         super().__init__(detail)
         self.status_code, self.detail = status_code, detail
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _money(value: Any, currency: str) -> str:
@@ -78,7 +75,7 @@ class ShopEventService:
         }
 
     async def settings(self) -> ShopSettings:
-        return await SettingsService(self.session).get_model("shop")  # type: ignore[return-value]
+        return await SettingsService(self.session).get_model("shop", factory=ShopSettings)
 
     # ---- webhook ---------------------------------------------------------
     async def receive(self, body: bytes, timestamp: str | None, signature: str | None) -> str:
@@ -111,7 +108,7 @@ class ShopEventService:
         handler = self.handlers.get(event.event_type)
         event.attempts += 1
         if handler is None:
-            event.status, event.processed_at = IGNORED, _now()
+            event.status, event.processed_at = IGNORED, utcnow()
             await self.session.commit()
             return
         try:
@@ -124,7 +121,7 @@ class ShopEventService:
             log.exception("shop event %s failed", event.event_id)
             event.status, event.error = FAILED, f"{type(exc).__name__}: {exc}"[:2000]
         else:
-            event.status, event.error, event.processed_at = DONE, None, _now()
+            event.status, event.error, event.processed_at = DONE, None, utcnow()
         await self.session.commit()
 
     async def _customer(self, payload: dict[str, Any]) -> int:
@@ -204,10 +201,10 @@ class ShopEventService:
 
     # ---- job + admin ---------------------------------------------------------
     async def retry_due(self, limit: int = 50) -> str | None:
-        due = await self.events.due(max_attempts=MAX_ATTEMPTS, older_than=_now() - timedelta(minutes=1), limit=limit)
+        due = await self.events.due(max_attempts=MAX_ATTEMPTS, older_than=utcnow() - timedelta(minutes=1), limit=limit)
         for event in due:
             await self.apply(event)
-        purged = await self.events.purge(_now() - timedelta(days=KEEP_DAYS))
+        purged = await self.events.purge(utcnow() - timedelta(days=KEEP_DAYS))
         await self.session.commit()
         parts = [f"{len(due)} retried"] if due else []
         if purged:
@@ -227,7 +224,7 @@ class ShopEventService:
         cfg = await self.settings()
         return ShopStatus(enabled=cfg.enabled, secret_set=bool(cfg.webhook_secret), webhook_url=webhook_url,
                           last_event_at=await self.events.last_received(),
-                          counts=await self.events.counts_since(_now() - timedelta(days=1)))
+                          counts=await self.events.counts_since(utcnow() - timedelta(days=1)))
 
     async def list(self, params: PageParams, status: str | None = None) -> ShopEventPage:
         rows, total = await self.events.paginate(self.events.recent(status), params)

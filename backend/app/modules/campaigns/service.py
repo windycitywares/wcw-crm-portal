@@ -69,6 +69,7 @@ from app.modules.mail.service import MailService
 from app.modules.settings.groups import EmailSettings
 from app.modules.settings.service import SettingsService
 from app.modules.users.service import UserService
+from app.shared.time import utcnow
 
 from . import render, segments
 from .models import (
@@ -96,10 +97,6 @@ SUPPRESSION = "suppression"
 LIST = "target_list"
 CAMPAIGN = "campaign"
 TRACKED = ("name", "subject", "preheader", "version")
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _snapshot(template: EmailTemplate) -> dict[str, Any]:
@@ -177,7 +174,7 @@ class CampaignService:
                 "owner_name": people.get(customer.owner_id) if customer.owner_id else "",
             }
             unsubscribe = unsubscribe_url(customer.id, base_url=base, campaign_id=campaign_id)
-        prefs: EmailSettings = await self.settings.get_model("email")  # type: ignore[assignment]
+        prefs: EmailSettings = await self.settings.get_model("email", factory=EmailSettings)
         return {"customer": fields, "sender_name": prefs.from_name, "unsubscribe_url": unsubscribe}
 
     async def _render(self, *, subject: str, preheader: str | None, html: str, text: str,
@@ -192,7 +189,7 @@ class CampaignService:
         so a click comes back to us, and the one-pixel image an open is recorded by is added at the end. It is
         passed only when a real message is queued — a preview and a test send show the words as written.
         """
-        prefs: EmailSettings = await self.settings.get_model("email")  # type: ignore[assignment]
+        prefs: EmailSettings = await self.settings.get_model("email", factory=EmailSettings)
         api = get_settings().api_url.rstrip("/")  # tracking links are fetched by a mail client, not the web app
         context = await self._context(customer, campaign_id)
         rendered_subject = render.render(subject, context).strip()
@@ -711,7 +708,7 @@ class CampaignService:
         when = data.scheduled_at
         if when.tzinfo is None:  # the API works in UTC; a bare time is UTC too
             when = when.replace(tzinfo=timezone.utc)
-        if when <= _now():
+        if when <= utcnow():
             raise ValidationFailedError("Pick a time in the future — to send it now, use “send”")
         before = _campaign_snapshot(campaign)
         campaign.scheduled_at, campaign.status = when, SCHEDULED
@@ -840,7 +837,7 @@ class CampaignService:
         """Aggregated campaign activity over a trailing window for the dashboard."""
         if days < 1:
             raise ValidationFailedError("Pick a window of at least one day")
-        since = _now() - timedelta(days=days)
+        since = utcnow() - timedelta(days=days)
         rows = await self.campaigns.started_since(since, limit=500)
         if not rows:
             return CampaignStats(days=days)
@@ -881,7 +878,7 @@ class CampaignService:
     async def _begin(self, campaign: Campaign, actor=None) -> int:
         """Start a campaign: copy its audience in as recipients (once) and mark it as going out."""
         before = _campaign_snapshot(campaign)
-        campaign.status, campaign.started_at, campaign.finished_at = SENDING, _now(), None
+        campaign.status, campaign.started_at, campaign.finished_at = SENDING, utcnow(), None
         target = await self.lists.get(campaign.target_list_id, include_deleted=True)
         copied = await self.recipients.snapshot(campaign.id, self._audience_of(target)) if target else 0
         await self.audit.record("campaign.start", actor=actor, entity_type=CAMPAIGN, entity_id=campaign.id,
@@ -896,8 +893,8 @@ class CampaignService:
         to the SMTP limits and retries what fails. This job only decides who, and how many at a time — never
         more than could go out right now, so no message ever waits long enough to expire unsent.
         """
-        settings: EmailSettings = await self.settings.get_model("email")  # type: ignore[assignment]
-        due = await self.campaigns.due(_now())
+        settings: EmailSettings = await self.settings.get_model("email", factory=EmailSettings)
+        due = await self.campaigns.due(utcnow())
         active = await self.campaigns.sending(limit=max_campaigns)
         if not settings.enabled:
             waiting = len(due) + len(active)
@@ -969,7 +966,7 @@ class CampaignService:
             return False
         if (await self.recipients.open_counts([campaign.id])).get(campaign.id, 0):
             return False
-        campaign.status, campaign.finished_at = SENT, _now()
+        campaign.status, campaign.finished_at = SENT, utcnow()
         counts = (await self.recipients.counts([campaign.id])).get(campaign.id, {})
         await self.audit.record("campaign.finish", entity_type=CAMPAIGN, entity_id=campaign.id,
                                 changes={"sent": counts.get(RECIPIENT_SENT, 0),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -11,18 +12,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.modules.audit.service import AuditService
+from app.modules.settings.groups import BusinessHours
 from app.modules.settings.service import SettingsService
+from app.shared.time import utcnow
 
 from .models import DeployControl
 from .policy import Decision, decide
 from .schemas import DeployConfig, DeployStatus, Version
 
+log = logging.getLogger("wcw.crm.deploy")
+
 LOG_MAX_LINES = 400
 STUCK_AFTER = timedelta(minutes=30)  # a run that never reported back is treated as finished
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def git_version(repo: str) -> Version:
@@ -69,14 +70,15 @@ class DeployService:
 
     async def _timezone(self) -> str:
         try:
-            return (await SettingsService(self.session).get_model("business_hours")).timezone  # type: ignore[attr-defined]
+            return (await SettingsService(self.session).get_model("business_hours", factory=BusinessHours)).timezone
         except Exception:  # noqa: BLE001 - settings unreadable: fall back
+            log.warning("deploy: business_hours settings unreadable, falling back to America/Chicago")
             return "America/Chicago"
 
     async def status(self, user_names: dict[int, str] | None = None) -> DeployStatus:
         row = await self.control()
         settings = get_settings()
-        now = _now()
+        now = utcnow()
         running = bool(row.started_at and (not row.finished_at or row.finished_at < row.started_at)
                        and now - row.started_at < STUCK_AFTER)
         api = await asyncio.to_thread(git_version, settings.deploy_repo_dir)
@@ -105,7 +107,7 @@ class DeployService:
 
     async def request_now(self, actor) -> None:
         row = await self.control()
-        row.requested_at, row.requested_by = _now(), actor.id
+        row.requested_at, row.requested_by = utcnow(), actor.id
         await self.audit.record("deploy.requested", actor=actor, entity_type="deploy")
         await self.session.commit()
 
@@ -118,7 +120,7 @@ class DeployService:
     # ---- the server's cron job ------------------------------------------
     async def gate_begin(self) -> Decision:
         row = await self.control()
-        now = _now()
+        now = utcnow()
         row.last_seen_at = now
         decision = decide(now=now, mode=row.mode, interval_minutes=row.interval_minutes,
                           schedule_times=list(row.schedule_times or []), tz=await self._timezone(),
@@ -131,6 +133,6 @@ class DeployService:
 
     async def gate_end(self, ok: bool, summary: str) -> None:
         row = await self.control()
-        row.finished_at = _now()
+        row.finished_at = utcnow()
         row.last_result = ("✓ " if ok else "✗ ") + (summary.strip() or ("no changes" if ok else "failed"))[:2000]
         await self.session.commit()

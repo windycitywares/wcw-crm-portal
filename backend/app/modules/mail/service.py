@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.integrations.email import EmailSender, Mail, SmtpEmailSender
 from app.modules.settings.groups import EmailSettings
 from app.modules.settings.service import SettingsService, smtp_config
+from app.shared.time import utcnow
 
 from .models import FAILED, QUEUED, SENT, EmailOutbox
 
@@ -26,10 +27,6 @@ MAX_ATTEMPTS = 5
 GIVE_UP_AFTER = timedelta(days=3)  # unsent mail (e.g. email switched off) older than this is marked failed
 OFF = "Outgoing email is off — set it up in Admin → Settings → Email"
 TransportFactory = Callable[[EmailSettings], EmailSender]
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _smtp(settings: EmailSettings) -> EmailSender:
@@ -46,13 +43,13 @@ class MailService:
     async def queue(self, mail: Mail, category: str = "system", send_after: datetime | None = None) -> EmailOutbox:
         row = EmailOutbox(to_email=mail.to, subject=mail.subject[:300], text=mail.text, html=mail.html,
                           reply_to=mail.reply_to, headers=mail.headers or None, category=category,
-                          send_after=send_after or _now())
+                          send_after=send_after or utcnow())
         self.session.add(row)
         await self.session.flush()
         return row
 
     async def settings(self) -> EmailSettings:
-        return await SettingsService(self.session).get_model("email")  # type: ignore[return-value]
+        return await SettingsService(self.session).get_model("email", factory=EmailSettings)
 
     async def _sent_since(self, since: datetime) -> int:
         stmt = select(func.count()).select_from(EmailOutbox).where(EmailOutbox.status == SENT, EmailOutbox.sent_at >= since)
@@ -60,7 +57,7 @@ class MailService:
 
     async def room(self, settings: EmailSettings) -> int:
         """How many messages may go out right now (daily and per-minute limits)."""
-        now = _now()
+        now = utcnow()
         day = settings.daily_limit - await self._sent_since(now - timedelta(hours=24))
         minute = settings.per_minute - await self._sent_since(now - timedelta(minutes=1))
         return max(0, min(day, minute))
@@ -76,9 +73,9 @@ class MailService:
             if row.attempts >= MAX_ATTEMPTS:
                 row.status = FAILED
             else:
-                row.send_after = _now() + timedelta(minutes=5 * 2 ** (row.attempts - 1))  # 5, 10, 20, 40 min
+                row.send_after = utcnow() + timedelta(minutes=5 * 2 ** (row.attempts - 1))  # 5, 10, 20, 40 min
             return False
-        row.status, row.sent_at, row.last_error = SENT, _now(), None
+        row.status, row.sent_at, row.last_error = SENT, utcnow(), None
         return True
 
     async def try_send_now(self, row: EmailOutbox) -> bool:
@@ -94,7 +91,7 @@ class MailService:
     async def deliver_due(self, max_seconds: float = 45) -> str | None:
         """Background job (every minute): send what's due for up to `max_seconds`, pacing to the per-minute limit,
         stopping at the daily limit."""
-        now = _now()
+        now = utcnow()
         stale = (await self.session.execute(select(EmailOutbox).where(
             EmailOutbox.status == QUEUED, EmailOutbox.created_at < now - GIVE_UP_AFTER))).scalars().all()
         for row in stale:
@@ -115,7 +112,7 @@ class MailService:
             if time.monotonic() - started > max_seconds:
                 break
             if await self.room(settings) <= 0:
-                if settings.daily_limit - await self._sent_since(_now() - timedelta(hours=24)) <= 0:
+                if settings.daily_limit - await self._sent_since(utcnow() - timedelta(hours=24)) <= 0:
                     break  # daily limit reached — the rest waits for the next runs
                 await self.sleep(gap)
             if await self._attempt(row, transport, settings):

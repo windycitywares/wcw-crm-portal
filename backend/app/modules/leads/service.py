@@ -32,6 +32,7 @@ from app.modules.lookups.service import LookupService
 from app.modules.sales.schemas import DealCreate
 from app.modules.sales.service import SalesService
 from app.modules.users.service import UserService
+from app.shared.time import utcnow
 
 from .models import Lead
 from .repository import LeadRepository
@@ -40,10 +41,6 @@ from .schemas import LeadConvert, LeadCreate, LeadOut, LeadPage, LeadSummary, Le
 ENTITY = "lead"
 TRACKED = ("first_name", "last_name", "company", "email", "phone", "source", "status", "notes", "owner_id")
 LABELS = {"first_name": "first name", "last_name": "last name", "owner_id": "owner"}
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _snapshot(lead: Lead) -> dict[str, Any]:
@@ -255,7 +252,7 @@ class LeadService:
             deal_id = deal.id
 
         lead.status = "converted"
-        lead.converted_at, lead.converted_customer_id, lead.converted_deal_id = _now(), customer_id, deal_id
+        lead.converted_at, lead.converted_customer_id, lead.converted_deal_id = utcnow(), customer_id, deal_id
         lead.updated_by = actor.id
         await self.session.flush()
         what = f"Lead converted to customer #{customer_id}" + (f" and deal #{deal_id}" if deal_id else "")

@@ -6,7 +6,8 @@ Other modules read a group with `await SettingsService(session).get_model("busin
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,6 +43,9 @@ def smtp_config(s: EmailSettings) -> SmtpConfig:
                       password=s.smtp_password or None, from_address=str(s.from_address), from_name=s.from_name)
 
 
+T = TypeVar("T", bound=BaseModel)
+
+
 class SettingsService:
     def __init__(self, session: AsyncSession, box: SecretBox | None = None):
         self.session = session
@@ -57,8 +61,11 @@ class SettingsService:
     async def _row(self, key: str) -> AppSetting | None:
         return await self.session.get(AppSetting, key)
 
-    async def get_model(self, key: str) -> BaseModel:
-        """The group's values with secrets decrypted (server-side use only)."""
+    async def get_model[T: BaseModel](self, key: str, *, factory: Callable[[], T] | None = None) -> T:
+        """The group's values with secrets decrypted (server-side use only).
+
+        Pass `factory=` for a typed call site (e.g. `get_model("email", factory=EmailSettings)`)
+        so the return type is inferred without `# type: ignore`."""
         _, model = _group(key)
         row = await self._row(key)
         raw = dict(row.value) if row else {}
@@ -66,7 +73,9 @@ class SettingsService:
             value = raw.get(field)
             if isinstance(value, str) and value.startswith(ENC_PREFIX):
                 raw[field] = self.box.decrypt(value[len(ENC_PREFIX):])
-        return model.model_validate(raw) if raw else model()
+        if factory is not None:
+            return factory() if not raw else cast(T, model.model_validate(raw))
+        return model.model_validate(raw) if raw else model()  # type: ignore[return-value]
 
     async def get_public(self, key: str) -> dict[str, Any]:
         """For the API: secrets replaced by `<field>_set: bool`."""
