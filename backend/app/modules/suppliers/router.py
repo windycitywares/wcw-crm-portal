@@ -9,7 +9,7 @@ from app.modules.users.models import User
 
 from .schemas import (
     SupplierContactIn, SupplierContactOut, SupplierContactUpdate, SupplierIn, SupplierOut, SupplierPage,
-    SupplierUpdate,
+    SupplierProductIn, SupplierProductOut, SupplierProductsPage, SupplierProductUpdate, SupplierUpdate,
 )
 from .service import SupplierService
 
@@ -65,3 +65,30 @@ async def update_contact(session: SessionDep, actor: Editor, supplier_id: int, c
 @router.delete("/{supplier_id}/contacts/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_contact(session: SessionDep, actor: Editor, supplier_id: int, contact_id: int) -> None:
     await SupplierService(session).delete_contact(supplier_id, contact_id, actor)
+
+
+@router.get("/{supplier_id}/products", response_model=SupplierProductsPage)
+async def list_products(
+    session: SessionDep,
+    supplier_id: int,
+    page: PageDep,
+    q: Annotated[str | None, Query(max_length=120)] = None,
+) -> SupplierProductsPage:
+    return await SupplierService(session).list_products(supplier_id, page, q=q)
+
+
+@router.post("/{supplier_id}/products", response_model=SupplierProductOut, status_code=status.HTTP_201_CREATED)
+async def add_product(session: SessionDep, actor: Editor, supplier_id: int,
+                      data: SupplierProductIn) -> SupplierProductOut:
+    return await SupplierService(session).add_product(supplier_id, data, actor)
+
+
+@router.patch("/{supplier_id}/products/{product_id}", response_model=SupplierProductOut)
+async def update_product(session: SessionDep, actor: Editor, supplier_id: int, product_id: int,
+                         data: SupplierProductUpdate) -> SupplierProductOut:
+    return await SupplierService(session).update_product(supplier_id, product_id, data, actor)
+
+
+@router.delete("/{supplier_id}/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_product(session: SessionDep, actor: Editor, supplier_id: int, product_id: int) -> None:
+    await SupplierService(session).delete_product(supplier_id, product_id, actor)

@@ -1,10 +1,8 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, HttpUrl
-
-from .models import STATUSES
-
 
 def _required_words(value: str) -> str:
     text = " ".join((value or "").split())
@@ -19,6 +17,7 @@ def _words(value: str | None) -> str | None:
 
 
 Name = Annotated[str, Field(max_length=160), AfterValidator(_required_words)]
+Sku = Annotated[str, Field(max_length=80), AfterValidator(_required_words)]
 Status = Literal["active", "inactive"]
 
 
@@ -111,6 +110,54 @@ class SupplierOut(BaseModel):
 
 class SupplierPage(BaseModel):
     items: list[SupplierOut]
+    total: int
+    page: int
+    page_size: int
+
+
+class SupplierProductIn(BaseModel):
+    shop_sku: Sku
+    supplier_sku: Annotated[str | None, Field(default=None, max_length=80), AfterValidator(_words)] = None
+    description: Annotated[str | None, Field(default=None, max_length=300), AfterValidator(_words)] = None
+    unit_cost: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
+    currency: str = Field(default="USD", min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")
+    minimum_order_quantity: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=3)
+    lead_time_days: int | None = Field(default=None, ge=0, le=3650)
+    notes: Annotated[str | None, Field(default=None), AfterValidator(_words)] = None
+
+
+class SupplierProductUpdate(BaseModel):
+    shop_sku: Sku | None = None
+    supplier_sku: Annotated[str | None, Field(default=None, max_length=80), AfterValidator(_words)] = None
+    description: Annotated[str | None, Field(default=None, max_length=300), AfterValidator(_words)] = None
+    unit_cost: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
+    currency: str | None = Field(default=None, min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")
+    minimum_order_quantity: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=3)
+    lead_time_days: int | None = Field(default=None, ge=0, le=3650)
+    notes: Annotated[str | None, Field(default=None), AfterValidator(_words)] = None
+
+
+class SupplierProductOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    supplier_id: int
+    shop_sku: str
+    supplier_sku: str | None
+    description: str | None
+    unit_cost: Decimal
+    currency: str
+    minimum_order_quantity: Decimal | None
+    lead_time_days: int | None
+    notes: str | None
+    created_by: int | None
+    updated_by: int | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SupplierProductsPage(BaseModel):
+    items: list[SupplierProductOut]
     total: int
     page: int
     page_size: int
