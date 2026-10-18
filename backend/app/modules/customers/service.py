@@ -224,6 +224,15 @@ class CustomerService:
         customer = await self.repo.by_any_email(email)
         return customer.id if customer else None
 
+    async def find_by_phone(self, phone: str) -> int | None:
+        """Whose number this is, if it is anyone's (a message that arrives with no address to go on).
+
+        Nothing is created from a number alone: a phone is shared and recycled, and a wrong customer record
+        is harder to undo than a message filed without one — staff can link that by hand. Matching by number
+        is how the message finds the person in the first place, never how it adds one."""
+        customer = await self.repo.by_phone(phone)
+        return customer.id if customer else None
+
     async def find_or_create(self, *, email: str, full_name: str | None = None, how: str = "an email") -> int:
         """The customer for an address, or a new one: for somebody who writes in and isn't on file yet
         (the inbox, SPEC §3.9). Addresses a merge moved aside count as theirs, so a merged record isn't

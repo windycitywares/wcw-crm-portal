@@ -96,7 +96,7 @@ export function Conversation({ ticket, onChanged }: { ticket: Ticket; onChanged:
               >
                 <div className="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                   <Pill tone={m.direction === "inbound" ? "info" : m.direction === "outbound" ? "accent" : "neutral"}>{KIND_LABEL[m.direction]}</Pill>
-                  <span>{m.direction === "inbound" ? m.from_email ?? "Customer" : m.author_name ?? "System"}</span>
+                  <span>{m.direction === "inbound" ? m.from_email ?? m.from_phone ?? "Customer" : m.author_name ?? "System"}</span>
                   <span>{formatDateTime(m.created_at)}</span>
                 </div>
                 <p className="whitespace-pre-wrap text-sm">{m.body}</p>

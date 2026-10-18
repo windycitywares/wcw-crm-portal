@@ -49,6 +49,7 @@ class TicketMessageOut(BaseModel):
     body: str
     from_email: str | None
     to_email: str | None
+    from_phone: str | None
     created_by: int | None
     created_at: datetime
     author_name: str | None = None

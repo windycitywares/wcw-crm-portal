@@ -46,6 +46,7 @@ export interface TicketMessage {
   body: string;
   from_email: string | null;
   to_email: string | null;
+  from_phone: string | null;
   created_by: number | null;
   created_at: string;
   author_name: string | null;

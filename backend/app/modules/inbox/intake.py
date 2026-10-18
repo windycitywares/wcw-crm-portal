@@ -73,7 +73,7 @@ class InboxIntakeService:
                     external_id=message.id, channel=channel, label=label,
                     body=message.body or (NO_TEXT if files else ""), subject=message.subject,
                     from_email=str(message.sender.email) if message.sender.email else None,
-                    from_name=message.sender.name, when=message.at,
+                    from_phone=message.sender.phone, from_name=message.sender.name, when=message.at,
                     thread=(message.thread,) if message.thread else (), attachments=files, source=channel))
             await self.session.commit()
         except ValidationFailedError as exc:  # e.g. a file the CRM won't keep
