@@ -164,5 +164,6 @@ npm run typecheck
   the report. Built on `fix/campaign-tracking-links`. Follow-up 2 adds the `List-Unsubscribe` and
   `List-Unsubscribe-Post: …=One-Click` headers to campaign mail, and the body-less `POST /campaigns/unsubscribe/one-click` a mail client posts to on the reader's
   behalf (a `GET` on the same address sends a human on to the web app's page instead, changing nothing); built on `feat/m5-6-one-click-unsubscribe`. Follow-up 3
-  (what a test send should carry) is not started.
+  turned out to be a decision rather than work and is settled: a test send stays a preview of the words, with neither the tracking links (there is no recipient
+  to attribute an open or a click to, and a made-up one would land in that campaign's own report) nor the header.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.
