@@ -69,14 +69,16 @@ backend/app/
                  custom fields, audit, timeline, import/export
   modules/<name>/  models.py schemas.py repository.py service.py router.py permissions.py events.py
                  (customers, sales, tasks, tickets, campaigns, suppliers, reports, users)
-  integrations/  shop/ (webhooks in, read API out) · email/ (SMTP sender, the mailbox reader) · files/ (the
-                 bytes customers send, on the server's own disk)
+  integrations/  signing.py (the signature every signed caller shares) · shop/ (webhooks in, read API out) ·
+                 email/ (SMTP sender, the mailbox reader) · files/ (the bytes customers send, on the server's
+                 own disk)
   workers/       cron jobs: outbox, campaign dispatch, SLA checks, shop sync
 frontend/src/
   app/(auth)/ · app/(crm)/<module>/   (sidebar shell layout)
   modules/<module>/  components, hooks, api, types
   components/ui/     shared primitives: DataTable, EntityForm, Kanban, Timeline, …
-docs/          SPEC.md, DEPLOYMENT.md, SHOP_EVENTS.md (shop → CRM webhook contract)
+docs/          SPEC.md, DEPLOYMENT.md, SHOP_EVENTS.md (shop → CRM webhook contract), INBOX_CHANNELS.md
+               (the same contract for channels that aren't mailboxes)
 ```
 
 ## Deploy
@@ -210,5 +212,17 @@ npm run typecheck
   own disk because the deployment is self-hosted: `attachments_dir` defaults to `~/apps/crm/wcw-crm-files`, **outside the checkout** so a deploy can't take a
   customer's photo with it, and created on first use. Deliberately deferred, and written down: staff uploads, outbound attachments (the reply is plain text through
   the one SMTP identity, so an attached file would not leave the building), virus scanning, and a "which message brought this?" link. Built on
-  `feat/m8-5-attachments`, which sits on batches 1–4. Next: chat/Etsy/SMS, then retiring the shop's inbox. Plan of record: `docs/WORKING_IN_BATCHES.md`.
+  `feat/m8-5-attachments`, which sits on batches 1–4. Batch 6 is **the channels that aren't mailboxes** — chat, Etsy and SMS, whose CRM half is a door and a set of
+  rules: `POST /inbox/messages` (the inbox module's `public.py`, no session — the HMAC signature is the authentication, and the scheme moved out of the shop's
+  namespace into `app/integrations/signing.py` once two callers shared it) takes one signed message and files it through `filing.py`, the rules extracted out of the
+  poller so that a chat and a letter cannot be filed differently: the sender found or created by address, threading by the ids the sender carried (or the `[T-000123]`
+  in a subject), a new ticket or an answer joined to an existing one, the channel it arrived on written on the ticket, and its files kept against that ticket tagged
+  with that channel. `InboxSettings` — a settings group whose secret is encrypted like the others — holds the switch and the `ingest_secret`, generated and copied in
+  Admin → Settings → Integrations → *Messages from other channels*; a message that isn't signed, isn't JSON, names a channel the CRM doesn't have (checked against
+  the `ticket_channel` lookup) or carries a file that isn't base64 is refused with a status the connector can read (400/401/413/429/503), and re-posting an id
+  already stored answers `duplicate` instead of opening a second ticket. Extracting one set of rules also fixed what mail had been missing: the message that opens
+  a ticket is now stored *in* the ticket and not only written on it as its description, which is what makes a ticket count as waiting on us and gives our reply
+  something to answer, so the customer's next message finds its way back. No migration. The contract is `docs/INBOX_CHANNELS.md`. Built on `feat/m8-6-other-channels`,
+  which sits on batches 1–5. Next: the connectors themselves (the shop's chat widget, an Etsy poller, an SMS gateway — the last needs a provider and credentials) and
+  retiring the shop's inbox; matching a sender known only by phone is the other half of SMS. Plan of record: `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

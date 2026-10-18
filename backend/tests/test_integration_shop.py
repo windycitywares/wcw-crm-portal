@@ -31,7 +31,7 @@ class ShopWebhookTests(unittest.TestCase):
         reset_limits()
 
     def send(self, type_, data, *, event_id=None, secret=SECRET, ts=None):
-        from app.integrations.shop.signing import sign
+        from app.integrations.signing import sign
 
         body = json.dumps({"id": event_id or uuid.uuid4().hex, "type": type_,
                            "occurred_at": "2026-10-16T12:00:00Z", "data": data}).encode()

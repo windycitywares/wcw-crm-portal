@@ -1,9 +1,13 @@
-"""Webhook signatures (same scheme on both sides — see docs/SHOP_EVENTS.md).
+"""Webhook signatures (the same scheme on both sides — see docs/SHOP_EVENTS.md, docs/INBOX_CHANNELS.md).
 
     X-WCW-Timestamp: <unix seconds>
     X-WCW-Signature: sha256=<hex HMAC-SHA256(secret, f"{timestamp}." + raw body)>
 
 Requests older or newer than TOLERANCE seconds are refused, so a captured request can't be replayed later.
+
+Shared by everything that takes a signed call from outside the CRM: the shop's events and the inbox's
+channels. Every signed caller signs the same way, and the signature is the only authentication, so this
+is the one place the scheme lives.
 """
 
 from __future__ import annotations

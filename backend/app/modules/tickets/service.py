@@ -359,17 +359,23 @@ class TicketService:
         return ticket.id if ticket else None
 
     async def add_inbound(self, ticket_id: int, *, body: str, external_id: str, from_email: str | None = None,
-                          to_email: str | None = None, when: datetime | None = None) -> int:
-        """A customer's own message arriving on a mailbox the CRM reads (the inbox job). It joins the
-        thread as `inbound` and reopens a ticket that was waiting or finished with. No actor: the system
-        brought it in, so it lands as "System" like a shop event.
+                          to_email: str | None = None, when: datetime | None = None, opened: bool = False) -> int:
+        """A customer's own message arriving on a mailbox the CRM reads, or on a channel that isn't one
+        (the inbox job and its intake). It joins the thread as `inbound` and reopens a ticket that was
+        waiting or finished with. No actor: the system brought it in, so it lands as "System" like a shop
+        event.
+
+        `opened=True` is the message the ticket was opened by: the ticket is already new and nobody has
+        picked it up, so there is nothing to reopen, and the message simply becomes the first thing said.
+        Storing it is what makes the ticket *waiting on us* (`TicketRepository.NEWEST_DIRECTION`) and gives
+        our reply something to answer (`last_inbound_id`), so the customer's next message finds its way back.
 
         It deliberately leaves the SLA clock alone: `first_response_due_at` measures how fast *we* answered
         this ticket, and a customer writing again does not erase that. The resolve target still applies, so
         a reopened ticket nobody picks up goes overdue as usual. The caller commits.
         """
         ticket = await self._get(ticket_id)
-        if ticket.status != "open":
+        if ticket.status != "open" and not opened:
             await self._set_status(ticket, "open", None)
         values: dict[str, Any] = {"ticket_id": ticket.id, "direction": "inbound", "body": body,
                                   "from_email": from_email, "to_email": to_email, "external_id": external_id}

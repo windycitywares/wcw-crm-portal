@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch, qs } from "@/lib/client-api";
+import { API_URL, apiFetch, qs } from "@/lib/client-api";
 import type { Page } from "@/lib/types";
 
 export interface ShopSettings {
@@ -9,6 +9,15 @@ export interface ShopSettings {
   shop_api_url: string;
   shop_api_token_set: boolean;
 }
+
+/** Admin → Settings → Integrations → Inbox channels: the door a chat, an Etsy message or an SMS comes in. */
+export interface InboxSettings {
+  enabled: boolean;
+  ingest_secret_set: boolean;
+}
+
+/** Where a connector posts one message from a channel that isn't a mailbox (docs/INBOX_CHANNELS.md). */
+export const INTAKE_URL = `${API_URL}/inbox/messages`;
 
 export interface ShopStatus {
   enabled: boolean;

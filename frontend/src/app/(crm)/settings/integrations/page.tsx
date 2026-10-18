@@ -14,7 +14,7 @@ import { useAuth } from "@/lib/auth";
 import type { Page } from "@/lib/types";
 import { formatDateTime, timeAgo } from "@/lib/utils";
 import { BackfillPanel } from "@/modules/integrations/BackfillPanel";
-import { newSecret, shopApi, type ShopEvent, type ShopEventStatus, type ShopSettings, type ShopStatus } from "@/modules/integrations/api";
+import { INTAKE_URL, newSecret, shopApi, type InboxSettings, type ShopEvent, type ShopEventStatus, type ShopSettings, type ShopStatus } from "@/modules/integrations/api";
 import { errorText, settingsApi } from "@/modules/settings/api";
 
 const TONE: Record<ShopEventStatus, Tone> = { done: "success", failed: "danger", pending: "warning", ignored: "neutral" };
@@ -48,6 +48,9 @@ export default function IntegrationsPage() {
   const [saved, setSaved] = useState<ShopSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [inboxForm, setInboxForm] = useState<{ enabled: boolean; ingest_secret: string } | null>(null);
+  const [inboxSaved, setInboxSaved] = useState<InboxSettings | null>(null);
+  const [inboxBusy, setInboxBusy] = useState(false);
   const [filter, setFilter] = useState<ShopEventStatus | "">("");
   const [page, setPage] = useState(1);
   const [events, setEvents] = useState<Page<ShopEvent> | null>(null);
@@ -73,6 +76,13 @@ export default function IntegrationsPage() {
         setForm({ enabled: values.enabled, shop_api_url: values.shop_api_url, webhook_secret: "", shop_api_token: "" });
       })
       .catch((err) => setError(errorText(err)));
+    settingsApi
+      .get<InboxSettings>("inbox")
+      .then(({ values }) => {
+        setInboxSaved(values);
+        setInboxForm({ enabled: values.enabled, ingest_secret: "" });
+      })
+      .catch((err) => setError(errorText(err)));
   }, [allowed, loadStatus]);
 
   useEffect(() => {
@@ -80,7 +90,7 @@ export default function IntegrationsPage() {
   }, [allowed, loadEvents]);
 
   if (!allowed) return <PageHeader title="Integrations" description="Only admins can change integrations." />;
-  if (!form || !saved) return <PageHeader title="Integrations" description={error ?? "Loading…"} />;
+  if (!form || !saved || !inboxForm || !inboxSaved) return <PageHeader title="Integrations" description={error ?? "Loading…"} />;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -97,6 +107,28 @@ export default function IntegrationsPage() {
       setError(errorText(err));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function saveInbox(e: React.FormEvent) {
+    e.preventDefault();
+    if (!inboxForm) return;
+    setInboxBusy(true);
+    setError(null);
+    try {
+      const { values } = await settingsApi.save<InboxSettings>("inbox", inboxForm);
+      setInboxSaved(values);
+      setInboxForm({ ...inboxForm, ingest_secret: "" });
+      toast.push({
+        title: "Channels saved",
+        description: values.enabled
+          ? "The CRM now takes messages posted by a chat, an Etsy poller or a gateway."
+          : "Messages posted by other channels are refused while it's off.",
+      });
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setInboxBusy(false);
     }
   }
 
@@ -241,6 +273,64 @@ export default function IntegrationsPage() {
       </form>
 
       <BackfillPanel tokenSet={saved.shop_api_token_set} />
+
+      <form onSubmit={saveInbox} className="mt-6 grid gap-4">
+        <Panel>
+          <PanelHeader
+            title="Messages from other channels"
+            description="A chat, an Etsy message or an SMS isn't a mailbox: a connector posts it to the CRM, signed with a secret both sides know. It lands in a ticket like mail — the same customer, the same thread — carrying the channel it came in on."
+          />
+          <PanelBody className="grid gap-4">
+            <div className="grid gap-2">
+              <span className="text-sm font-medium">Address to give a connector</span>
+              <code className="block break-all rounded-[var(--radius-control)] bg-sand px-3 py-2 text-xs">{INTAKE_URL}</code>
+              <div>
+                <CopyButton value={INTAKE_URL} label="Address" />
+              </div>
+            </div>
+            <Field
+              label="Channel secret"
+              hint={
+                inboxForm.ingest_secret
+                  ? "Copy it now and set it in the connector, then save. It won't be shown again."
+                  : inboxSaved.ingest_secret_set
+                    ? "Saved and encrypted. Generate a new one only if you also change it in the connector."
+                    : "Not set yet. Generate one, copy it to the connector, then save."
+              }
+            >
+              {(p) => (
+                <Input
+                  {...p}
+                  readOnly
+                  value={inboxForm.ingest_secret}
+                  placeholder={inboxSaved.ingest_secret_set ? "••••••••" : ""}
+                  className="font-mono text-xs"
+                />
+              )}
+            </Field>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="secondary" onClick={() => setInboxForm({ ...inboxForm, ingest_secret: newSecret() })}>
+                Generate secret
+              </Button>
+              {inboxForm.ingest_secret && <CopyButton value={inboxForm.ingest_secret} label="Secret" />}
+            </div>
+            <label className="flex items-center gap-3 text-sm font-medium">
+              <input
+                type="checkbox"
+                className="size-4 accent-[var(--color-accent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                checked={inboxForm.enabled}
+                onChange={(e) => setInboxForm({ ...inboxForm, enabled: e.target.checked })}
+              />
+              Accept messages from other channels
+            </label>
+          </PanelBody>
+        </Panel>
+        <div>
+          <Button type="submit" size="sm" disabled={inboxBusy}>
+            {inboxBusy ? "Saving…" : "Save channels"}
+          </Button>
+        </div>
+      </form>
 
       <Panel className="mt-6">
         <PanelHeader
