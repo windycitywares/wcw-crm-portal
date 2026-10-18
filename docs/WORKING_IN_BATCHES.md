@@ -87,15 +87,15 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
 | 1 | Suppliers API | migration 0022: supplier records and normalized contacts; supplier type lookup validation, address/payment/lead-time/currency/rating, custom fields, shared tags/notes/timeline, audit, permissions and tests | #51 merged |
-| 2 | Supplied products API | `supplier_products`: supplier + shop SKU + supplier SKU, unit cost/currency and MOQ; CRUD, audit and tests | built (`feat/m6-2-supplier-products`) |
-| 3 | Suppliers web | searchable supplier directory, supplier details, contacts and supplied products, record timeline/tags/custom fields, permission-aware editing | built (`feat/m6-3-suppliers-web`) |
+| 2 | Supplied products API | `supplier_products`: supplier + shop SKU + supplier SKU, unit cost/currency and MOQ; CRUD, audit and tests | #52 open (carries batch 3) |
+| 3 | Suppliers web | searchable supplier directory, supplier details, contacts and supplied products, record timeline/tags/custom fields, permission-aware editing | #53 merged into #52 |
 
 ## M7 Reports (started 2026-10-17)
 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
 | 1 | Reports API | overview composed from sales/ticket/campaign summaries; customer type/source/status breakdowns; ticket type/status/priority and SLA counts; supplier type/status/rating summary; permissions and tests | #54 merged |
-| 2 | Reports web | reports page for sales forecast, ticket/SLA, campaign performance, customer mix and supplier summary; CSV export for tabular views | `feat/m7-2-reports-web` |
+| 2 | Reports web | reports page for sales forecast, ticket/SLA, campaign performance, customer mix and supplier summary; CSV export for tabular views | #55 merged |
 
 ## Plan — M8 Communication channels (unified inbox) (started 2026-10-17)
 

@@ -242,6 +242,25 @@ class CampaignTests(unittest.TestCase):
         self.assertEqual(res.status_code, 200, res.text)
         self.assertEqual(res.json()["subject"], "Hi Dana")
 
+    def test_draft_preview_renders_unsaved_content_and_refuses_unknown_fields(self):
+        path = f"{API}/campaigns/templates/preview"
+        res = self.w.client.post(path, headers=self.marketing_h, json={
+            "subject": "Hi {{ customer.first_name }}",
+            "preheader": "For {{ customer.full_name }}",
+            "html": "<p>Hello {{ customer.first_name }}.</p>",
+        })
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()["subject"], "Hi Dana")
+        self.assertIn("Hello Dana.", res.json()["html"])
+        self.assertIn("Unsubscribe", res.json()["text"])
+
+        invalid = self.w.client.post(path, headers=self.marketing_h, json={
+            "subject": "Hi {{ customer.nickname }}",
+            "html": "<p>Hello</p>",
+        })
+        self.assertEqual(invalid.status_code, 422, invalid.text)
+        self.assertIn("Could not render", invalid.json()["detail"])
+
     def test_an_empty_subject_for_a_real_customer_is_refused(self):
         # the sample has a company, so this only shows up once there is a real customer without one
         made = self.template("<p>Hello</p>", subject="{{ customer.company }}")
