@@ -83,7 +83,7 @@ from .schemas import (
     CampaignIn, CampaignOut, CampaignPage, CampaignReport, CampaignSchedule, CampaignStats, CampaignSummary,
     LinkClicks, MemberOut, MemberPage, MembersAdded, MembersIn, RecipientCounts, RecipientOut, RecipientPage,
     RenderedEmail, SegmentField, SuppressionIn, SuppressionOut, SuppressionPage, TargetListIn, TargetListOut,
-    TargetListPage, TargetListUpdate, TemplateIn, TemplateOut, TemplatePage, TemplateSummary, TemplateUpdate,
+    TargetListPage, TargetListUpdate, TemplateIn, TemplateOut, TemplatePage, TemplatePreviewIn, TemplateSummary, TemplateUpdate,
     TestIn, TestSent, UnsubscribeIn, UnsubscribeOut,
 )
 from .tokens import (
@@ -310,6 +310,11 @@ class CampaignService:
         template = await self._get(template_id)
         return await self._render(subject=template.subject, preheader=template.preheader, html=template.html,
                                   text=template.text, customer=await self._customer(customer_id, actor))
+
+    async def preview_draft(self, data: TemplatePreviewIn, actor) -> RenderedEmail:
+        text = data.text or render.plain_text(data.html)
+        return await self._render(subject=data.subject, preheader=data.preheader, html=data.html, text=text,
+                                  customer=await self._customer(data.customer_id, actor))
 
     async def test_send(self, template_id: int, data: TestIn, actor) -> TestSent:
         """Send the rendered template to an address of your choosing (SPEC §3.6)."""

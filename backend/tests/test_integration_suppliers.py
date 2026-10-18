@@ -3,7 +3,7 @@
 import unittest
 from pydantic import ValidationError
 
-from app.modules.suppliers.schemas import SupplierIn
+from app.modules.suppliers.schemas import SupplierIn, SupplierProductIn
 from tests.support import API, World, reset_limits, run, skip_unless_db
 
 
@@ -28,6 +28,19 @@ class SupplierSchemaTests(unittest.TestCase):
             SupplierIn.model_validate({**base, "currency": "US"})
         with self.assertRaises(ValidationError):
             SupplierIn.model_validate({**base, "contacts": [{"name": "Dana", "email": "not-email"}]})
+
+    def test_product_cost_and_moq_use_bounded_decimals(self):
+        product = SupplierProductIn.model_validate({
+            "shop_sku": " SKU-1 ", "unit_cost": "12.50", "minimum_order_quantity": "3.500",
+        })
+        self.assertEqual(str(product.unit_cost), "12.50")
+        self.assertEqual(str(product.minimum_order_quantity), "3.500")
+        with self.assertRaises(ValidationError):
+            SupplierProductIn.model_validate({"shop_sku": "SKU-1", "unit_cost": "-1"})
+        with self.assertRaises(ValidationError):
+            SupplierProductIn.model_validate({"shop_sku": "SKU-1", "unit_cost": "1.001"})
+        with self.assertRaises(ValidationError):
+            SupplierProductIn.model_validate({"shop_sku": "SKU-1", "unit_cost": "1", "currency": "US"})
 
 
 @skip_unless_db
@@ -120,3 +133,61 @@ class SupplierTests(unittest.TestCase):
         )
         self.assertEqual(invalid.status_code, 422, invalid.text)
         self.assertEqual(self.w.client.get(f"{API}/suppliers", headers=self.read_only_h).status_code, 200)
+
+    def test_supplied_product_lifecycle_and_supplier_sku_uniqueness(self):
+        supplier = self.supplier()
+        payload = {
+            "shop_sku": "WCW-100",
+            "supplier_sku": "NORTH-100",
+            "description": "Brass keyring blank",
+            "unit_cost": "12.50",
+            "currency": "usd",
+            "minimum_order_quantity": "5.000",
+            "lead_time_days": 21,
+            "notes": "Order in packs",
+        }
+        created = self.w.client.post(
+            f"{API}/suppliers/{supplier['id']}/products", headers=self.manager_h, json=payload)
+        self.assertEqual(created.status_code, 201, created.text)
+        product = created.json()
+        self.assertEqual(product["currency"], "USD")
+        self.assertEqual(product["unit_cost"], "12.50")
+        self.assertEqual(product["minimum_order_quantity"], "5.000")
+
+        duplicate = self.w.client.post(
+            f"{API}/suppliers/{supplier['id']}/products", headers=self.manager_h, json=payload)
+        self.assertEqual(duplicate.status_code, 409, duplicate.text)
+
+        other_supplier = self.supplier()
+        allowed = self.w.client.post(
+            f"{API}/suppliers/{other_supplier['id']}/products", headers=self.manager_h, json=payload)
+        self.assertEqual(allowed.status_code, 201, allowed.text)
+
+        search = self.w.client.get(f"{API}/suppliers/{supplier['id']}/products", headers=self.sales_h,
+                                   params={"q": "NORTH-100"})
+        self.assertEqual(search.status_code, 200, search.text)
+        self.assertEqual([row["id"] for row in search.json()["items"]], [product["id"]])
+
+        updated = self.w.client.patch(
+            f"{API}/suppliers/{supplier['id']}/products/{product['id']}", headers=self.manager_h,
+            json={"unit_cost": "13.75", "supplier_sku": None, "minimum_order_quantity": None},
+        )
+        self.assertEqual(updated.status_code, 200, updated.text)
+        self.assertEqual(updated.json()["unit_cost"], "13.75")
+        self.assertIsNone(updated.json()["supplier_sku"])
+        self.assertIsNone(updated.json()["minimum_order_quantity"])
+
+        wrong_supplier = self.w.client.patch(
+            f"{API}/suppliers/{other_supplier['id']}/products/{product['id']}", headers=self.manager_h,
+            json={"notes": "wrong owner"},
+        )
+        self.assertEqual(wrong_supplier.status_code, 404)
+
+        removed = self.w.client.delete(
+            f"{API}/suppliers/{supplier['id']}/products/{product['id']}", headers=self.manager_h)
+        self.assertEqual(removed.status_code, 204, removed.text)
+        remaining = self.w.client.get(
+            f"{API}/suppliers/{supplier['id']}/products", headers=self.manager_h,
+            params={"q": "WCW-100"},
+        )
+        self.assertEqual(remaining.json()["items"], [])
