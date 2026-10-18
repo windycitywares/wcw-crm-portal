@@ -48,7 +48,7 @@ class InboxIntakeService:
         self.filer = MessageFiler(session)
 
     async def settings(self) -> InboxSettings:
-        return await SettingsService(self.session).get_model("inbox")  # type: ignore[return-value]
+        return await SettingsService(self.session).get_model("inbox", factory=InboxSettings)
 
     async def accept(self, body: bytes, timestamp: str | None, signature: str | None) -> IntakeOut:
         """Let one message in and file it. Raises `IntakeRejected` when it can't be taken."""

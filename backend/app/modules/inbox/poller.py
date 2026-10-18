@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import SecretBox
 from app.integrations.email import InboundMessage, MailboxConfig, MailboxError, mailbox_for
+from app.shared.time import utcnow
 
 from .filing import Filed, Incoming, MessageFiler
 from .models import EmailAccount
@@ -36,10 +37,6 @@ from .service import account_password, config_for
 log = logging.getLogger("wcw.crm.inbox")
 
 PER_RUN = 50  # messages taken from one mailbox in a run; the rest wait for the next minute
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _why(exc: Exception) -> str:
@@ -173,7 +170,7 @@ class InboxPoller:
             account = await self.session.get(EmailAccount, account_id)
             if account is None:
                 return  # the admin removed the mailbox while we were reading it
-            account.last_polled_at = _now()
+            account.last_polled_at = utcnow()
             account.last_error = (error or "")[:400] or None
             await self.session.commit()
         except Exception:  # noqa: BLE001 - the note is worth less than the run

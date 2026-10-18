@@ -18,6 +18,7 @@ from app.core.permissions import ROLE_LABELS, ROLE_PERMISSIONS, Role, permission
 from app.core.security import create_access_token, hash_password, verify_password
 from app.integrations.email import EmailSender, Mail
 from app.modules.audit.service import AuditService, diff
+from app.shared.time import utcnow
 
 from .models import PasswordResetToken, User
 from .repository import ResetTokenRepository, UserRepository
@@ -28,10 +29,6 @@ from .schemas import (
 RESET_TOKEN_MINUTES = 60
 # Compared against when the email is unknown, so a wrong email takes as long as a wrong password.
 _DUMMY_HASH = hash_password(secrets.token_urlsafe(16))
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _token_hash(token: str) -> str:
@@ -82,7 +79,7 @@ class AuthService:
             await self.session.commit()
             raise AuthenticationError("Wrong email or password")
         rate_limit.failed_logins_by_email.reset(email)
-        user.last_login_at = _now()
+        user.last_login_at = utcnow()
         await self.audit.record("auth.login", actor=user, entity_type="user", entity_id=user.id, ip=ip)
         await self.session.commit()
         return self._issue(user)
@@ -99,7 +96,7 @@ class AuthService:
         if not verify_password(data.current_password, user.password_hash):
             raise ValidationFailedError("Current password is wrong")
         self._set_password(user, data.new_password)
-        await self.tokens.invalidate_for_user(user.id, _now())
+        await self.tokens.invalidate_for_user(user.id, utcnow())
         await self.audit.record("auth.password_changed", actor=user, entity_type="user", entity_id=user.id, ip=ip)
         await self.session.commit()
         return self._issue(user)  # old tokens stop working; this one is fresh
@@ -114,7 +111,7 @@ class AuthService:
         user = await self.users.by_email(email)
         if not user or not user.is_active:
             return
-        now = _now()
+        now = utcnow()
         await self.tokens.invalidate_for_user(user.id, now)
         token = secrets.token_urlsafe(32)
         await self.tokens.add(PasswordResetToken(
@@ -137,7 +134,7 @@ class AuthService:
             raise TooManyRequestsError("Too many attempts. Try again later.")
         rate_limit.reset_attempts_by_ip.hit(ip)
         row = await self.tokens.by_hash(_token_hash(token))
-        now = _now()
+        now = utcnow()
         if not row or row.used_at or row.expires_at <= now:
             raise ValidationFailedError("This reset link is invalid or has expired. Ask for a new one.")
         user = await self.users.get(row.user_id)
@@ -153,7 +150,7 @@ class AuthService:
     def _set_password(user: User, password: str) -> None:
         user.password_hash = hash_password(password)
         # Tokens carry whole seconds; round down so a token issued right now is still valid.
-        user.password_changed_at = _now().replace(microsecond=0)
+        user.password_changed_at = utcnow().replace(microsecond=0)
 
 
 class UserService:
@@ -192,7 +189,7 @@ class UserService:
         user = await self.users.add(User(
             email=email, full_name=data.full_name.strip(), role=data.role.value,
             password_hash=hash_password(data.password), title=data.title, phone=data.phone,
-            password_changed_at=_now().replace(microsecond=0),
+            password_changed_at=utcnow().replace(microsecond=0),
         ))
         await self.audit.record("user.create", actor=actor, entity_type="user", entity_id=user.id,
                                 changes=diff({}, _snapshot(user)))

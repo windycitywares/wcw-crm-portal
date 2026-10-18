@@ -33,7 +33,7 @@ async def save_group(session: SessionDep, actor: Admin, key: str, values: dict[s
 @router.post("/email/test", response_model=dict)
 async def send_test_email(session: SessionDep, actor: Admin, to: Annotated[EmailStr, Body(embed=True)]) -> dict[str, Any]:
     """Send one message with the saved settings right now and report the SMTP server's answer."""
-    settings: EmailSettings = await SettingsService(session).get_model("email")  # type: ignore[assignment]
+    settings: EmailSettings = await SettingsService(session).get_model("email", factory=EmailSettings)
     if not settings.smtp_host or not settings.from_address:
         return {"ok": False, "detail": "Save the SMTP host and From address first."}
     try:

@@ -26,6 +26,7 @@ from app.modules.activity.service import TimelineService
 from app.modules.audit.service import AuditService, diff
 from app.modules.lookups.service import LookupService
 from app.modules.settings.service import SettingsService
+from app.shared.time import utcnow
 
 from .models import Task
 from .repository import TaskRepository
@@ -35,10 +36,6 @@ ENTITY = "task"
 TRACKED = ("title", "task_type", "priority", "status", "due_at", "owner_id", "related_type", "related_id", "recurrence")
 Views = ("mine", "team", "created")
 Dues = ("any", "overdue", "today", "week", "none")
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _snapshot(t: Task) -> dict[str, Any]:
@@ -113,7 +110,7 @@ class TaskService:
         for kind, ids in by_type.items():
             for rid, label in (await entity_labels(self.session, kind, ids)).items():
                 labels[(kind, rid)] = label
-        now = _now()
+        now = utcnow()
         out = []
         for t in tasks:
             item = TaskOut.model_validate(t)
@@ -161,7 +158,7 @@ class TaskService:
         if due != "any":
             start, end = await self._day_bounds()
             if due == "overdue":
-                filters["due_before"] = _now()
+                filters["due_before"] = utcnow()
             elif due == "today":
                 filters["due_from"], filters["due_before"] = start, end
             elif due == "week":
@@ -179,7 +176,7 @@ class TaskService:
         mine = (Task.owner_id == user.id, Task.status == "open")
         return TaskSummary(
             open=await self.repo.count_where(*mine),
-            overdue=await self.repo.count_where(*mine, Task.due_at < _now()),
+            overdue=await self.repo.count_where(*mine, Task.due_at < utcnow()),
             due_today=await self.repo.count_where(*mine, Task.due_at >= start, Task.due_at < end),
         )
 
@@ -240,7 +237,7 @@ class TaskService:
     async def _set_status(self, task: Task, status: str, actor) -> Task | None:
         task.status = status
         if status == "done":
-            task.completed_at, task.completed_by = _now(), actor.id
+            task.completed_at, task.completed_by = utcnow(), actor.id
             await self._related_line(task, "task.done", f"Task done: {task.title}", actor)
             if task.recurrence:
                 return await self._next(task, actor)
@@ -249,9 +246,9 @@ class TaskService:
         return None
 
     async def _next(self, task: Task, actor) -> Task:
-        base = task.due_at or _now()
+        base = task.due_at or utcnow()
         due = next_occurrence(base, task.recurrence or "weekly")
-        while due < _now():  # finished late: skip the dates already gone
+        while due < utcnow():  # finished late: skip the dates already gone
             due = next_occurrence(due, task.recurrence or "weekly")
         reminder = due - (base - task.reminder_at) if task.reminder_at and task.due_at else None
         nxt = Task(title=task.title, description=task.description, task_type=task.task_type, priority=task.priority,
@@ -277,7 +274,7 @@ class TaskService:
         from app.core.config import get_settings
         from app.modules.users.service import UserService
 
-        due = await self.repo.reminders_due(_now())
+        due = await self.repo.reminders_due(utcnow())
         if not due:
             return None
         contacts = {uid: (name, email) for uid, name, email in await UserService(self.session).contacts()}
@@ -286,7 +283,7 @@ class TaskService:
         site = get_settings().site_url.rstrip("/")
         sent = 0
         for task in due:
-            task.reminded_at = _now()
+            task.reminded_at = utcnow()
             person = contacts.get(task.owner_id or 0)
             if not person:
                 continue

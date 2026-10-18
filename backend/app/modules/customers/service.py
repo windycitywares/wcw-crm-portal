@@ -24,6 +24,7 @@ from app.modules.audit.service import AuditService, diff
 from app.modules.customfields.service import CustomFieldService
 from app.modules.lookups.service import LookupService
 from app.modules.tags.service import TagService
+from app.shared.time import utcnow
 
 from .models import Customer
 from .repository import CustomerRepository
@@ -34,10 +35,6 @@ TRACKED = ("first_name", "last_name", "company", "email", "phone", "customer_typ
            "owner_id", "marketing_consent")
 LABELS = {"first_name": "first name", "last_name": "last name", "customer_type": "type", "owner_id": "owner",
           "marketing_consent": "marketing consent"}
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 async def _exists(session, entity_id: int) -> bool:
@@ -133,9 +130,9 @@ class CustomerService:
             return
         customer.marketing_consent = consent
         if consent:
-            customer.consent_at, customer.consent_source, customer.unsubscribed_at = _now(), how, None
+            customer.consent_at, customer.consent_source, customer.unsubscribed_at = utcnow(), how, None
         else:
-            customer.unsubscribed_at = _now()
+            customer.unsubscribed_at = utcnow()
 
     async def create(self, data: CustomerCreate, actor, *, commit: bool = True) -> CustomerOut:
         """Add a customer. Callers that are part of a bigger change (the shop sync, converting a lead) pass
@@ -327,7 +324,7 @@ class CustomerService:
             self._consent(customer, True, how)
             await self.timeline.record(ENTITY, customer.id, "customer.consent", f"Agreed to marketing email ({how})")
         elif not consent and customer.unsubscribed_at is None:
-            customer.marketing_consent, customer.unsubscribed_at = False, _now()
+            customer.marketing_consent, customer.unsubscribed_at = False, utcnow()
             await self.timeline.record(ENTITY, customer.id, "customer.consent", f"Unsubscribed from marketing email ({how})")
         else:
             return
