@@ -359,7 +359,8 @@ class TicketService:
         return ticket.id if ticket else None
 
     async def add_inbound(self, ticket_id: int, *, body: str, external_id: str, from_email: str | None = None,
-                          to_email: str | None = None, when: datetime | None = None, opened: bool = False) -> int:
+                          to_email: str | None = None, from_phone: str | None = None, when: datetime | None = None,
+                          opened: bool = False) -> int:
         """A customer's own message arriving on a mailbox the CRM reads, or on a channel that isn't one
         (the inbox job and its intake). It joins the thread as `inbound` and reopens a ticket that was
         waiting or finished with. No actor: the system brought it in, so it lands as "System" like a shop
@@ -378,7 +379,8 @@ class TicketService:
         if ticket.status != "open" and not opened:
             await self._set_status(ticket, "open", None)
         values: dict[str, Any] = {"ticket_id": ticket.id, "direction": "inbound", "body": body,
-                                  "from_email": from_email, "to_email": to_email, "external_id": external_id}
+                                  "from_email": from_email, "to_email": to_email, "from_phone": from_phone,
+                                  "external_id": external_id}
         if when is not None:  # the mail's own time, so a poll after a quiet weekend reads honestly
             values["created_at"] = values["updated_at"] = when
         message = await self.messages.add(TicketMessage(**values))
@@ -386,7 +388,7 @@ class TicketService:
         await self._record(ticket, "ticket.inbound",
                            f"Customer wrote in on {ticket.number} ({ticket.subject})", None)
         await self.audit.record("ticket.inbound", entity_type=ENTITY, entity_id=ticket.id,
-                                changes={"from": from_email, "external_id": external_id})
+                                changes={"from": from_email, "from_phone": from_phone, "external_id": external_id})
         await self.session.flush()
         return message.id
 

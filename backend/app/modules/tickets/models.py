@@ -109,4 +109,5 @@ class TicketMessage(IdMixin, TimestampMixin, AuthorMixin, Base):
     body: Mapped[str] = mapped_column(Text)
     from_email: Mapped[str | None] = mapped_column(String(320))
     to_email: Mapped[str | None] = mapped_column(String(320))
+    from_phone: Mapped[str | None] = mapped_column(String(40))
     external_id: Mapped[str | None] = mapped_column(String(400), unique=True)

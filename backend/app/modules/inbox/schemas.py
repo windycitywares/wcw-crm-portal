@@ -98,9 +98,15 @@ class InboundFile(BaseModel):
 
 
 class InboundSender(BaseModel):
-    """Who wrote in. A chat visitor may be signed in, or somebody the CRM can't name yet."""
+    """Who wrote in. A chat visitor may be signed in, or somebody the CRM can't name yet.
+
+    A phone is for channels that have no address to give (a text, a live chat). It never creates a
+    customer on its own — `CustomerService.find_by_phone` only looks; an address, when present,
+    always outranks a number.
+    """
 
     email: EmailStr | None = None
+    phone: str | None = Field(default=None, max_length=40, pattern=r"^[\d\s()+.-]+$")
     name: str | None = Field(default=None, max_length=200)
 
 

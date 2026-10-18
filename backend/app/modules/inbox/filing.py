@@ -54,6 +54,7 @@ class Incoming:
     subject: str | None = None
     label: str = "Email"
     from_email: str | None = None
+    from_phone: str | None = None    # a channel that has no address to give (a text, a live chat)
     from_name: str | None = None
     to_email: str | None = None      # the address it was sent to, when there is one (a mailbox listener)
     when: datetime | None = None
@@ -95,12 +96,17 @@ class MessageFiler:
         if incoming.from_email:  # no usable sender: still filed, so staff can link it by hand
             customer_id = await self.customers.find_or_create(
                 email=incoming.from_email, full_name=incoming.from_name, how=incoming.label.lower())
+        elif incoming.from_phone:
+            # A number only ever *finds* somebody. Phones are shared and recycled, so a text from a number
+            # nobody has on file stays unlinked (staff link it) rather than inventing a customer to hang it
+            # on — and an address, when there is one, always outranks a number.
+            customer_id = await self.customers.find_by_phone(incoming.from_phone)
         files, dropped = self._pick(incoming.attachments)
         body = self._body(incoming.body, dropped)
         if ticket_id is not None:
             await self.tickets.add_inbound(ticket_id, body=body, external_id=incoming.external_id,
                                            from_email=incoming.from_email, to_email=incoming.to_email,
-                                           when=incoming.when)
+                                           from_phone=incoming.from_phone, when=incoming.when)
             return Filed("joined", ticket_id, await self._keep(ticket_id, files, incoming.source))
         ticket = await self.tickets.create(TicketCreate(
             subject=self._subject(incoming), description=body, ticket_type=await self._default_type(),
@@ -112,7 +118,7 @@ class MessageFiler:
         # messages: nobody wrote in.)
         await self.tickets.add_inbound(ticket.id, body=body, external_id=incoming.external_id,
                                        from_email=incoming.from_email, to_email=incoming.to_email,
-                                       when=incoming.when, opened=True)
+                                       from_phone=incoming.from_phone, when=incoming.when, opened=True)
         return Filed("opened", ticket.id, await self._keep(ticket.id, files, incoming.source))
 
     # ---- the files a message brought ---------------------------------------------------------------
