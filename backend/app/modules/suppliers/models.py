@@ -56,6 +56,7 @@ class SupplierProduct(IdMixin, TimestampMixin, AuthorMixin, SoftDeleteMixin, Bas
         CheckConstraint("unit_cost >= 0", name="unit_cost_nonnegative"),
         CheckConstraint("minimum_order_quantity IS NULL OR minimum_order_quantity > 0", name="moq_positive"),
         CheckConstraint("lead_time_days IS NULL OR lead_time_days >= 0", name="lead_time_nonnegative"),
+        Index("ix_supplier_products_supplier_id", "supplier_id"),
         Index("ix_supplier_products_supplier_shop_sku", "supplier_id", "shop_sku"),
         Index("uq_supplier_products_supplier_sku", "supplier_id", "supplier_sku", unique=True,
               postgresql_where=text("supplier_sku IS NOT NULL AND deleted_at IS NULL")),
