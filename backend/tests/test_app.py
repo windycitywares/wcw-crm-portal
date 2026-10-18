@@ -77,6 +77,27 @@ class AppTests(unittest.TestCase):
         self.assertEqual(res.status_code, 200, res.text)
         self.assertEqual(res.json(), {"public": True})
 
+    def test_an_unexpected_error_is_still_an_answer_a_browser_can_read(self):
+        """A crash must come back with the CORS headers, or the browser hides the 500 it did get and the
+        CRM tells the user the server can't be reached — see `unexpected_errors` in `app.main`."""
+        from app.main import create_app
+        from app.modules import CrmModule
+
+        router = APIRouter()
+
+        @router.get("/boom")
+        async def boom():
+            raise RuntimeError("something broke")
+
+        client = TestClient(create_app(modules=[CrmModule(name="t", router=router)]))
+        with self.assertLogs("wcw.crm", level="ERROR") as logged:  # the traceback is kept, not swallowed
+            res = client.get("/api/v1/boom", headers={"Origin": "http://localhost:3000"})
+        self.assertIn("something broke", "\n".join(logged.output))
+        self.assertEqual(res.status_code, 500)
+        self.assertEqual(res.json(), {"detail": "Internal server error"})
+        self.assertEqual(res.headers["access-control-allow-origin"], "http://localhost:3000")
+        self.assertEqual(res.headers["x-frame-options"], "DENY")  # and the security headers reach it too
+
     def test_load_modules_rejects_bad_packages(self):
         from app.modules import load_modules
 
