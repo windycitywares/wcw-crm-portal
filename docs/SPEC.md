@@ -112,8 +112,8 @@ All business tables: `id BIGINT`, `created_at`, `updated_at`, `created_by`, `upd
 
 ### 4.1 Lookups
 `lookup_values(id, kind, key, label, color, sort_order, is_active, is_system)` —
-`kind` ∈ customer_type, supplier_type, ticket_type, ticket_priority, task_type, lead_source,
-lost_reason, … Adding a new type = a row, never a migration.
+`kind` ∈ customer_type, supplier_type, ticket_type, ticket_priority, ticket_channel, task_type,
+lead_source, lost_reason, … Adding a new type = a row, never a migration.
 Pipelines are their own tables (`pipelines`, `pipeline_stages(order, probability, is_won, is_lost)`).
 
 ### 4.2 Main entities
@@ -224,6 +224,7 @@ Generic `DataTable` (server-side paging/filter/sort/saved views/export) and `Ent
 | supplier_type | Manufacturer, Raw materials, Packaging, Printing & labels, Shipping & logistics, Services |
 | ticket_type | Order question, Shipping & delivery, Return / exchange, Damaged / defective, Custom request, Product question, Complaint, Other |
 | ticket_priority | Low, Normal, High, Urgent |
+| ticket_channel | Email, Shop form, Phone, Live chat, Etsy, Manual |
 | task_type | Call, Email, Follow-up, Meeting, To-do |
 | lead_source | Website, Shop, Etsy, Amazon, Referral, Social media, Trade show, Other |
 | lost_reason | Price, Timing, Chose competitor, No response, Not a fit, Other |

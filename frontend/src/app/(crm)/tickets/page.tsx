@@ -82,6 +82,7 @@ export default function TicketsPage() {
     if (state === "unresolved" || state === "resolved" || state === "all") patch.state = state;
     if (params.get("priority")) patch.priority = params.get("priority") as string;
     if (params.get("type")) patch.type = params.get("type") as string;
+    if (params.get("channel")) patch.channel = params.get("channel") as string;
     const q = params.get("q");
     if (q) {
       patch.q = q;
@@ -135,6 +136,18 @@ export default function TicketsPage() {
             <Select {...p} value={filters.type ?? ""} onChange={(e) => update({ type: e.target.value })}>
               <option value="">Any type</option>
               {lookups.options("ticket_type").map((v) => (
+                <option key={v.key} value={v.key}>
+                  {v.label}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        <Field label="Channel" className="w-40">
+          {(p) => (
+            <Select {...p} value={filters.channel ?? ""} onChange={(e) => update({ channel: e.target.value })}>
+              <option value="">Any channel</option>
+              {lookups.options("ticket_channel").map((v) => (
                 <option key={v.key} value={v.key}>
                   {v.label}
                 </option>

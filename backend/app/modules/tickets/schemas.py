@@ -21,6 +21,7 @@ class TicketBase(BaseModel):
     description: Annotated[str | None, Field(default=None, max_length=20_000), AfterValidator(_strip)] = None
     ticket_type: str | None = Field(default=None, max_length=60)
     priority: str | None = Field(default=None, max_length=60)
+    channel: str | None = Field(default=None, max_length=30)
     customer_id: int | None = None
     shop_order_id: int | None = None
     assignee_id: int | None = None
@@ -62,6 +63,7 @@ class TicketOut(BaseModel):
     description: str | None
     ticket_type: str | None
     priority: str
+    channel: str
     status: str
     customer_id: int | None
     customer_name: str | None = None

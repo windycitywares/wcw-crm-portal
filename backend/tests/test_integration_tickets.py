@@ -175,6 +175,32 @@ class TicketTests(unittest.TestCase):
                                    params={"view": "unassigned", "q": f"Nobody {self.w.sfx}"}).json()
         self.assertEqual([t["id"] for t in nobody["items"]], [unassigned["id"]])
 
+    def test_channels(self):
+        """Every ticket says how the conversation reached the CRM (SPEC §3.9, the unified inbox)."""
+        by_hand = self.create(subject=f"Walk-in {self.w.sfx}")
+        self.assertEqual(by_hand["channel"], "manual")  # nothing said: staff typed it in
+        phoned = self.create(subject=f"Phone {self.w.sfx}", channel="phone")
+        self.assertEqual(phoned["channel"], "phone")
+
+        # a queue can be one channel, like the inbox's tabs will be
+        listing = self.w.client.get(f"{API}/tickets", headers=self.support_h,
+                                    params={"channel": "phone", "q": f"Phone {self.w.sfx}"}).json()
+        self.assertEqual([t["id"] for t in listing["items"]], [phoned["id"]])
+
+        # staff can re-file a ticket, and a channel that isn't one is refused both ways
+        moved = self.w.client.patch(f"{API}/tickets/{by_hand['id']}", headers=self.support_h,
+                                    json={"channel": "live_chat"})
+        self.assertEqual(moved.status_code, 200, moved.text)
+        self.assertEqual(moved.json()["channel"], "live_chat")
+        self.assertEqual(self.w.client.patch(f"{API}/tickets/{by_hand['id']}", headers=self.support_h,
+                                             json={"channel": "carrier_pigeon"}).status_code, 422)
+        self.assertEqual(self.w.client.post(f"{API}/tickets", headers=self.support_h,
+                                            json={"subject": "x", "channel": "nope"}).status_code, 422)
+        # the values are the admin-editable kind the API hands the web
+        kinds = {k["key"]: k for k in self.w.client.get(f"{API}/lookups", headers=self.support_h).json()}
+        self.assertIn("ticket_channel", kinds)
+        self.assertIn("shop_form", [v["key"] for v in kinds["ticket_channel"]["values"]])
+
     def test_sla_breach_job(self):
         from app.modules.tickets.service import TicketService
 

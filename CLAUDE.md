@@ -31,14 +31,15 @@ See the shop's `docs/WORKING_IN_BATCHES.md` for the pattern.
 Internal CRM for the owner + team. v1 modules: **Customers** (+ customer types), **Sales** (leads,
 deals, pipelines), **Tasks**, **Support tickets** (+ types, SLA), **Campaigns** (email templates,
 target lists/segments, sending, tracking, suppression), **Suppliers** (+ supplier types), Reports.
-Fed by the shop via signed webhooks + read API. **Later:** B2B accounts UI, communication channels
-(unified inbox, live chat, Etsy, SMS), automation, AI.
+Fed by the shop via signed webhooks + read API. **M8 (from 2026-10-17):** communication channels — the unified
+inbox, arriving as tickets; live chat, Etsy and SMS are later channels on the same footing. **Later:** B2B
+accounts UI, automation, AI.
 Roles: Admin, Manager, Sales, Support, Marketing, Read-only (confirmed).
 Campaign sender/SMTP/daily limits are **configurable in Admin → Settings**, not env-only.
 Shop's inbox + campaigns move into the CRM **later** (after M5); until then the shop keeps them.
 Types/pipelines/SLA seeded from SPEC §9, all editable in Admin.
 Build order: M0 scaffold/auth → M1 shared blocks → M2 customers+shop sync → M3 tasks+tickets →
-M4 sales → M5 campaigns → M6 suppliers → M7 reports.
+M4 sales → M5 campaigns → M6 suppliers → M7 reports → M8 communication channels (unified inbox).
 
 ## Tech stack (inherited from shop.windycitywares.com)
 
@@ -166,4 +167,13 @@ npm run typecheck
   behalf (a `GET` on the same address sends a human on to the web app's page instead, changing nothing); built on `feat/m5-6-one-click-unsubscribe`. Follow-up 3
   turned out to be a decision rather than work and is settled: a test send stays a preview of the words, with neither the tracking links (there is no recipient
   to attribute an open or a click to, and a made-up one would land in that campaign's own report) nor the header.
+- 2026-10-17: **M8 communication channels (unified inbox) started** — SPEC §3.9's first item after v1, and §9 decision 3 makes "the inbox phase" the last thing
+  the shop's own inbox and campaigns wait on. The design keeps the CRM's habit that **a conversation is a ticket** (the shop's contact form already opens one), so
+  the inbox is channels arriving into tickets — one place to work with SLA, assignment and permissions already in it — not a second conversation store. Batch 1
+  (migration 0024) gives a ticket a `channel`: a `ticket_channel` lookup (Email, Shop form, Phone, Live chat, Etsy, Manual), `manual` for everything already in
+  the table, `shop_form` from the shop handler, validated like the other type lists, filterable in `GET /tickets?channel=`, audited, re-fileable by staff, and
+  shown in the web queue (column + filter), the ticket dialog and the ticket page. Built on `feat/m8-1-ticket-channels`. Next: mailboxes the CRM reads (a new
+  `inbox` module — `email_accounts` with the password in the encrypted secrets store, reading behind one `InboundMailbox` interface with a fake for tests), then
+  email into tickets (`Message-ID` dedupe, `In-Reply-To` threading, outbound replies carrying their own ids), then the inbox web. Plan of record:
+  `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

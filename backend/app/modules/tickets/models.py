@@ -71,6 +71,7 @@ class Ticket(IdMixin, TimestampMixin, AuthorMixin, SoftDeleteMixin, CustomFields
     description: Mapped[str | None] = mapped_column(Text)
     ticket_type: Mapped[str | None] = mapped_column(String(60))  # lookup key (kind ticket_type)
     priority: Mapped[str] = mapped_column(String(60), default="normal", server_default="normal")  # lookup key
+    channel: Mapped[str] = mapped_column(String(30), default="manual", server_default="manual")  # kind ticket_channel
     status: Mapped[str] = mapped_column(String(10), default="new", server_default="new")
 
     customer_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("customers.id", ondelete="SET NULL"))

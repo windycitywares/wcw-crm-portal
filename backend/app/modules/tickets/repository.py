@@ -15,8 +15,9 @@ class TicketRepository(BaseRepository[Ticket]):
     model = Ticket
 
     def search(self, *, q: str | None = None, state: str = "unresolved", status: str | None = None,
-               priority: str | None = None, ticket_type: str | None = None, assignee_id: int | None = None,
-               unassigned: bool = False, customer_id: int | None = None, breached: bool | None = None) -> Select[tuple[Ticket]]:
+               priority: str | None = None, ticket_type: str | None = None, channel: str | None = None,
+               assignee_id: int | None = None, unassigned: bool = False, customer_id: int | None = None,
+               breached: bool | None = None) -> Select[tuple[Ticket]]:
         stmt = self.query()
         if state == "unresolved":
             stmt = stmt.where(Ticket.status.in_(OPEN_STATUSES))
@@ -28,6 +29,8 @@ class TicketRepository(BaseRepository[Ticket]):
             stmt = stmt.where(Ticket.priority == priority)
         if ticket_type:
             stmt = stmt.where(Ticket.ticket_type == ticket_type)
+        if channel:
+            stmt = stmt.where(Ticket.channel == channel)
         if assignee_id is not None:
             stmt = stmt.where(Ticket.assignee_id == assignee_id)
         if unassigned:

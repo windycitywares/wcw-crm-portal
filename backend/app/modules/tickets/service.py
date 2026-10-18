@@ -44,7 +44,8 @@ from .schemas import (
 )
 
 ENTITY = "ticket"
-TRACKED = ("subject", "description", "ticket_type", "priority", "status", "customer_id", "shop_order_id", "assignee_id")
+TRACKED = ("subject", "description", "ticket_type", "priority", "channel", "status", "customer_id",
+           "shop_order_id", "assignee_id")
 LABELS = {"ticket_type": "type", "assignee_id": "assignee", "customer_id": "customer"}
 
 TRANSITIONS: dict[str, frozenset[str]] = {
@@ -167,9 +168,11 @@ class TicketService:
     # ---- reads --------------------------------------------------------------------------
     async def list(self, user, params: PageParams, *, view: str = "all", state: str = "unresolved",
                    status: str | None = None, priority: str | None = None, ticket_type: str | None = None,
-                   customer_id: int | None = None, breached: bool | None = None, q: str | None = None) -> TicketPage:
+                   channel: str | None = None, customer_id: int | None = None, breached: bool | None = None,
+                   q: str | None = None) -> TicketPage:
         filters: dict[str, Any] = {"state": state, "status": status, "priority": priority,
-                                   "ticket_type": ticket_type, "customer_id": customer_id, "breached": breached, "q": q}
+                                   "ticket_type": ticket_type, "channel": channel, "customer_id": customer_id,
+                                   "breached": breached, "q": q}
         if view == "mine":
             filters["assignee_id"] = user.id
         elif view == "unassigned":
@@ -217,6 +220,9 @@ class TicketService:
         values["priority"] = await self.lookups.require("ticket_priority", values.get("priority") or "normal")
         if values.get("ticket_type"):
             values["ticket_type"] = await self.lookups.require("ticket_type", values["ticket_type"])
+        # Who opened it and how: a system caller (the shop webhook, the inbox job) says which channel its
+        # message arrived on; anything typed in here is `manual` unless the caller says otherwise.
+        values["channel"] = await self.lookups.require("ticket_channel", values.get("channel") or "manual")
         if values.get("custom_fields") is not None:
             values["custom_fields"] = await self.fields.validate(ENTITY, values["custom_fields"] or {})
         who = actor.id if actor is not None else None
@@ -248,6 +254,9 @@ class TicketService:
         if "ticket_type" in values:
             values["ticket_type"] = await self.lookups.require(
                 "ticket_type", values["ticket_type"], allow_inactive_key=ticket.ticket_type)
+        if "channel" in values:
+            values["channel"] = await self.lookups.require(
+                "ticket_channel", values["channel"] or ticket.channel, allow_inactive_key=ticket.channel)
         if values.get("custom_fields") is not None:
             values["custom_fields"] = await self.fields.validate(ENTITY, values["custom_fields"], existing=ticket.custom_fields)
         new_status = values.pop("status", None)

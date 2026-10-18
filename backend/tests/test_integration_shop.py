@@ -144,8 +144,8 @@ class ShopWebhookTests(unittest.TestCase):
         tickets = self.w.client.get(f"{API}/tickets", headers=self.admin_h, params={"customer_id": cid}).json()
         self.assertEqual(tickets["total"], 1)
         t = tickets["items"][0]
-        self.assertEqual((t["subject"], t["status"], t["ticket_type"], t["priority"]),
-                         ("Where is my order?", "new", "other", "normal"))
+        self.assertEqual((t["subject"], t["status"], t["ticket_type"], t["priority"], t["channel"]),
+                         ("Where is my order?", "new", "other", "normal", "shop_form"))
         self.assertIsNone(t["assignee_id"])  # the shop can't assign: it lands unassigned
         self.assertEqual(t["shop_order_id"], base)  # the order the customer quoted is linked
         self.assertIn("not arrived", t["description"])

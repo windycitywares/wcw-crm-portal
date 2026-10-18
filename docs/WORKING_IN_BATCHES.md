@@ -97,6 +97,31 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | 1 | Reports API | overview composed from sales/ticket/campaign summaries; customer type/source/status breakdowns; ticket type/status/priority and SLA counts; supplier type/status/rating summary; permissions and tests | #54 merged |
 | 2 | Reports web | reports page for sales forecast, ticket/SLA, campaign performance, customer mix and supplier summary; CSV export for tabular views | `feat/m7-2-reports-web` |
 
+## Plan — M8 Communication channels (unified inbox) (started 2026-10-17)
+
+v1 ends at M7. SPEC §3.9 puts the unified inbox first after it, and §9 decision 3 makes "the inbox phase" the
+last thing the shop's own inbox and campaigns wait on. The design follows the CRM's existing habit: **a
+conversation is a ticket** (the shop's contact form already opens one, M3 batch 5), so the inbox is channels
+arriving into tickets — one place to work with SLA, assignment and permissions already in it — not a second
+conversation store next to the first one.
+
+| # | Batch | Contents | PR |
+|---|-------|----------|----|
+| 1 | Ticket channels | a ticket says how the conversation reached the CRM: `tickets.channel` (migration 0024; everything already in the table is `manual`) as a `ticket_channel` lookup (Email, Shop form, Phone, Live chat, Etsy, Manual), set when the ticket is opened — the shop handler passes `shop_form`, staff-typed tickets are `manual` — validated like the other lookups, filterable (`GET /tickets?channel=`), audited, and staff can re-file one. Web: a Channel column in the queue + filter, a picker in the dialog and a tag on the ticket page | 1 built (`feat/m8-1-ticket-channels`) |
+| 2 | Mailboxes the CRM reads | new `inbox` module: `email_accounts` (address, display name, IMAP host/port/username, password in the encrypted secrets store, folder, `is_active`, last-polled), CRUD for admins (`inbox:manage`) and a "test connection" endpoint. Reading is a small `InboundMailbox` interface (a stdlib `imaplib` implementation, plus a fake for tests), so the job and the tests never need a live mailbox | not started |
+| 3 | Email in | the `inbox` job polls enabled mailboxes, parses each message, and **opens or continues a ticket**: deduplicated by `Message-ID` (`ticket_messages.external_id`, unique) so a re-poll can't double a message, threaded by `In-Reply-To`/`References`, sender matched to a customer (created if unknown, like the shop does), channel `email`, SLA and timeline as usual. Outbound ticket replies get their own `Message-ID` + `In-Reply-To` so a customer's answer comes back to the same ticket. Attachments are a later batch (storage decision) | not started |
+| 4 | Web: inbox + mailboxes | the unified inbox: tickets across channels (channel tabs, needs-reply first, the queue's existing filters), reply inline; Settings → Email accounts (add/test/enable/disable) | not started |
+| later | Chat, Etsy, SMS, attachments, and retiring the shop's own inbox | each a channel that plugs into the same table; the shop side is a `wcw-shop-portal` batch | — |
+
+Two notes for whoever picks this up:
+
+- Batch 1's migration is `0024` off `0022_suppliers`; the unmerged `feat/m6-2-supplier-products` carries
+  `0023`. Whichever of the two merges second must repoint its `down_revision` — the usual branch refresh does
+  it (merge `origin/main` in, keep both sides).
+- One SMTP identity still sends: replies go out through Admin → Settings → Email as they do today, even for a
+  message that arrived on a mailbox. Sending *from* the mailbox it arrived on needs per-account SMTP
+  credentials and is a follow-up, not a silent assumption.
+
 ## Post-v1 follow-ups (started 2026-10-17)
 
 v1 (M0–M7) is built; these are the campaign-mail items it left behind, worst first.
@@ -108,4 +133,4 @@ v1 (M0–M7) is built; these are the campaign-mail items it left behind, worst f
 | 3 | What a test send carries | **decided (2026-10-17): nothing more.** A test send is a preview of the words, so it carries neither the tracking links (there is no recipient to hang an open or a click on, and a made-up one would land in that campaign's own report) nor the `List-Unsubscribe` header. To eyeball the header, send a real campaign to a list that contains your own address | decided |
 
 ## Next milestones
-M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → M5 campaigns (complete and merged, #40–#48 and #50, except the template-workflow polish on `feat/m5-5d-template-workflow`) → M6 suppliers (batch 1 merged, #51; batches 2–3 built on `feat/m6-2-supplier-products` / `feat/m6-3-suppliers-web`) → M7 reports (batch 1 merged, #54; batch 2 in #55) → **post-v1 campaign-mail follow-ups (1 built on `fix/campaign-tracking-links`, 2 on `feat/m5-6-one-click-unsubscribe`; 3 is a decision, no work)**.
+M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → M5 campaigns (complete and merged, #40–#48 and #50, except the template-workflow polish on `feat/m5-5d-template-workflow`) → M6 suppliers (batch 1 merged, #51; batches 2–3 built on `feat/m6-2-supplier-products` / `feat/m6-3-suppliers-web`) → M7 reports (batch 1 merged, #54; batch 2 in #55) → **post-v1 campaign-mail follow-ups (1 built on `fix/campaign-tracking-links`, 2 on `feat/m5-6-one-click-unsubscribe`; 3 is a decision, no work)** → **M8 communication channels / unified inbox (batch 1 ticket channels built on `feat/m8-1-ticket-channels`; 2 mailboxes to read, 3 email in, 4 inbox web)**.
