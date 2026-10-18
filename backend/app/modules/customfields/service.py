@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.entities import get_entity_type
 from app.core.exceptions import ConflictError, NotFoundError, ValidationFailedError
 from app.modules.audit.service import AuditService, diff
+from app.shared.snapshot import snapshot
 from app.shared.text import slugify
 
 from .models import CustomFieldDef
@@ -21,10 +22,6 @@ from .schemas import FieldDefCreate, FieldDefOut, FieldDefUpdate, FieldTypeOut
 from .types import CHOICE_TYPES, FIELD_TYPES
 from .validation import check_values
 
-
-def _snapshot(f: CustomFieldDef) -> dict:
-    return {"label": f.label, "options": f.options, "required": f.required, "help_text": f.help_text,
-            "is_active": f.is_active, "sort_order": f.sort_order}
 
 
 class CustomFieldService:
@@ -74,7 +71,7 @@ class CustomFieldService:
 
     async def update(self, entity_type: str, field_id: int, data: FieldDefUpdate, actor) -> FieldDefOut:
         field = await self._get(entity_type, field_id)
-        before = _snapshot(field)
+        before = snapshot(field, ("label", "options", "required", "help_text", "is_active", "sort_order"))
         changes = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None or k == "help_text"}
         if "options" in changes:
             if field.field_type not in CHOICE_TYPES:
@@ -84,7 +81,7 @@ class CustomFieldService:
         self.repo.apply(field, changes)
         field.updated_by = actor.id
         await self.audit.record("custom_field.update", actor=actor, entity_type="custom_field", entity_id=field.id,
-                                changes=diff(before, _snapshot(field)))
+                                changes=diff(before, snapshot(field, ("label", "options", "required", "help_text", "is_active", "sort_order"))))
         await self.session.commit()
         await self.session.refresh(field)
         return FieldDefOut.model_validate(field)

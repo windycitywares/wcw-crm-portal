@@ -26,6 +26,7 @@ from app.modules.activity.service import TimelineService
 from app.modules.audit.service import AuditService, diff
 from app.modules.lookups.service import LookupService
 from app.modules.settings.service import SettingsService
+from app.shared.snapshot import snapshot
 from app.shared.time import utcnow
 
 from .models import Task
@@ -37,10 +38,6 @@ TRACKED = ("title", "task_type", "priority", "status", "due_at", "owner_id", "re
 Views = ("mine", "team", "created")
 Dues = ("any", "overdue", "today", "week", "none")
 
-
-def _snapshot(t: Task) -> dict[str, Any]:
-    """Audit-friendly values (dates as ISO text: the audit log is JSON)."""
-    return {k: (v.isoformat() if isinstance(v, datetime) else v) for k in TRACKED for v in [getattr(t, k)]}
 
 
 def _add_months(value: datetime, months: int) -> datetime:
@@ -194,7 +191,7 @@ class TaskService:
                     created_by=actor.id, updated_by=actor.id)
         await self.repo.add(task)
         await self.audit.record("task.create", actor=actor, entity_type=ENTITY, entity_id=task.id,
-                                changes=diff({}, _snapshot(task)))
+                                changes=diff({}, snapshot(task, TRACKED)))
         await self._related_line(task, "task.created", f"Task added: {task.title}", actor)
         await self.session.commit()
         return await self.get(task.id)
@@ -222,13 +219,13 @@ class TaskService:
         new_status = values.pop("status", None)
         if "reminder_at" in values and values["reminder_at"] != task.reminder_at:
             task.reminded_at = None  # a new reminder time sends again
-        before = _snapshot(task)
+        before = snapshot(task, TRACKED)
         self.repo.apply(task, values)
         if new_status and new_status != task.status:
             await self._set_status(task, new_status, actor)
         task.updated_by = actor.id
         await self.session.flush()
-        changes = diff(before, _snapshot(task))
+        changes = diff(before, snapshot(task, TRACKED))
         if changes:
             await self.audit.record("task.update", actor=actor, entity_type=ENTITY, entity_id=task.id, changes=changes)
         await self.session.commit()

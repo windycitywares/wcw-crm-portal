@@ -24,6 +24,7 @@ from app.modules.audit.service import AuditService, diff
 from app.modules.customfields.service import CustomFieldService
 from app.modules.lookups.service import LookupService
 from app.modules.tags.service import TagService
+from app.shared.snapshot import snapshot
 from app.shared.time import utcnow
 
 from .models import Customer
@@ -61,9 +62,6 @@ def register() -> None:
         exists=_exists, can_edit=_can_edit, labels=_labels,
     ))
 
-
-def _snapshot(c: Customer) -> dict[str, Any]:
-    return {k: getattr(c, k) for k in TRACKED}
 
 
 class CustomerService:
@@ -151,7 +149,7 @@ class CustomerService:
         self._consent(customer, consent, "staff")
         await self.repo.add(customer)
         await self.audit.record("customer.create", actor=actor, entity_type=ENTITY, entity_id=customer.id,
-                                changes=diff({}, _snapshot(customer)))
+                                changes=diff({}, snapshot(customer, TRACKED)))
         await self.timeline.record(ENTITY, customer.id, "customer.created", "Customer added", actor=actor)
         if commit:
             await self.session.commit()
@@ -167,13 +165,13 @@ class CustomerService:
             raise PermissionDeniedError("Only managers can hand a customer to someone else")
         if values.get("status") is None:
             values.pop("status", None)
-        before = _snapshot(customer)
+        before = snapshot(customer, TRACKED)
         consent = values.pop("marketing_consent", None)
         values = await self._validate(values, customer)
         self.repo.apply(customer, values)
         self._consent(customer, consent, "staff")
         customer.updated_by = actor.id
-        changes = diff(before, _snapshot(customer))
+        changes = diff(before, snapshot(customer, TRACKED))
         if changes:
             await self.audit.record("customer.update", actor=actor, entity_type=ENTITY, entity_id=customer.id, changes=changes)
             what = ", ".join(LABELS.get(k, k.replace("_", " ")) for k in changes)
@@ -243,14 +241,14 @@ class CustomerService:
             customer = Customer(first_name=first[:80], last_name=last[:80], email=email)
             await self.repo.add(customer)
             await self.audit.record("customer.create", entity_type=ENTITY, entity_id=customer.id,
-                                    changes=diff({}, _snapshot(customer)))
+                                    changes=diff({}, snapshot(customer, TRACKED)))
             await self.timeline.record(ENTITY, customer.id, "customer.created", f"Customer added from {how}")
             return customer.id
         if first and not (customer.first_name or customer.last_name):
-            before = _snapshot(customer)
+            before = snapshot(customer, TRACKED)
             customer.first_name, customer.last_name = first[:80], last[:80]
             await self.audit.record("customer.update", entity_type=ENTITY, entity_id=customer.id,
-                                    changes=diff(before, _snapshot(customer)))
+                                    changes=diff(before, snapshot(customer, TRACKED)))
             await self.timeline.record(ENTITY, customer.id, "customer.updated",
                                        "Name filled in from the email they wrote from")
         return customer.id
@@ -276,11 +274,11 @@ class CustomerService:
                                 address=address, source=await self._shop_source(), shop_user_id=shop_user_id)
             await self.repo.add(customer)
             await self.audit.record("customer.create", entity_type=ENTITY, entity_id=customer.id,
-                                    changes=diff({}, _snapshot(customer)))
+                                    changes=diff({}, snapshot(customer, TRACKED)))
             await self.timeline.record(ENTITY, customer.id, "customer.created", "Customer added from the shop")
             return customer.id
 
-        before = _snapshot(customer)
+        before = snapshot(customer, TRACKED)
         alt = set(customer.alt_emails or [])
         if not customer.first_name and not customer.last_name and first:
             customer.first_name, customer.last_name = first[:80], last[:80]
@@ -303,7 +301,7 @@ class CustomerService:
         alt.discard(customer.email or "")
         if alt != set(customer.alt_emails or []):
             customer.alt_emails = sorted(alt)
-        changes = diff(before, _snapshot(customer))
+        changes = diff(before, snapshot(customer, TRACKED))
         await self.session.flush()
         if changes:
             await self.audit.record("customer.update", entity_type=ENTITY, entity_id=customer.id, changes=changes)
@@ -350,7 +348,7 @@ class CustomerService:
         if not has_permission(actor.role, Permission.CUSTOMERS_MERGE):
             raise PermissionDeniedError("Only managers can merge customers")
         keep, other = await self._get(keep_id), await self._get(other_id)
-        before = _snapshot(keep)
+        before = snapshot(keep, TRACKED)
         other_email, other_shop, other_name = other.email, other.shop_user_id, other.display_name
 
         other.shop_user_id = None  # unique across all rows: free it before the kept record takes it
@@ -383,7 +381,7 @@ class CustomerService:
         await self.session.flush()
 
         await bus.publish(RecordsMerged(entity_type=ENTITY, from_id=other.id, into_id=keep.id, actor_id=actor.id), self.session)
-        changes = diff(before, _snapshot(keep))
+        changes = diff(before, snapshot(keep, TRACKED))
         await self.audit.record("customer.merge", actor=actor, entity_type=ENTITY, entity_id=keep.id,
                                 changes={"merged_customer": [other.id, other_name], **changes})
         await self.audit.record("customer.delete", actor=actor, entity_type=ENTITY, entity_id=other.id,
@@ -404,7 +402,7 @@ class CustomerService:
             customer = Customer(**{k: v for k, v in data.items() if v is not None}, created_by=actor.id, updated_by=actor.id)
             await self.repo.add(customer)
             await self.audit.record("customer.create", actor=actor, entity_type=ENTITY, entity_id=customer.id,
-                                    changes=diff({}, _snapshot(customer)))
+                                    changes=diff({}, snapshot(customer, TRACKED)))
             await self.timeline.record(ENTITY, customer.id, "customer.created", "Customer imported", actor=actor)
             return "created", customer.id
         if not update_existing:
@@ -414,12 +412,12 @@ class CustomerService:
             data["alt_emails"] = [e for e in {*(existing.alt_emails or []), *data["alt_emails"]} if e != existing.email]
         if "address" in data:
             data["address"] = {**(existing.address or {}), **data["address"]}
-        before = _snapshot(existing)
+        before = snapshot(existing, TRACKED)
         data = await self._validate(data, existing)
         self.repo.apply(existing, data)
         existing.updated_by = actor.id
         await self.session.flush()
-        changes = diff(before, _snapshot(existing))
+        changes = diff(before, snapshot(existing, TRACKED))
         if changes:
             await self.audit.record("customer.update", actor=actor, entity_type=ENTITY, entity_id=existing.id, changes=changes)
             what = ", ".join(LABELS.get(k, k.replace("_", " ")) for k in changes)

@@ -10,14 +10,27 @@ import re
 from collections.abc import Callable
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Protocol, TypeAlias, TypedDict
 
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 URL = re.compile(r"^https?://[^\s]+$", re.I)
 
+# A value as it arrives in a JSON request — any shape until a validator checks it.
+JsonValue: TypeAlias = "str | int | float | bool | None | list[str] | dict[str, JsonValue]"
 
-def _text(max_len: int) -> Callable[[Any, Any], str]:
-    def check(value: Any, _field: Any) -> str:
+
+class FieldDef(Protocol):
+    """What a validator needs from a field definition."""
+    options: list[str] | None
+
+
+class Validator(TypedDict):
+    label: str
+    check: Callable[[JsonValue, FieldDef], object]
+
+
+def _text(max_len: int) -> Callable[[JsonValue, FieldDef], str]:
+    def check(value: JsonValue, _field: FieldDef) -> str:
         if not isinstance(value, str):
             raise ValueError("must be text")
         value = value.strip()
@@ -28,7 +41,7 @@ def _text(max_len: int) -> Callable[[Any, Any], str]:
     return check
 
 
-def _number(value: Any, _field: Any) -> float | int:
+def _number(value: JsonValue, _field: FieldDef) -> float | int:
     if isinstance(value, bool):
         raise ValueError("must be a number")
     try:
@@ -40,14 +53,14 @@ def _number(value: Any, _field: Any) -> float | int:
     return int(number) if number == number.to_integral_value() else float(number)
 
 
-def _date(value: Any, _field: Any) -> str:
+def _date(value: JsonValue, _field: FieldDef) -> str:
     try:
         return date.fromisoformat(str(value).strip()[:10]).isoformat()
     except ValueError:
         raise ValueError("must be a date (YYYY-MM-DD)") from None
 
 
-def _checkbox(value: Any, _field: Any) -> bool:
+def _checkbox(value: JsonValue, _field: FieldDef) -> bool:
     if isinstance(value, bool):
         return value
     if value in ("true", "1", 1):
@@ -57,13 +70,13 @@ def _checkbox(value: Any, _field: Any) -> bool:
     raise ValueError("must be yes or no")
 
 
-def _select(value: Any, field: Any) -> str:
+def _select(value: JsonValue, field: FieldDef) -> str:
     if value not in (field.options or []):
         raise ValueError("must be one of the listed options")
     return value
 
 
-def _multiselect(value: Any, field: Any) -> list[str]:
+def _multiselect(value: JsonValue, field: FieldDef) -> list[str]:
     if not isinstance(value, list):
         raise ValueError("must be a list of options")
     allowed = field.options or []
@@ -73,33 +86,33 @@ def _multiselect(value: Any, field: Any) -> list[str]:
     return [v for v in allowed if v in value]  # option order, no duplicates
 
 
-def _email(value: Any, field: Any) -> str:
+def _email(value: JsonValue, field: FieldDef) -> str:
     value = _text(320)(value, field).lower()
     if not EMAIL.match(value):
         raise ValueError("must be an email address")
     return value
 
 
-def _url(value: Any, field: Any) -> str:
+def _url(value: JsonValue, field: FieldDef) -> str:
     value = _text(2000)(value, field)
     if not URL.match(value):
         raise ValueError("must be a web address starting with http:// or https://")
     return value
 
 
-FIELD_TYPES: dict[str, tuple[str, Callable[[Any, Any], Any]]] = {
-    "text": ("Short text", _text(255)),
-    "textarea": ("Long text", _text(5000)),
-    "number": ("Number", _number),
-    "date": ("Date", _date),
-    "checkbox": ("Yes / no", _checkbox),
-    "select": ("Pick one", _select),
-    "multiselect": ("Pick several", _multiselect),
-    "email": ("Email", _email),
-    "url": ("Web address", _url),
+FIELD_TYPES: dict[str, Validator] = {
+    "text": {"label": "Short text", "check": _text(255)},
+    "textarea": {"label": "Long text", "check": _text(5000)},
+    "number": {"label": "Number", "check": _number},
+    "date": {"label": "Date", "check": _date},
+    "checkbox": {"label": "Yes / no", "check": _checkbox},
+    "select": {"label": "Pick one", "check": _select},
+    "multiselect": {"label": "Pick several", "check": _multiselect},
+    "email": {"label": "Email", "check": _email},
+    "url": {"label": "Web address", "check": _url},
 }
 CHOICE_TYPES = {"select", "multiselect"}
 
 
-def is_empty(value: Any) -> bool:
+def is_empty(value: JsonValue) -> bool:
     return value is None or value == "" or value == []

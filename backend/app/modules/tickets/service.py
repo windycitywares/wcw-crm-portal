@@ -38,6 +38,7 @@ from app.modules.lookups.service import LookupService
 from app.modules.settings.groups import BusinessHours, EmailSettings
 from app.modules.settings.service import SettingsService
 from app.modules.users.service import UserService
+from app.shared.snapshot import snapshot
 from app.shared.time import utcnow
 
 from .business_hours import add_business_minutes
@@ -71,9 +72,6 @@ SLA_SEED: tuple[tuple[str, str, int, int], ...] = (
     ("Low", "low", 960, 2400),        # 2 / 5 business days
 )
 
-
-def _snapshot(t: Ticket) -> dict[str, Any]:
-    return {k: getattr(t, k) for k in TRACKED}
 
 
 async def _exists(session, entity_id: int) -> bool:
@@ -238,7 +236,7 @@ class TicketService:
         await self._apply_sla(ticket, ticket.created_at or utcnow())
         await self.session.flush()
         await self.audit.record("ticket.create", actor=actor, entity_type=ENTITY, entity_id=ticket.id,
-                                changes=diff({}, _snapshot(ticket)))
+                                changes=diff({}, snapshot(ticket, TRACKED)))
         await self._record(ticket, "ticket.created", f"Ticket {ticket.number} opened", actor,
                            customer_title=f"Ticket {ticket.number} opened: {ticket.subject}")
         if commit:
@@ -267,7 +265,7 @@ class TicketService:
             values["custom_fields"] = await self.fields.validate(ENTITY, values["custom_fields"], existing=ticket.custom_fields)
         new_status = values.pop("status", None)
         resla = any(k in values for k in ("priority", "ticket_type"))
-        before = _snapshot(ticket)
+        before = snapshot(ticket, TRACKED)
         self.repo.apply(ticket, values)
         if resla:
             await self._apply_sla(ticket, ticket.created_at or utcnow())
@@ -275,7 +273,7 @@ class TicketService:
             await self._set_status(ticket, new_status, actor)
         ticket.updated_by = actor.id
         await self.session.flush()
-        changes = diff(before, _snapshot(ticket))
+        changes = diff(before, snapshot(ticket, TRACKED))
         if changes:
             await self.audit.record("ticket.update", actor=actor, entity_type=ENTITY, entity_id=ticket.id, changes=changes)
         await self.session.commit()

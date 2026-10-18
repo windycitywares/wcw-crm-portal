@@ -35,6 +35,7 @@ from app.modules.customfields.service import CustomFieldService
 from app.modules.lookups.service import LookupService
 from app.modules.settings.service import SettingsService
 from app.modules.users.service import UserService
+from app.shared.snapshot import snapshot
 from app.shared.time import utcnow
 
 from .models import Deal, DealItem, Pipeline, PipelineStage
@@ -78,15 +79,6 @@ def weighted_value(deal: Deal) -> Decimal:
     """What the deal counts for in the forecast: its value × probability."""
     return (deal.value * deal.probability / Decimal(100)).quantize(Decimal("0.01"))
 
-
-def _snapshot(d: Deal) -> dict[str, Any]:
-    """Audit-friendly values: the audit log is JSON, so dates and money become text."""
-    out: dict[str, Any] = {}
-    for key in TRACKED:
-        value = getattr(d, key)
-        out[key] = str(value) if isinstance(value, Decimal) else (
-            value.isoformat() if isinstance(value, (date, datetime)) else value)
-    return out
 
 
 def _quantity(value: Decimal) -> str:
@@ -294,7 +286,7 @@ class SalesService:
             deal.position = await self.repo.max_position(deal.stage_id) + 1
         await self.repo.add(deal)
         await self.audit.record("deal.create", actor=actor, entity_type=ENTITY, entity_id=deal.id,
-                                changes=diff({}, _snapshot(deal)))
+                                changes=diff({}, snapshot(deal, TRACKED)))
         await self._line(deal, "deal.created", f"Deal opened: {deal.title}", actor)
         if commit:
             await self.session.commit()
@@ -324,7 +316,7 @@ class SalesService:
             values["status"] = _stage_status(stage)
             if "position" not in values:
                 values["position"] = (await self.repo.max_position(stage.id) + 1) if stage else deal.position
-        before = _snapshot(deal)
+        before = snapshot(deal, TRACKED)
         self.repo.apply(deal, values)
         if deal.status in ("won", "lost"):
             if deal.closed_at is None or moved:
@@ -335,7 +327,7 @@ class SalesService:
             deal.closed_at = None
         deal.updated_by = actor.id
         await self.session.flush()
-        changes = diff(before, _snapshot(deal))
+        changes = diff(before, snapshot(deal, TRACKED))
         if changes:
             await self.audit.record("deal.update", actor=actor, entity_type=ENTITY, entity_id=deal.id, changes=changes)
             await self._move_line(deal, before, actor)

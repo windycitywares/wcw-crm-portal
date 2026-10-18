@@ -18,6 +18,7 @@ from app.core.permissions import ROLE_LABELS, ROLE_PERMISSIONS, Role, permission
 from app.core.security import create_access_token, hash_password, verify_password
 from app.integrations.email import EmailSender, Mail
 from app.modules.audit.service import AuditService, diff
+from app.shared.snapshot import snapshot
 from app.shared.time import utcnow
 
 from .models import PasswordResetToken, User
@@ -48,10 +49,6 @@ def roles() -> list[RoleOut]:
         for role in Role
     ]
 
-
-def _snapshot(user: User) -> dict:
-    return {"full_name": user.full_name, "role": user.role, "is_active": user.is_active,
-            "title": user.title, "phone": user.phone, "timezone": user.timezone, "email": user.email}
 
 
 class AuthService:
@@ -85,10 +82,10 @@ class AuthService:
         return self._issue(user)
 
     async def update_profile(self, user: User, data: ProfileUpdate) -> MeOut:
-        before = _snapshot(user)
+        before = snapshot(user, ("full_name", "role", "is_active", "title", "phone", "timezone", "email"))
         self.users.apply(user, data.model_dump(exclude_unset=True, exclude_none=True))
         await self.audit.record("user.update_profile", actor=user, entity_type="user", entity_id=user.id,
-                                changes=diff(before, _snapshot(user)))
+                                changes=diff(before, snapshot(user, ("full_name", "role", "is_active", "title", "phone", "timezone", "email"))))
         await self.session.commit()
         return me_out(user)
 
@@ -192,14 +189,14 @@ class UserService:
             password_changed_at=utcnow().replace(microsecond=0),
         ))
         await self.audit.record("user.create", actor=actor, entity_type="user", entity_id=user.id,
-                                changes=diff({}, _snapshot(user)))
+                                changes=diff({}, snapshot(user, ("full_name", "role", "is_active", "title", "phone", "timezone", "email"))))
         await self.session.commit()
         await self.session.refresh(user)
         return UserOut.model_validate(user)
 
     async def update(self, user_id: int, data: UserUpdate, actor: User) -> UserOut:
         user = await self._get(user_id)
-        before = _snapshot(user)
+        before = snapshot(user, ("full_name", "role", "is_active", "title", "phone", "timezone", "email"))
         changes = data.model_dump(exclude_unset=True)
         if "role" in changes and changes["role"] is not None:
             changes["role"] = changes["role"].value
@@ -214,7 +211,7 @@ class UserService:
                 raise ValidationFailedError("There must be at least one active admin")
         self.users.apply(user, changes)
         await self.audit.record("user.update", actor=actor, entity_type="user", entity_id=user.id,
-                                changes=diff(before, _snapshot(user)))
+                                changes=diff(before, snapshot(user, ("full_name", "role", "is_active", "title", "phone", "timezone", "email"))))
         await self.session.commit()
         await self.session.refresh(user)
         return UserOut.model_validate(user)

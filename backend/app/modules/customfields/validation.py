@@ -42,7 +42,7 @@ def check_values(defs: list[FieldDef], incoming: dict[str, Any] | None, existing
             merged.pop(key, None)
             continue
         try:
-            merged[key] = FIELD_TYPES[field.field_type][1](value, field)
+            merged[key] = FIELD_TYPES[field.field_type]["check"](value, field)
         except ValueError as exc:
             errors.append(f"{field.label} {exc}")
             failed.add(key)
