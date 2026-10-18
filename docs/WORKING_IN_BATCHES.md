@@ -97,5 +97,15 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | 1 | Reports API | overview composed from sales/ticket/campaign summaries; customer type/source/status breakdowns; ticket type/status/priority and SLA counts; supplier type/status/rating summary; permissions and tests | #54 merged |
 | 2 | Reports web | reports page for sales forecast, ticket/SLA, campaign performance, customer mix and supplier summary; CSV export for tabular views | #55 merged |
 
+## Post-v1 follow-ups (started 2026-10-17)
+
+v1 (M0–M7) is built; these are the campaign-mail items it left behind, worst first.
+
+| # | Batch | Contents | PR |
+|---|-------|----------|----|
+| 1 | Campaign tracking fix | real sends were rendered without a `recipient_id`, so no open pixel and no wrapped links ever left the building and `campaign_events` stayed empty: every tracking endpoint worked, so the tests (which minted their own tokens) never noticed. `_queue` now passes the recipient, and a regression test follows the links out of the message that was actually sent | `fix/campaign-tracking-links` |
+| 2 | One-click unsubscribe | the `List-Unsubscribe` header and `List-Unsubscribe-Post: List-Unsubscribe=One-Click` on campaign mail, plus the body-less POST a mail client makes when a reader presses its own Unsubscribe button (the token in the URL is the proof). Gmail and Yahoo expect this of bulk senders | — |
+| 3 | Test-send tracking | decide whether a test send should be tracked: it has no recipient row to hang an open or a click on, so today it deliberately carries the words as written. Either leave it that way and say so, or attribute it to whoever asked for the test | — |
+
 ## Next milestones
 M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → M5 campaigns (complete and merged, #40–#48 and #50, except the template-workflow polish on `feat/m5-5d-template-workflow`) → M6 suppliers (batch 1 merged, #51; batches 2–3 in #52) → **M7 reports (batch 1 merged, #54; batch 2 merged, #55)**.

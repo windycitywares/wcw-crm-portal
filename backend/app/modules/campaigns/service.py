@@ -949,7 +949,8 @@ class CampaignService:
                 continue
             rendered = await self._render(subject=template.subject, preheader=template.preheader,
                                           html=template.html, text=template.text, customer=customer,
-                                          campaign_id=campaign.id)
+                                          campaign_id=campaign.id,
+                                          recipient_id=recipient.id)  # what makes the message tracked
             message = await self.outbox.queue(
                 Mail(to=customer.email or "", subject=rendered.subject, text=rendered.text, html=rendered.html),
                 category="campaign")
