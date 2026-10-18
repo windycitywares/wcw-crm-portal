@@ -3,7 +3,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.entities import EntityType, register_entity
-from app.core.exceptions import NotFoundError, ValidationFailedError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.core.permissions import Permission
 from app.modules.activity.service import TimelineService
@@ -11,11 +11,11 @@ from app.modules.audit.service import AuditService, diff
 from app.modules.customfields.service import CustomFieldService
 from app.modules.lookups.service import LookupService
 
-from .models import Supplier, SupplierContact
-from .repository import SupplierContactRepository, SupplierRepository
+from .models import Supplier, SupplierContact, SupplierProduct
+from .repository import SupplierContactRepository, SupplierProductRepository, SupplierRepository
 from .schemas import (
     SupplierContactIn, SupplierContactOut, SupplierContactUpdate, SupplierIn, SupplierOut, SupplierPage,
-    SupplierUpdate,
+    SupplierProductIn, SupplierProductOut, SupplierProductsPage, SupplierProductUpdate, SupplierUpdate,
 )
 
 ENTITY = "supplier"
@@ -50,11 +50,19 @@ def _contact_snapshot(contact: SupplierContact) -> dict[str, Any]:
     return {field: getattr(contact, field) for field in ("name", "title", "email", "phone", "is_primary")}
 
 
+def _product_snapshot(product: SupplierProduct) -> dict[str, Any]:
+    return {field: getattr(product, field) for field in (
+        "shop_sku", "supplier_sku", "description", "unit_cost", "currency", "minimum_order_quantity",
+        "lead_time_days", "notes",
+    )}
+
+
 class SupplierService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repo = SupplierRepository(session)
         self.contact_repo = SupplierContactRepository(session)
+        self.product_repo = SupplierProductRepository(session)
         self.audit = AuditService(session)
         self.timeline = TimelineService(session)
         self.lookups = LookupService(session)
@@ -217,4 +225,78 @@ class SupplierService:
                                 changes={"contact_id": contact.id, "name": contact.name})
         await self.timeline.record(ENTITY, supplier.id, "supplier.contact_deleted", f"Contact removed: {contact.name}",
                                    actor=actor)
+        await self.session.commit()
+
+    async def list_products(self, supplier_id: int, params: PageParams, *, q: str | None = None) -> SupplierProductsPage:
+        await self._get(supplier_id)
+        rows, total = await self.product_repo.paginate(self.product_repo.search(supplier_id, q=q), params)
+        return SupplierProductsPage(items=[SupplierProductOut.model_validate(row) for row in rows], total=total,
+                                    page=params.page, page_size=params.page_size)
+
+    async def _validate_product(self, supplier_id: int, values: dict[str, Any], current: SupplierProduct | None) -> dict[str, Any]:
+        for field in ("shop_sku", "supplier_sku"):
+            if field in values and values[field] is not None:
+                values[field] = values[field].strip()
+        if "currency" in values and values["currency"] is not None:
+            values["currency"] = values["currency"].upper()
+        supplier_sku = values.get("supplier_sku", current.supplier_sku if current else None)
+        if supplier_sku:
+            duplicate = await self.product_repo.by_supplier_sku(supplier_id, supplier_sku)
+            if duplicate is not None and (current is None or duplicate.id != current.id):
+                raise ConflictError(f"Supplier SKU “{supplier_sku}” is already listed for this supplier")
+        return values
+
+    async def add_product(self, supplier_id: int, data: SupplierProductIn, actor) -> SupplierProductOut:
+        supplier = await self._get(supplier_id)
+        values = data.model_dump(exclude_unset=True)
+        values = await self._validate_product(supplier.id, values, None)
+        product = SupplierProduct(**values, supplier_id=supplier.id, created_by=actor.id, updated_by=actor.id)
+        await self.product_repo.add(product)
+        supplier.updated_by = actor.id
+        await self.audit.record("supplier.product_add", actor=actor, entity_type=ENTITY, entity_id=supplier.id,
+                                changes={"product_id": product.id, "shop_sku": product.shop_sku,
+                                         "supplier_sku": product.supplier_sku})
+        await self.timeline.record(ENTITY, supplier.id, "supplier.product_added",
+                                   f"Supplied product added: {product.shop_sku}", actor=actor,
+                                   data={"product_id": product.id})
+        await self.session.commit()
+        return SupplierProductOut.model_validate(product)
+
+    async def update_product(self, supplier_id: int, product_id: int, data: SupplierProductUpdate,
+                             actor) -> SupplierProductOut:
+        supplier = await self._get(supplier_id)
+        product = await self.product_repo.product(supplier.id, product_id)
+        if product is None:
+            raise NotFoundError("Supplied product not found")
+        values = data.model_dump(exclude_unset=True)
+        for field in ("shop_sku", "unit_cost", "currency"):
+            if values.get(field) is None:
+                values.pop(field, None)
+        before = _product_snapshot(product)
+        values = await self._validate_product(supplier.id, values, product)
+        self.product_repo.apply(product, values)
+        product.updated_by = actor.id
+        changes = diff(before, _product_snapshot(product))
+        if changes:
+            supplier.updated_by = actor.id
+            await self.audit.record("supplier.product_update", actor=actor, entity_type=ENTITY, entity_id=supplier.id,
+                                    changes={"product_id": product.id, **changes})
+            await self.timeline.record(ENTITY, supplier.id, "supplier.product_updated",
+                                       f"Supplied product updated: {product.shop_sku}", actor=actor,
+                                       data={"product_id": product.id, "fields": list(changes)})
+        await self.session.commit()
+        return SupplierProductOut.model_validate(product)
+
+    async def delete_product(self, supplier_id: int, product_id: int, actor) -> None:
+        supplier = await self._get(supplier_id)
+        product = await self.product_repo.product(supplier.id, product_id)
+        if product is None:
+            raise NotFoundError("Supplied product not found")
+        await self.product_repo.soft_delete(product)
+        supplier.updated_by = actor.id
+        await self.audit.record("supplier.product_delete", actor=actor, entity_type=ENTITY, entity_id=supplier.id,
+                                changes={"product_id": product.id, "shop_sku": product.shop_sku})
+        await self.timeline.record(ENTITY, supplier.id, "supplier.product_deleted",
+                                   f"Supplied product removed: {product.shop_sku}", actor=actor,
+                                   data={"product_id": product.id})
         await self.session.commit()

@@ -87,15 +87,15 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
 | 1 | Suppliers API | migration 0022: supplier records and normalized contacts; supplier type lookup validation, address/payment/lead-time/currency/rating, custom fields, shared tags/notes/timeline, audit, permissions and tests | #51 merged |
-| 2 | Supplied products API | `supplier_products`: supplier + shop SKU + supplier SKU, unit cost/currency and MOQ; CRUD, audit and tests | built (`feat/m6-2-supplier-products`) |
-| 3 | Suppliers web | searchable supplier directory, supplier details, contacts and supplied products, record timeline/tags/custom fields, permission-aware editing | built (`feat/m6-3-suppliers-web`) |
+| 2 | Supplied products API | `supplier_products`: supplier + shop SKU + supplier SKU, unit cost/currency and MOQ; CRUD, audit and tests | #52 open (carries batch 3) |
+| 3 | Suppliers web | searchable supplier directory, supplier details, contacts and supplied products, record timeline/tags/custom fields, permission-aware editing | #53 merged into #52 |
 
 ## M7 Reports (started 2026-10-17)
 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
 | 1 | Reports API | overview composed from sales/ticket/campaign summaries; customer type/source/status breakdowns; ticket type/status/priority and SLA counts; supplier type/status/rating summary; permissions and tests | #54 merged |
-| 2 | Reports web | reports page for sales forecast, ticket/SLA, campaign performance, customer mix and supplier summary; CSV export for tabular views | `feat/m7-2-reports-web` |
+| 2 | Reports web | reports page for sales forecast, ticket/SLA, campaign performance, customer mix and supplier summary; CSV export for tabular views | #55 merged |
 
 ## Post-v1 follow-ups (started 2026-10-17)
 
@@ -108,4 +108,4 @@ v1 (M0–M7) is built; these are the campaign-mail items it left behind, worst f
 | 3 | Test-send tracking | decide whether a test send should be tracked: it has no recipient row to hang an open or a click on, so today it deliberately carries the words as written. Either leave it that way and say so, or attribute it to whoever asked for the test | — |
 
 ## Next milestones
-M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → M5 campaigns (complete and merged, #40–#48 and #50, except the template-workflow polish on `feat/m5-5d-template-workflow`) → M6 suppliers (batch 1 merged, #51; batches 2–3 built on `feat/m6-2-supplier-products` / `feat/m6-3-suppliers-web`) → M7 reports (batch 1 merged, #54; batch 2 in #55) → **post-v1 campaign-mail follow-ups (follow-up 1 built on `fix/campaign-tracking-links`; 2 and 3 not started)**.
+M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → M5 campaigns (complete and merged, #40–#48 and #50, except the template-workflow polish on `feat/m5-5d-template-workflow`) → M6 suppliers (batch 1 merged, #51; batches 2–3 in #52) → **M7 reports (batch 1 merged, #54; batch 2 merged, #55)**.
