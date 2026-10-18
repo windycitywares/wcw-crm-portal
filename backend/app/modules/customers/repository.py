@@ -25,6 +25,13 @@ class CustomerRepository(BaseRepository[Customer]):
         stmt = self.query().where(Customer.email == email.strip().lower())
         return (await self.session.execute(stmt)).scalars().first()
 
+    async def by_any_email(self, email: str) -> Customer | None:
+        """A customer's main address, or one a merge kept aside as an alternate — so somebody writing in
+        from an address we already know isn't added twice."""
+        email = email.strip().lower()
+        stmt = self.query().where(or_(Customer.email == email, Customer.alt_emails.contains([email])))
+        return (await self.session.execute(stmt)).scalars().first()
+
     async def by_shop_user(self, shop_user_id: int) -> Customer | None:
         stmt = select(Customer).where(Customer.shop_user_id == shop_user_id)
         return (await self.session.execute(stmt)).scalars().first()

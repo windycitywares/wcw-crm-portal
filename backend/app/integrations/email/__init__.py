@@ -5,12 +5,13 @@ prints the message; the SMTP account configured in Admin → Settings → Email 
 provides the outbox sender through `set_email_sender_factory(...)` (queue + SMTP from Admin → Settings).
 
 Coming *in* is the other half: `InboundMailbox` (this package's `inbound` module) is what the inbox
-reads with, and `mailbox_for(...)` builds one — real IMAP, or a stand-in in tests.
+reads with — `check()`, `unseen()` and `mark_seen()` — and `mailbox_for(...)` builds one: real IMAP,
+or a stand-in in tests.
 """
 
 from .inbound import (
-    InboundMailbox, ImapInboundMailbox, MailboxConfig, MailboxError, MailboxStatus, mailbox_for,
-    set_mailbox_factory,
+    InboundMailbox, InboundMessage, ImapInboundMailbox, MailboxConfig, MailboxError, MailboxStatus,
+    mailbox_for, parse_message, set_mailbox_factory,
 )
 from .sender import (
     EmailSender, LogEmailSender, Mail, SmtpConfig, SmtpEmailSender, get_email_sender, set_email_sender,
@@ -18,7 +19,7 @@ from .sender import (
 )
 
 __all__ = [
-    "EmailSender", "InboundMailbox", "ImapInboundMailbox", "LogEmailSender", "Mail", "MailboxConfig",
-    "MailboxError", "MailboxStatus", "SmtpConfig", "SmtpEmailSender", "get_email_sender", "mailbox_for",
-    "set_email_sender", "set_email_sender_factory", "set_mailbox_factory",
+    "EmailSender", "InboundMailbox", "InboundMessage", "ImapInboundMailbox", "LogEmailSender", "Mail",
+    "MailboxConfig", "MailboxError", "MailboxStatus", "SmtpConfig", "SmtpEmailSender", "get_email_sender",
+    "mailbox_for", "parse_message", "set_email_sender", "set_email_sender_factory", "set_mailbox_factory",
 ]

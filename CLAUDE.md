@@ -178,6 +178,16 @@ npm run typecheck
   `inbox:manage` permission (manager and admin — support works the queue, not the credentials), and `POST /inbox/accounts/{id}/test`, which opens the mailbox now
   and answers with the folder, message count and unread count or the server's own error. Reading sits behind one `InboundMailbox` interface — a stdlib `imaplib`
   implementation (in a thread, `readonly`, so testing marks nothing read) and a factory tests stand in for. A mailbox is deleted for real, so a password never
-  outlives the setup. Built on `feat/m8-2-inbox-mailboxes`, which sits on batch 1. Next: email into tickets (`Message-ID` dedupe, `In-Reply-To` threading,
-  outbound replies carrying their own ids), then the inbox web. Plan of record: `docs/WORKING_IN_BATCHES.md`.
+  outlives the setup. Built on `feat/m8-2-inbox-mailboxes`, which sits on batch 1. Batch 3 (migration 0026) is **email in**: the `inbox` job (once a minute,
+  registered in the module) polls each enabled mailbox, takes its unread mail oldest-first (50 a run), parses it and opens or continues a ticket — deduplicated by
+  the email's own `Message-ID` on `ticket_messages.external_id` (unique, so a re-poll or a crash between storing and marking read can't double a message), threaded
+  by `In-Reply-To`/`References` (newest first) and, if the client lost the headers, by the `[T-000123]` token in the subject. The sender matches a customer on any of
+  their addresses (`by_any_email`: main or alt) and is created if unknown, the way the shop does it; a message with no usable `From` is still filed so staff can link
+  it later. A new ticket is channel `email`, type "Other", unassigned, `new`, and `created_at`/`opened_at` come from the mail's own `Date` so the SLA clock starts
+  when the message arrived and not when we polled. A customer writing again reopens a ticket that was waiting or done with, and deliberately never touches the SLA
+  clock. Our replies carry their own `Message-ID` plus `In-Reply-To`/`References`, so a customer's answer lands back in the same ticket (the SMTP sender honours a
+  header-provided id, so a retry keeps it). `Auto-Submitted` mail and duplicates are skipped but marked read (a robot must not come back); spam is left for a later
+  decision. One message that can't be filed doesn't stop the others (it stays unread to retry), one unreachable mailbox doesn't stop the others either, and both are
+  written on the account as `last_polled_at`/`last_error` (cleared by a good poll). Built on `feat/m8-3-email-in`, which sits on batches 1–2. Next: the inbox web
+  (channel tabs, needs-reply first, reply inline; Settings → Email accounts), attachments after that. Plan of record: `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

@@ -1,12 +1,15 @@
 """The mailboxes the CRM reads (SPEC §3.9, the unified inbox).
 
-A row here is one mailbox and how to log into it. It is not a record with notes, tags or a timeline —
-it is configuration, the same kind of thing as the SMTP account in Admin → Settings → Email — so it is
-deleted for real rather than archived, and the password is stored encrypted (`imap_password_enc` holds
-the Fernet token, never the words).
+A row here is one mailbox and how to log into it, plus how the last poll went (`last_polled_at`,
+`last_error`, written by the `inbox` job). It is not a record with notes, tags or a timeline — it is
+configuration, the same kind of thing as the SMTP account in Admin → Settings → Email — so it is deleted
+for real rather than archived, and the password is stored encrypted (`imap_password_enc` holds the Fernet
+token, never the words).
 """
 
-from sqlalchemy import Boolean, Integer, String, Text, text
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.shared.models import AuthorMixin, Base, IdMixin, TimestampMixin
@@ -28,3 +31,6 @@ class EmailAccount(IdMixin, TimestampMixin, AuthorMixin, Base):
     imap_password_enc: Mapped[str] = mapped_column(Text)  # encrypted with DATA_ENCRYPTION_KEY
     folder: Mapped[str] = mapped_column(String(120), default="INBOX", server_default="INBOX")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
+
+    last_polled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(400))  # why the last poll didn't get through

@@ -94,7 +94,12 @@ class Ticket(IdMixin, TimestampMixin, AuthorMixin, SoftDeleteMixin, CustomFields
 
 class TicketMessage(IdMixin, TimestampMixin, AuthorMixin, Base):
     """One entry in a ticket's conversation. `direction` says what it is:
-    `internal` (a staff note), `outbound` (a reply emailed to the customer), `inbound` (the customer's email)."""
+    `internal` (a staff note), `outbound` (a reply emailed to the customer), `inbound` (the customer's email).
+
+    `external_id` is the email's own `Message-ID` (brackets off), for both directions: it is unique, so a
+    re-poll can never store the same message twice, and it is how a customer's answer finds its ticket
+    again (their `In-Reply-To`/`References` point back at the id our reply went out with). Notes have none.
+    """
 
     __tablename__ = "ticket_messages"
     __table_args__ = (Index("ix_ticket_messages_ticket", "ticket_id", "id"),)
@@ -104,3 +109,4 @@ class TicketMessage(IdMixin, TimestampMixin, AuthorMixin, Base):
     body: Mapped[str] = mapped_column(Text)
     from_email: Mapped[str | None] = mapped_column(String(320))
     to_email: Mapped[str | None] = mapped_column(String(320))
+    external_id: Mapped[str | None] = mapped_column(String(400), unique=True)

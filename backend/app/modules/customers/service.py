@@ -210,8 +210,8 @@ class CustomerService:
         return await self.get(customer.id)
 
     # ---- shop sync ------------------------------------------------------
-    # Called by app.integrations.shop with no actor (shown as "System"). These methods flush but don't
-    # commit: the caller commits once the whole shop event has been applied.
+    # Called by app.integrations.shop (and by the inbox, for whoever writes in) with no actor (shown as
+    # "System"). These methods flush but don't commit: the caller commits once the whole event is applied.
 
     async def _shop_source(self) -> str | None:
         try:
@@ -220,8 +220,34 @@ class CustomerService:
             return None  # someone removed the "Shop" source; leave it blank
 
     async def find_by_email(self, email: str) -> int | None:
-        customer = await self.repo.by_email(email)
+        """An address a customer uses, main or alternate (a merge keeps the old ones)."""
+        customer = await self.repo.by_any_email(email)
         return customer.id if customer else None
+
+    async def find_or_create(self, *, email: str, full_name: str | None = None, how: str = "an email") -> int:
+        """The customer for an address, or a new one: for somebody who writes in and isn't on file yet
+        (the inbox, SPEC §3.9). Addresses a merge moved aside count as theirs, so a merged record isn't
+        duplicated, and staff edits win — an existing name is never overwritten. The caller commits."""
+        email = (email or "").strip().lower()
+        if not email:
+            raise ValidationFailedError("A customer needs an email address to be found or created by")
+        customer = await self.repo.by_any_email(email)
+        first, _, last = " ".join((full_name or "").split()).partition(" ")
+        if customer is None:
+            customer = Customer(first_name=first[:80], last_name=last[:80], email=email)
+            await self.repo.add(customer)
+            await self.audit.record("customer.create", entity_type=ENTITY, entity_id=customer.id,
+                                    changes=diff({}, _snapshot(customer)))
+            await self.timeline.record(ENTITY, customer.id, "customer.created", f"Customer added from {how}")
+            return customer.id
+        if first and not (customer.first_name or customer.last_name):
+            before = _snapshot(customer)
+            customer.first_name, customer.last_name = first[:80], last[:80]
+            await self.audit.record("customer.update", entity_type=ENTITY, entity_id=customer.id,
+                                    changes=diff(before, _snapshot(customer)))
+            await self.timeline.record(ENTITY, customer.id, "customer.updated",
+                                       "Name filled in from the email they wrote from")
+        return customer.id
 
     async def sync_from_shop(self, *, email: str | None, shop_user_id: int | None = None, full_name: str | None = None,
                              phone: str | None = None, address: dict[str, Any] | None = None) -> int:

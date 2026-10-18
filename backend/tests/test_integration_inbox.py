@@ -1,11 +1,41 @@
-"""Admin → the mailboxes the CRM reads (SPEC §3.9): setup, the encrypted password, permissions, and the
-"can we reach it?" test. Reading the mail itself is the next batch."""
+"""The unified inbox (SPEC §3.9): the mailboxes the CRM reads — setting one up, the encrypted password,
+the "can we reach it?" test — and the `inbox` job turning the mail it finds into tickets.
+
+The mailbox itself is never real here: the `InboundMailbox` interface is stubbed (the protocol in the
+pure tests, the whole mailbox in the job's), so nothing in this file opens a socket.
+"""
 
 import asyncio
 import unittest
+from datetime import datetime, timezone
+from email.message import EmailMessage
+from email.utils import format_datetime, make_msgid
 from unittest import mock
 
 from tests.support import API, World, reset_limits, run, skip_unless_db
+
+
+def mail_bytes(*, sender: str = "Jane Doe <jane@example.com>", to: str = "support@windycitywares.com",
+               subject: str = "Where is my order?", body: str = "My parcel hasn't arrived.",
+               message_id: str | None = None, in_reply_to: str | None = None,
+               references: tuple[str, ...] = (), auto_submitted: str | None = None,
+               when: datetime | None = None) -> bytes:
+    """A real RFC 822 message, so what the tests read is what a mail client would have written."""
+    msg = EmailMessage()
+    msg["From"] = sender
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg["Message-ID"] = message_id or make_msgid(domain="example.com")
+    if when is not None:
+        msg["Date"] = format_datetime(when)
+    if in_reply_to:
+        msg["In-Reply-To"] = in_reply_to
+    if references:
+        msg["References"] = " ".join(references)
+    if auto_submitted:
+        msg["Auto-Submitted"] = auto_submitted
+    msg.set_content(body)
+    return msg.as_bytes()
 
 
 class FakeMailbox:
@@ -86,6 +116,94 @@ class MailboxConfigTests(unittest.TestCase):
                 asyncio.run(ImapInboundMailbox(MailboxConfig(host="h", folder="Nope")).check())
         self.assertIn("Nope", str(caught.exception))
         client.logout.assert_called_once_with()  # a failure still says goodbye
+
+
+class InboundMailTests(unittest.TestCase):
+    """Reading mail: what the parser makes of a message, and what the IMAP client takes from the server.
+    No database and no network — imaplib is stubbed out."""
+
+    def test_a_plain_message_reads_as_itself(self):
+        from app.integrations.email import parse_message
+
+        raw = mail_bytes(sender="Jane Doe <JANE@Example.com>", subject="Where is my order?",
+                         body="My parcel hasn't arrived.\n\nJane", message_id="<m-1@example.com>",
+                         when=datetime(2026, 10, 14, 9, 30, tzinfo=timezone.utc))
+        message = parse_message("7", raw)
+        self.assertEqual(message.uid, "7")
+        self.assertEqual(message.message_id, "m-1@example.com")  # brackets off: that is what we store
+        self.assertEqual(message.subject, "Where is my order?")
+        self.assertEqual((message.from_email, message.from_name), ("jane@example.com", "Jane Doe"))
+        self.assertEqual(message.to_email, "support@windycitywares.com")
+        self.assertIn("parcel hasn't arrived", message.text)
+        self.assertEqual(message.date, datetime(2026, 10, 14, 9, 30, tzinfo=timezone.utc))
+        self.assertIsNone(message.in_reply_to)
+
+    def test_a_reply_knows_what_it_answers(self):
+        from app.integrations.email import parse_message
+
+        raw = mail_bytes(message_id="<m-2@example.com>", in_reply_to="<m-1@example.com>",
+                         references=("<id-a@x.com>", "<m-1@example.com>"), subject="Re: Where is my order?")
+        message = parse_message("8", raw)
+        self.assertEqual(message.in_reply_to, "m-1@example.com")
+        self.assertEqual(message.references, ("id-a@x.com", "m-1@example.com"))
+
+    def test_html_mail_is_read_as_text(self):
+        from app.integrations.email import parse_message
+
+        msg = EmailMessage()
+        msg["From"] = "jane@example.com"
+        msg["To"] = "support@windycitywares.com"
+        msg["Subject"] = "Where is my order?"
+        msg["Message-ID"] = "<html@example.com>"
+        msg.set_content("<html><body><p>My parcel <b>hasn't</b> arrived.</p>"
+                        "<script>track()</script></body></html>", subtype="html")
+        message = parse_message("9", msg.as_bytes())
+        self.assertEqual(message.text, "My parcel hasn't arrived.")
+        self.assertNotIn("track", message.text)
+
+    def test_a_message_with_no_id_and_nothing_but_an_attachment_still_reads(self):
+        from email.mime.application import MIMEApplication
+
+        from app.integrations.email.inbound import NO_TEXT, parse_message
+
+        msg = EmailMessage()
+        msg["From"] = "jane@example.com"
+        msg["To"] = "support@windycitywares.com"
+        msg["Subject"] = "My receipt"
+        msg["Auto-Submitted"] = "auto-replied"
+        msg.set_type("multipart/mixed")
+        msg.attach(MIMEApplication(b"%PDF-1.4", _subtype="pdf", name="receipt.pdf"))
+        message = parse_message("10", msg.as_bytes())
+        self.assertIsNone(message.message_id)  # the client forgot to say — the job makes one up
+        self.assertEqual(message.auto_submitted, "auto-replied")
+        self.assertEqual(message.text, NO_TEXT)
+
+    def test_the_client_takes_unread_mail_and_marks_what_it_took(self):
+        from app.integrations.email.inbound import ImapInboundMailbox, MailboxConfig
+
+        raw = mail_bytes(message_id="<one@example.com>")
+        client = mock.MagicMock()
+        client.select.return_value = ("OK", [b"2"])
+
+        def uid(command, *args):
+            if command == "SEARCH":
+                return "OK", [b"11 12"]
+            if command == "FETCH" and args[0] == b"11":
+                return "OK", [(b"11 (RFC822 {9}", raw), b")"]
+            if command == "FETCH":
+                return "OK", [b")"]  # a message the server wouldn't hand over
+            return "OK", []
+
+        client.uid.side_effect = uid
+        mailbox = ImapInboundMailbox(MailboxConfig(host="h", username="me@x.com", password="p"))
+        with mock.patch("app.integrations.email.inbound.imaplib.IMAP4_SSL", return_value=client):
+            messages = asyncio.run(mailbox.unseen(limit=5))
+            asyncio.run(mailbox.mark_seen(["11"]))
+        self.assertEqual([m.uid for m in messages], ["11"])  # the unreadable one was left for next time
+        self.assertEqual(messages[0].message_id, "one@example.com")
+        client.select.assert_called_with("INBOX", readonly=False)  # writable: we mark what we take
+        client.uid.assert_any_call("STORE", "11", "+FLAGS", "(\\Seen)")
+        client.logout.assert_called()
 
 
 @skip_unless_db
@@ -219,6 +337,236 @@ class InboxAccountTests(unittest.TestCase):
         left = run(lambda s: s.scalar(select(func.count()).select_from(EmailAccount)
                                       .where(EmailAccount.address == made["address"])))
         self.assertEqual(left, 0)  # deleted, not archived: nothing is left holding a password
+
+
+@skip_unless_db
+class InboxPollTests(unittest.TestCase):
+    """The `inbox` job: what arrives on a mailbox becomes a conversation in the CRM. The mailbox is faked
+    (the protocol is exercised above); only the address under test has any mail waiting in it."""
+
+    cabinet: dict[str, list] = {}     # mailbox address -> what is waiting in it
+    seen: dict[str, list[str]] = {}   # mailbox address -> the uids that were marked read
+    boom: set[str] = set()            # mailbox addresses that refuse to be read
+
+    class FakeInbox:
+        """One mailbox, as the job sees it."""
+
+        def __init__(self, config):
+            self.config = config
+            self.address = config.username or ""
+
+        async def check(self):
+            from app.integrations.email import MailboxStatus
+
+            return MailboxStatus(folder=self.config.folder, messages=0, unseen=0)
+
+        async def unseen(self, limit=50):
+            from app.integrations.email import MailboxError
+
+            if self.address in InboxPollTests.boom:
+                raise MailboxError("The mailbox refused us (LOGIN failed)")
+            return InboxPollTests.cabinet.get(self.address, [])[:limit]
+
+        async def mark_seen(self, uids):
+            InboxPollTests.seen.setdefault(self.address, []).extend(uids)
+
+    @classmethod
+    def setUpClass(cls):
+        from app.integrations.email import set_mailbox_factory
+        from app.modules.lookups.service import LookupService
+
+        cls.w = World()
+        reset_limits()
+        run(lambda s: LookupService(s).seed())
+        cls.manager, cls.manager_h = cls.w.user_with_token("manager")
+        cls.support, cls.support_h = cls.w.user_with_token("support")
+        set_mailbox_factory(cls.FakeInbox)
+
+    @classmethod
+    def tearDownClass(cls):
+        from app.integrations.email import set_mailbox_factory
+
+        set_mailbox_factory(None)
+
+    def setUp(self):
+        reset_limits()
+        InboxPollTests.cabinet = {}
+        InboxPollTests.seen = {}
+        InboxPollTests.boom = set()
+
+    # ---- helpers ---------------------------------------------------------------------------------
+    def mailbox(self, **data):
+        """A mailbox for the CRM to read, set up the way an admin would."""
+        data.setdefault("address", self.w.email("inbox"))
+        data.setdefault("imap_host", "imap.example.com")
+        data.setdefault("imap_password", "s3cret-pass")
+        res = self.w.client.post(f"{API}/inbox/accounts", headers=self.manager_h, json=data)
+        self.assertEqual(res.status_code, 201, res.text)
+        return res.json()
+
+    def deliver(self, address, *raw):
+        """Put mail into a mailbox, parsed by the real parser, so a test sees what the job sees."""
+        from app.integrations.email import parse_message
+
+        self.cabinet[address] = [parse_message(str(i + 1), body) for i, body in enumerate(raw)]
+
+    def poll(self):
+        from app.modules.inbox.poller import InboxPoller
+
+        return run(lambda s: InboxPoller(s).poll())
+
+    def tickets(self, subject):
+        return self.w.client.get(f"{API}/tickets", headers=self.support_h,
+                                 params={"channel": "email", "state": "all", "q": subject}).json()["items"]
+
+    def messages(self, ticket_id):
+        return self.w.client.get(f"{API}/tickets/{ticket_id}/messages", headers=self.support_h).json()
+
+    # ---- tests -----------------------------------------------------------------------------------
+    def test_mail_opens_a_ticket_with_its_customer_and_its_own_time(self):
+        account = self.mailbox()
+        address, subject = account["address"], f"Where is my order {self.w.sfx}?"
+        jane = self.w.email("jane")
+        self.deliver(address, mail_bytes(sender=f"Jane Doe <{jane}>", to=address, subject=subject,
+                                         body="My parcel hasn't arrived.", message_id="<m-1@example.com>",
+                                         when=datetime(2026, 10, 14, 9, 30, tzinfo=timezone.utc)))
+
+        line = self.poll()
+        self.assertIn("filed 1 (1 new)", line)
+
+        found = self.tickets(subject)
+        self.assertEqual(len(found), 1, found)
+        ticket = found[0]
+        self.assertEqual((ticket["channel"], ticket["subject"], ticket["status"]), ("email", subject, "new"))
+        self.assertIsNone(ticket["assignee_id"])  # the system opened it, so nobody owns it yet
+        self.assertTrue(ticket["created_at"].startswith("2026-10-14"))  # the mail's time, not ours
+
+        customer = self.w.client.get(f"{API}/customers/{ticket['customer_id']}",
+                                     headers=self.manager_h).json()
+        self.assertEqual((customer["email"], customer["first_name"], customer["last_name"]), (jane, "Jane", "Doe"))
+        self.assertEqual([(m["direction"], m["from_email"], m["to_email"]) for m in self.messages(ticket["id"])],
+                         [("inbound", jane, address)])
+        timeline = self.w.client.get(f"{API}/entities/customer/{ticket['customer_id']}/timeline",
+                                     headers=self.manager_h).json()["items"]
+        self.assertTrue(any("added from email" in row["title"] for row in timeline), timeline)
+
+        # the id is stored (one of a kind), what was stored was marked read, and the poll was noted
+        from sqlalchemy import select
+
+        from app.modules.tickets.models import TicketMessage
+
+        stored = run(lambda s: s.scalar(select(TicketMessage.external_id)
+                                        .where(TicketMessage.ticket_id == ticket["id"])))
+        self.assertEqual(stored, "m-1@example.com")
+        self.assertEqual(self.seen[address], ["1"])
+        after = self.w.client.get(f"{API}/inbox/accounts/{account['id']}", headers=self.manager_h).json()
+        self.assertIsNotNone(after["last_polled_at"])
+        self.assertIsNone(after["last_error"])
+
+    def test_our_reply_carries_its_own_id_and_the_answer_joins_the_thread(self):
+        account = self.mailbox()
+        address, subject = account["address"], f"Damaged box {self.w.sfx}"
+        jane = self.w.email("jane")
+        self.deliver(address, mail_bytes(sender=f"Jane Doe <{jane}>", to=address, subject=subject,
+                                         message_id="<q-1@example.com>"))
+        self.poll()
+        ticket = self.tickets(subject)[0]
+
+        # a reply of ours goes out with an id of its own, answering the customer's message
+        before = len(self.w.mail.sent)
+        sent = self.w.client.post(f"{API}/tickets/{ticket['id']}/messages", headers=self.support_h,
+                                 json={"body": "A new one is on its way.", "kind": "reply"})
+        self.assertEqual(sent.status_code, 201, sent.text)
+        self.assertEqual(len(self.w.mail.sent), before + 1)
+        reply = self.w.mail.sent[-1]
+        ours = reply.headers["Message-ID"].strip("<>")
+        self.assertTrue(ours.startswith(ticket["number"]), ours)
+        self.assertEqual(reply.headers["In-Reply-To"], "<q-1@example.com>")
+        self.assertEqual(reply.headers["References"], "<q-1@example.com>")
+
+        # the customer answers: same ticket, reopened, and no second ticket made
+        self.assertEqual(self.w.client.patch(f"{API}/tickets/{ticket['id']}", headers=self.support_h,
+                                             json={"status": "resolved"}).status_code, 200)
+        self.deliver(address, mail_bytes(sender=f"Jane Doe <{jane}>", to=address, subject=f"Re: {subject}",
+                                         message_id="<q-2@example.com>", in_reply_to=f"<{ours}>",
+                                         references=("<q-1@example.com>", f"<{ours}>")))
+        self.assertIn("filed 1 (0 new)", self.poll())
+        self.assertEqual(len(self.tickets(subject)), 1)
+        back = self.w.client.get(f"{API}/tickets/{ticket['id']}", headers=self.support_h).json()
+        self.assertEqual((back["status"], back["resolved_at"]), ("open", None))
+        self.assertEqual([m["direction"] for m in self.messages(ticket["id"])],
+                         ["inbound", "outbound", "inbound"])
+
+    def test_the_same_message_is_never_stored_twice(self):
+        account = self.mailbox()
+        address, subject = account["address"], f"Repeat {self.w.sfx}"
+        self.deliver(address, mail_bytes(to=address, subject=subject, message_id="<dupe@example.com>"))
+        self.assertIn("filed 1 (1 new)", self.poll())
+
+        # the mailbox still has it (a crash between storing and marking read looks exactly like this)
+        self.assertIn("skipped 1", self.poll())
+        self.assertEqual(len(self.tickets(subject)), 1)
+        self.assertEqual(len(self.messages(self.tickets(subject)[0]["id"])), 1)
+
+    def test_a_subject_line_says_which_ticket_a_message_belongs_to(self):
+        account = self.mailbox()
+        address, subject = account["address"], f"Wrong size {self.w.sfx}"
+        jane = self.w.email("jane")
+        self.deliver(address, mail_bytes(sender=jane, to=address, subject=subject, message_id="<s-1@example.com>"))
+        self.poll()
+        ticket = self.tickets(subject)[0]
+
+        # a client that lost the headers still writes our ticket number into the subject
+        self.deliver(address, mail_bytes(sender=jane, to=address, subject=f"Re: [{ticket['number']}] {subject}",
+                                        message_id="<s-2@example.com>"))
+        self.assertIn("filed 1 (0 new)", self.poll())
+        self.assertEqual(len(self.tickets(subject)), 1)
+        self.assertEqual(len(self.messages(ticket["id"])), 2)
+
+    def test_a_machine_writing_to_a_machine_is_left_alone(self):
+        account = self.mailbox()
+        address, subject = account["address"], f"Out of office {self.w.sfx}"
+        self.deliver(address, mail_bytes(to=address, subject=subject, message_id="<auto@example.com>",
+                                         auto_submitted="auto-replied"))
+
+        line = self.poll()
+        self.assertIn("filed 0 (0 new)", line)
+        self.assertIn("skipped 1", line)
+        self.assertEqual(self.tickets(subject), [])
+        self.assertEqual(self.seen[address], ["1"])  # but it is marked read: a robot must not come back
+
+    def test_somebody_we_already_know_is_not_added_twice(self):
+        kept = self.w.client.post(f"{API}/customers", headers=self.manager_h, json={
+            "first_name": "Jane", "last_name": "Doe", "email": self.w.email("jane"),
+            "alt_emails": [self.w.email("jane-old")]}).json()
+        account = self.mailbox()
+        address, subject = account["address"], f"Old address {self.w.sfx}"
+        self.deliver(address, mail_bytes(sender=f"Jane Doe <{kept['alt_emails'][0]}>", to=address,
+                                         subject=subject, message_id="<alt@example.com>"))
+        self.poll()
+        self.assertEqual(self.tickets(subject)[0]["customer_id"], kept["id"])
+
+    def test_a_mailbox_that_won_t_open_says_why_then_clears_it(self):
+        account = self.mailbox()
+        address = account["address"]
+        self.boom.add(address)
+        self.assertIn("failed 1", self.poll())
+        after = self.w.client.get(f"{API}/inbox/accounts/{account['id']}", headers=self.manager_h).json()
+        self.assertIn("refused us", after["last_error"])
+        self.assertIsNotNone(after["last_polled_at"])
+
+        # and once it works, the note is cleared by the next good run
+        self.boom.discard(address)
+        self.deliver(address, mail_bytes(to=address, subject=f"Back {self.w.sfx}", message_id="<ok@example.com>"))
+        self.poll()
+        cleared = self.w.client.get(f"{API}/inbox/accounts/{account['id']}", headers=self.manager_h).json()
+        self.assertIsNone(cleared["last_error"])
+
+    def test_a_quiet_run_has_nothing_to_say(self):
+        account = self.mailbox()
+        self.assertIsNone(self.poll())  # nothing arrived: the job log stays quiet
+        after = self.w.client.get(f"{API}/inbox/accounts/{account['id']}", headers=self.manager_h).json()
+        self.assertIsNotNone(after["last_polled_at"])  # but it did look
 
 
 if __name__ == "__main__":

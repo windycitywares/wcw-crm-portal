@@ -63,6 +63,8 @@ class EmailAccountOut(BaseModel):
     imap_user: str | None
     folder: str
     is_active: bool
+    last_polled_at: datetime | None
+    last_error: str | None
     created_at: datetime
     updated_at: datetime
 

@@ -60,10 +60,14 @@ class SmtpEmailSender:
         msg["From"] = formataddr((c.from_name, c.from_address))
         msg["To"] = mail.to
         msg["Subject"] = mail.subject
-        msg["Message-ID"] = make_msgid(domain=c.from_address.split("@")[-1])
+        # A message may bring its own id: a ticket reply keeps the same one when it is retried, so a
+        # customer answering it points at one message and not at one per attempt.
+        headers = dict(mail.headers or {})
+        own_id = next((headers.pop(k) for k in list(headers) if k.lower() == "message-id"), None)
+        msg["Message-ID"] = own_id or make_msgid(domain=c.from_address.split("@")[-1])
         if mail.reply_to:
             msg["Reply-To"] = mail.reply_to
-        for key, value in mail.headers.items():
+        for key, value in headers.items():
             msg[key] = value
         msg.set_content(mail.text)
         if mail.html:

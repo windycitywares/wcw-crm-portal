@@ -1,8 +1,9 @@
-"""The mailboxes the CRM reads (SPEC §3.9, the unified inbox).
+"""The mailboxes the CRM reads, and the mail that arrives on them (SPEC §3.9, the unified inbox).
 
-Setting one up (and proving the CRM can reach it) is this batch; reading its mail into tickets is the
-next one, which is why `check()` exists here on its own: an admin who has just typed a host, a folder
-and a password needs to know it works before anything depends on it.
+Setting a mailbox up (and proving the CRM can reach it) lives here; reading its mail into tickets is
+`poller.py`, which is what the once-a-minute `inbox` job runs. `check()` exists on its own because an
+admin who has just typed a host, a folder and a password needs to know it works before anything
+depends on it.
 """
 
 from typing import Any
@@ -38,6 +39,11 @@ def config_for(account: EmailAccount, *, password: str) -> MailboxConfig:
     )
 
 
+def account_password(account: EmailAccount, box: SecretBox) -> str:
+    """The mailbox's password, decrypted. Server-side use only — the API never returns it."""
+    return box.decrypt(account.imap_password_enc)
+
+
 class InboxService:
     def __init__(self, session: AsyncSession, box: SecretBox | None = None):
         self.session = session
@@ -58,7 +64,7 @@ class InboxService:
         return account
 
     def _password(self, account: EmailAccount) -> str:
-        return self.box.decrypt(account.imap_password_enc)
+        return account_password(account, self.box)
 
     async def _check_address(self, address: str, *, exclude_id: int | None = None) -> None:
         other = await self.repo.by_address(address)

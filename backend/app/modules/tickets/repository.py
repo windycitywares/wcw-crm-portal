@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from sqlalchemy import Select, func, or_, select
 
 from app.shared.repository import BaseRepository
@@ -65,6 +67,10 @@ class TicketRepository(BaseRepository[Ticket]):
                 .limit(limit))
         return list((await self.session.execute(stmt)).scalars())
 
+    async def by_number(self, number: str) -> Ticket | None:
+        """A ticket by its `T-000123` number (a customer's subject line says which ticket they mean)."""
+        return (await self.session.execute(self.query().where(Ticket.number == number))).scalars().first()
+
 
 class TicketMessageRepository(BaseRepository[TicketMessage]):
     model = TicketMessage
@@ -74,6 +80,23 @@ class TicketMessageRepository(BaseRepository[TicketMessage]):
 
     async def for_ticket_list(self, ticket_id: int) -> list[TicketMessage]:
         return list((await self.session.execute(self.for_ticket(ticket_id))).scalars())
+
+    async def ticket_for_ids(self, external_ids: Sequence[str]) -> int | None:
+        """The newest ticket one of these `Message-ID`s belongs to — our threading and our dedupe."""
+        ids = [i for i in external_ids if i]
+        if not ids:
+            return None
+        stmt = (select(TicketMessage.ticket_id).where(TicketMessage.external_id.in_(ids))
+                .order_by(TicketMessage.id.desc()).limit(1))
+        return (await self.session.execute(stmt)).scalars().first()
+
+    async def last_inbound_id(self, ticket_id: int) -> str | None:
+        """The id of the customer's last message, which a reply of ours should answer."""
+        stmt = (select(TicketMessage.external_id)
+                .where(TicketMessage.ticket_id == ticket_id, TicketMessage.direction == "inbound",
+                       TicketMessage.external_id.is_not(None))
+                .order_by(TicketMessage.id.desc()).limit(1))
+        return (await self.session.execute(stmt)).scalars().first()
 
 
 class SlaPolicyRepository(BaseRepository[SlaPolicy]):
