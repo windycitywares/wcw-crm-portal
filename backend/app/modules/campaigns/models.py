@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
-    BigInteger, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text as sql_text,
+    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text as sql_text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -146,6 +146,7 @@ class CampaignRecipient(IdMixin, TimestampMixin, Base):
     outbox_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("email_outbox.id", ondelete="SET NULL"))
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    synced_to_timeline: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class CampaignEvent(IdMixin, TimestampMixin, Base):

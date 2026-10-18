@@ -301,19 +301,36 @@ class CampaignRecipientRepository(BaseRepository[CampaignRecipient]):
                 .group_by(CampaignRecipient.campaign_id))
         return {int(campaign_id): int(n) for campaign_id, n in await self.session.execute(stmt)}
 
-    async def sync_outbox(self, campaign_id: int) -> None:
+    async def sync_outbox(self, campaign_id: int) -> list[tuple[int, int]]:
         """Bring the recipient rows up to date with the outbox: what was sent (and when), and what the mail
-        server refused for good. Campaign mail goes out through the outbox, so this is how it learns."""
+        server refused for good. Campaign mail goes out through the outbox, so this is how it learns.
+        Returns (recipient_id, customer_id) for each row just marked sent, so the caller can log it."""
+        # First, update sent messages
         await self.session.execute(
             update(CampaignRecipient)
             .where(CampaignRecipient.campaign_id == campaign_id, CampaignRecipient.status == QUEUED,
                    CampaignRecipient.outbox_id == EmailOutbox.id, EmailOutbox.status == MAIL_SENT)
             .values(status=RECIPIENT_SENT, sent_at=EmailOutbox.sent_at, reason=None))
+        # Then, update failed messages
         await self.session.execute(
             update(CampaignRecipient)
             .where(CampaignRecipient.campaign_id == campaign_id, CampaignRecipient.status == QUEUED,
                    CampaignRecipient.outbox_id == EmailOutbox.id, EmailOutbox.status == MAIL_FAILED)
             .values(status=RECIPIENT_FAILED, reason=func.left(EmailOutbox.last_error, 80)))
+        # Return the ones we just marked sent, so the caller can record timeline entries
+        stmt = (select(CampaignRecipient.id, CampaignRecipient.customer_id)
+                .where(CampaignRecipient.campaign_id == campaign_id,
+                       CampaignRecipient.status == RECIPIENT_SENT,
+                       CampaignRecipient.sent_at.is_not(None),
+                       CampaignRecipient.synced_to_timeline.is_not(True)))
+        rows = await self.session.execute(stmt)
+        # Mark them as synced so we don't log them again
+        for rec_id, _ in rows:
+            await self.session.execute(
+                update(CampaignRecipient)
+                .where(CampaignRecipient.id == rec_id)
+                .values(synced_to_timeline=True))
+        return [(rec_id, customer_id) for rec_id, customer_id in rows]
 
 
 class CampaignEventRepository(BaseRepository[CampaignEvent]):
