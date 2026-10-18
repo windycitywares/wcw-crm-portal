@@ -87,15 +87,15 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
 | 1 | Suppliers API | migration 0022: supplier records and normalized contacts; supplier type lookup validation, address/payment/lead-time/currency/rating, custom fields, shared tags/notes/timeline, audit, permissions and tests | #51 merged |
-| 2 | Supplied products API | `supplier_products`: supplier + shop SKU + supplier SKU, unit cost/currency and MOQ; CRUD, audit and tests | built (`feat/m6-2-supplier-products`) |
-| 3 | Suppliers web | searchable supplier directory, supplier details, contacts and supplied products, record timeline/tags/custom fields, permission-aware editing | built (`feat/m6-3-suppliers-web`) |
+| 2 | Supplied products API | `supplier_products`: supplier + shop SKU + supplier SKU, unit cost/currency and MOQ; CRUD, audit and tests | #52 open (carries batch 3) |
+| 3 | Suppliers web | searchable supplier directory, supplier details, contacts and supplied products, record timeline/tags/custom fields, permission-aware editing | #53 merged into #52 |
 
 ## M7 Reports (started 2026-10-17)
 
 | # | Batch | Contents | PR |
 |---|-------|----------|----|
 | 1 | Reports API | overview composed from sales/ticket/campaign summaries; customer type/source/status breakdowns; ticket type/status/priority and SLA counts; supplier type/status/rating summary; permissions and tests | #54 merged |
-| 2 | Reports web | reports page for sales forecast, ticket/SLA, campaign performance, customer mix and supplier summary; CSV export for tabular views | `feat/m7-2-reports-web` |
+| 2 | Reports web | reports page for sales forecast, ticket/SLA, campaign performance, customer mix and supplier summary; CSV export for tabular views | #55 merged |
 
 ## Plan — M8 Communication channels (unified inbox) (started 2026-10-17)
 
@@ -139,4 +139,4 @@ v1 (M0–M7) is built; these are the campaign-mail items it left behind, worst f
 | 3 | What a test send carries | **decided (2026-10-17): nothing more.** A test send is a preview of the words, so it carries neither the tracking links (there is no recipient to hang an open or a click on, and a made-up one would land in that campaign's own report) nor the `List-Unsubscribe` header. To eyeball the header, send a real campaign to a list that contains your own address | decided |
 
 ## Next milestones
-M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → M5 campaigns (complete and merged, #40–#48 and #50, except the template-workflow polish on `feat/m5-5d-template-workflow`) → M6 suppliers (batch 1 merged, #51; batches 2–3 built on `feat/m6-2-supplier-products` / `feat/m6-3-suppliers-web`) → M7 reports (batch 1 merged, #54; batch 2 in #55) → **post-v1 campaign-mail follow-ups (1 built on `fix/campaign-tracking-links`, 2 on `feat/m5-6-one-click-unsubscribe`; 3 is a decision, no work)** → **M8 communication channels / unified inbox (batch 1 ticket channels on `feat/m8-1-ticket-channels`, batch 2 the mailboxes the CRM reads on `feat/m8-2-inbox-mailboxes`, batch 3 email in on `feat/m8-3-email-in`, batch 4 the inbox web on `feat/m8-4-inbox-web`; then attachments, chat, Etsy, SMS)**.
+M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → M5 campaigns (complete and merged, #40–#48 and #50, except the template-workflow polish on `feat/m5-5d-template-workflow`) → M6 suppliers (batch 1 merged, #51; batches 2–3 in #52) → **M7 reports (batch 1 merged, #54; batch 2 merged, #55)**.

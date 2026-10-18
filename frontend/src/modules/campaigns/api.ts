@@ -112,6 +112,18 @@ export interface Template {
   updated_at: string;
 }
 
+export interface MergeField {
+  name: string;
+  description: string;
+}
+
+export interface RenderedTemplate {
+  subject: string;
+  preheader: string | null;
+  html: string;
+  text: string;
+}
+
 export type SuppressionReason = "unsubscribed" | "bounced" | "complained" | "manual";
 
 export interface Suppression {
@@ -200,6 +212,7 @@ export const campaignsApi = {
   resume: (id: number) => apiFetch<CampaignSummary>(`/campaigns/${id}/resume`, { method: "POST" }),
   stats: (days = 7) => apiFetch<CampaignStats>(`/campaigns/stats${qs({ days })}`),
   report: (id: number) => apiFetch<CampaignReport>(`/campaigns/${id}/report`),
+  mergeFields: () => apiFetch<MergeField[]>("/campaigns/merge-fields"),
   segmentFields: () => apiFetch<SegmentField[]>("/campaigns/segment-fields"),
   lists: {
     list: (page = 1, pageSize = 25, kind?: string, q?: string) =>
@@ -230,9 +243,16 @@ export const campaignsApi = {
       apiFetch<Template>(`/campaigns/templates/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     remove: (id: number) => apiFetch<void>(`/campaigns/templates/${id}`, { method: "DELETE" }),
     preview: (id: number, customerId?: number) =>
-      apiFetch<{ subject: string; preheader: string | null; html: string; text: string }>(
+      apiFetch<RenderedTemplate>(
         `/campaigns/templates/${id}/preview${qs({ customer_id: customerId })}`,
       ),
+    previewDraft: (data: { subject: string; preheader?: string | null; html: string; text?: string | null; customer_id?: number | null }) =>
+      apiFetch<RenderedTemplate>("/campaigns/templates/preview", { method: "POST", body: JSON.stringify(data) }),
+    test: (id: number, data: { to: string; customer_id?: number | null }) =>
+      apiFetch<{ to: string; subject: string }>(`/campaigns/templates/${id}/test`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
   },
   suppressions: {
     list: (page = 1, pageSize = 25, reason?: SuppressionReason, q?: string) =>

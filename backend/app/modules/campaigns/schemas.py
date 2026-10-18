@@ -70,6 +70,16 @@ class TemplateUpdate(BaseModel):
     text: Body = None
 
 
+class TemplatePreviewIn(BaseModel):
+    """Unsaved template content for a live editor preview."""
+
+    subject: Subject
+    preheader: Preheader = None
+    html: Html
+    text: Body = None
+    customer_id: int | None = None
+
+
 class TemplateOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
