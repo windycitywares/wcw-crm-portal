@@ -5,14 +5,17 @@ of a session: the row it is about and an expiry, signed with the app's own secre
 only act on the row it was minted for, and it stops working once it expires.
 
     url = unsubscribe_url(customer_id, base_url=get_settings().site_url)
+    post = unsubscribe_one_click_url(customer_id, base_url=get_settings().api_url)
     customer_id = read_unsubscribe_token(token)  # None when forged, malformed or expired
 
     img = open_url(recipient_id, base_url=get_settings().api_url)
     link = click_url(recipient_id, "https://shop.example.com/sale", base_url=get_settings().api_url)
 
-The unsubscribe link points at the web app (it is a page a customer reads). The two **tracking** links point
-at the API, because a mail client fetches them directly: one is the pixel that says a message was opened, the
-other is a redirect that says a link was followed and then sends the customer on their way.
+The unsubscribe link points at the web app (it is a page a customer reads), while the same token as a URL on
+the API is what the `List-Unsubscribe` header carries, because a mail client posts to that one without opening
+anything at all. The two **tracking** links point at the API for the same reason: a mail client fetches them
+directly, one being the pixel that says a message was opened and the other a redirect that says a link was
+followed and then sends the customer on their way.
 
 A click's destination travels **inside** the signed payload, so a click token can only ever redirect where
 that email pointed — nobody can take a link out of somebody's inbox and turn it into a redirect to their own
@@ -89,6 +92,16 @@ def unsubscribe_url(customer_id: int, *, base_url: str, campaign_id: int | None 
     the token is what grants the action and a wrong campaign id could never widen it.
     """
     url = f"{base_url.rstrip('/')}/unsubscribe?token={sign(customer_id)}"
+    return f"{url}&c={campaign_id}" if campaign_id else url
+
+
+def unsubscribe_one_click_url(customer_id: int, *, base_url: str, campaign_id: int | None = None) -> str:
+    """The API address a reader's mail client posts to on their behalf (RFC 8058).
+
+    The same token as the footer's link, but no page: the client sends `List-Unsubscribe=One-Click` and
+    nothing else, so the URL has to carry the whole request.
+    """
+    url = f"{base_url.rstrip('/')}/campaigns/unsubscribe/one-click?token={sign(customer_id)}"
     return f"{url}&c={campaign_id}" if campaign_id else url
 
 

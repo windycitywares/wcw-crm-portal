@@ -4,6 +4,7 @@ every recipient followed through the outbox, and the public unsubscribe link (SP
 import re
 import unittest
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 from sqlalchemy import select, update
 
@@ -401,6 +402,52 @@ class CampaignSendTests(unittest.TestCase):
         self.assertIn("skipped 1", self.dispatch())
         recipient = self.recipients(again["id"])["items"][0]
         self.assertEqual((recipient["status"], recipient["reason"]), ("skipped", "unsubscribed"))
+
+    def test_the_header_offers_a_one_click_unsubscribe(self):
+        """The `List-Unsubscribe` pair a bulk sender is expected to send (RFC 8058): the address in the header
+        is what a mail client posts to on the reader's behalf, without a page and without asking anyone."""
+        person = self.customer(first_name="Dana", last_name="Lee")
+        campaign = self.campaign(self.template(), self.audience([person]))
+        self.start(campaign["id"])
+        transport = FakeTransport()
+        self.dispatch()
+        self.deliver(transport)
+
+        # the message carries the pair, and the address is on the API, where the footer's link is a web page
+        sent = next(mail for mail in transport.sent if mail.to == person["email"])
+        self.assertEqual(sent.headers.get("List-Unsubscribe-Post"), "List-Unsubscribe=One-Click")
+        header = sent.headers.get("List-Unsubscribe", "")
+        self.assertTrue(header.startswith("<") and header.endswith(">"), header)  # a URL in angle brackets
+        address = urlsplit(header.strip("<>"))
+        self.assertTrue(address.path.endswith("/campaigns/unsubscribe/one-click"), header)
+        self.assertIn(f"c={campaign['id']}", address.query)  # for the record: which campaign they left from
+        query = dict(pair.split("=", 1) for pair in address.query.split("&"))
+
+        # a reader whose client opened that link anyway lands on the footer's page: a GET never acts
+        opened = self.w.client.get(f"{API}/campaigns/unsubscribe/one-click", params=query,
+                                   allow_redirects=False)
+        self.assertEqual(opened.status_code, 307, opened.text)
+        self.assertEqual(urlsplit(opened.headers["location"]).path, "/unsubscribe")
+        self.assertTrue(self.w.client.get(f"{API}/customers/{person['id']}",
+                                          headers=self.marketing_h).json()["marketing_consent"])
+
+        # and what the client does: post to that very address, with the body it sends and we do not read
+        res = self.w.client.post(f"{API}/campaigns/unsubscribe/one-click", params=query,
+                                 content="List-Unsubscribe=One-Click",
+                                 headers={"Content-Type": "application/x-www-form-urlencoded"})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertTrue(res.json()["unsubscribed"])
+        self.assertFalse(self.w.client.get(f"{API}/customers/{person['id']}",
+                                           headers=self.marketing_h).json()["marketing_consent"])
+        on_list = self.on_suppressions(person["email"])
+        self.assertEqual((on_list["total"], on_list["items"][0]["reason"]), (1, "unsubscribed"))
+        self.assertEqual(on_list["items"][0]["source"], "link")
+        self.assertIn(campaign["name"], on_list["items"][0]["note"])
+
+        # a forged token, and none at all
+        self.assertEqual(self.w.client.post(f"{API}/campaigns/unsubscribe/one-click",
+                                            params={"token": "not-a-token"}).status_code, 404)
+        self.assertEqual(self.w.client.post(f"{API}/campaigns/unsubscribe/one-click").status_code, 422)
 
     def test_a_suppressed_address_is_skipped(self):
         person = self.customer(first_name="Bounce")
