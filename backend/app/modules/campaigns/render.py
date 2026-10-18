@@ -6,7 +6,8 @@ is an **error** (`StrictUndefined`) rather than a blank in somebody's inbox. A t
 sample data when it is saved, so a typo is caught at the desk and not by a customer.
 
 Every rendered message ends with the compliance footer — the postal address from Admin → Settings → Email
-and the customer's own unsubscribe link — whether the template remembered to include one or not.
+and the customer's own unsubscribe link — whether the template remembered to include one or not, and carries
+the `List-Unsubscribe` headers that let a mail client offer its own Unsubscribe button.
 
 Tracking (SPEC §3.6) happens here too, on the way out: `track_links` wraps the links in a message so a click
 is recorded and redirected, and `tracking_pixel` is the one-pixel image an open is recorded by. Both belong to
@@ -145,3 +146,14 @@ def tracking_pixel(url: str) -> str:
     opened it — which is why this is a signal to learn from, not a number to believe.
     """
     return f'<img src="{url}" alt="" width="1" height="1" style="border:0;height:1px;width:1px" />'
+
+
+def unsubscribe_headers(one_click_url: str) -> dict[str, str]:
+    """The headers a mail client offers its own Unsubscribe button from (RFC 8058 "one click").
+
+    Gmail and Yahoo ask this of bulk senders: the reader presses Unsubscribe in their mail client, the client
+    posts to the address in the header without asking them anything, and it is told nothing back. So the URL
+    has to carry the customer's signed token itself, exactly as the footer's link does.
+    """
+    return {"List-Unsubscribe": f"<{one_click_url}>",
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"}

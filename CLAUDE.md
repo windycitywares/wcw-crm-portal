@@ -161,6 +161,8 @@ npm run typecheck
   shipped bug found while starting follow-up 2: the campaign sender rendered every real message **without a `recipient_id`**, so no open pixel and no wrapped
   links ever went out and `campaign_events` stayed empty — the tracking endpoints all worked, and the tests minted their own tokens, so nothing caught it. The
   fix is one argument in `_queue`, plus a regression test that follows the open and click links **out of the message that was actually sent** and then reads
-  the report. Built on `fix/campaign-tracking-links`. Follow-up 2 (the `List-Unsubscribe` header and the one-click POST behind it) and follow-up 3 (whether a
-  test send should be tracked at all) are not started.
+  the report. Built on `fix/campaign-tracking-links`. Follow-up 2 adds the `List-Unsubscribe` and
+  `List-Unsubscribe-Post: …=One-Click` headers to campaign mail, and the body-less `POST /campaigns/unsubscribe/one-click` a mail client posts to on the reader's
+  behalf (a `GET` on the same address sends a human on to the web app's page instead, changing nothing); built on `feat/m5-6-one-click-unsubscribe`. Follow-up 3
+  (what a test send should carry) is not started.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

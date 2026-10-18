@@ -87,7 +87,8 @@ from .schemas import (
     TestIn, TestSent, UnsubscribeIn, UnsubscribeOut,
 )
 from .tokens import (
-    click_url, open_url, read_click_token, read_open_token, read_unsubscribe_token, unsubscribe_url,
+    click_url, open_url, read_click_token, read_open_token, read_unsubscribe_token, unsubscribe_one_click_url,
+    unsubscribe_url,
 )
 
 ENTITY = "email_template"
@@ -931,6 +932,7 @@ class CampaignService:
         if template is None:  # nothing to render (the foreign key makes this all but impossible)
             return 0, 0
         blocked = await self.suppressed([customer.email for _, customer in rows if customer and customer.email])
+        api = get_settings().api_url.rstrip("/")  # the header's link points at the API, not the web app
         queued = skipped = 0
         for recipient, customer in rows:
             if customer is None:  # the customer row is gone: nothing to render, and nobody to write to
@@ -947,7 +949,9 @@ class CampaignService:
                                           campaign_id=campaign.id,
                                           recipient_id=recipient.id)  # what makes the message tracked
             message = await self.outbox.queue(
-                Mail(to=customer.email or "", subject=rendered.subject, text=rendered.text, html=rendered.html),
+                Mail(to=customer.email or "", subject=rendered.subject, text=rendered.text, html=rendered.html,
+                     headers=render.unsubscribe_headers(
+                         unsubscribe_one_click_url(customer.id, base_url=api, campaign_id=campaign.id))),
                 category="campaign")
             recipient.status, recipient.outbox_id, recipient.reason = QUEUED, message.id, None
             queued += 1
