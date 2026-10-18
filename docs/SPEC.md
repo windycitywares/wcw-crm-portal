@@ -121,7 +121,8 @@ Pipelines are their own tables (`pipelines`, `pipeline_stages(order, probability
 `accounts` (B2B, later) · `leads, deals, deal_items, pipelines, pipeline_stages` · `tasks` ·
 `tickets, ticket_messages, sla_policies` · `email_templates, template_versions, target_lists,
 target_list_members, segments, campaigns, campaign_recipients, campaign_events, suppressions,
-email_outbox` · `suppliers, supplier_contacts, supplier_products` · `notes, attachments, tags,
+email_outbox` · `suppliers, supplier_contacts, supplier_products` · `email_accounts` (the mailboxes the
+unified inbox reads) · `notes, attachments, tags,
 taggings, activities (timeline), audit_log, custom_field_defs, saved_views, notifications` ·
 `integration_events` (inbound shop events, idempotency keys).
 

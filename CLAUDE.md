@@ -172,8 +172,12 @@ npm run typecheck
   the inbox is channels arriving into tickets — one place to work with SLA, assignment and permissions already in it — not a second conversation store. Batch 1
   (migration 0024) gives a ticket a `channel`: a `ticket_channel` lookup (Email, Shop form, Phone, Live chat, Etsy, Manual), `manual` for everything already in
   the table, `shop_form` from the shop handler, validated like the other type lists, filterable in `GET /tickets?channel=`, audited, re-fileable by staff, and
-  shown in the web queue (column + filter), the ticket dialog and the ticket page. Built on `feat/m8-1-ticket-channels`. Next: mailboxes the CRM reads (a new
-  `inbox` module — `email_accounts` with the password in the encrypted secrets store, reading behind one `InboundMailbox` interface with a fake for tests), then
-  email into tickets (`Message-ID` dedupe, `In-Reply-To` threading, outbound replies carrying their own ids), then the inbox web. Plan of record:
-  `docs/WORKING_IN_BATCHES.md`.
+  shown in the web queue (column + filter), the ticket dialog and the ticket page. Built on `feat/m8-1-ticket-channels`. Batch 2 (migration 0025) adds the
+  mailboxes the CRM reads: a new `inbox` module whose `email_accounts` row holds the host, port, security, folder and username (empty = the mailbox's own
+  address) plus a password encrypted with `DATA_ENCRYPTION_KEY` and never returned by the API (a blank password in a patch keeps the stored one), CRUD behind a new
+  `inbox:manage` permission (manager and admin — support works the queue, not the credentials), and `POST /inbox/accounts/{id}/test`, which opens the mailbox now
+  and answers with the folder, message count and unread count or the server's own error. Reading sits behind one `InboundMailbox` interface — a stdlib `imaplib`
+  implementation (in a thread, `readonly`, so testing marks nothing read) and a factory tests stand in for. A mailbox is deleted for real, so a password never
+  outlives the setup. Built on `feat/m8-2-inbox-mailboxes`, which sits on batch 1. Next: email into tickets (`Message-ID` dedupe, `In-Reply-To` threading,
+  outbound replies carrying their own ids), then the inbox web. Plan of record: `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

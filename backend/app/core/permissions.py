@@ -59,6 +59,9 @@ class Permission(StrEnum):
     SUPPLIERS_VIEW = "suppliers:view"
     SUPPLIERS_EDIT = "suppliers:edit"
 
+    # Inbox (the mailboxes the CRM reads — SPEC §3.9)
+    INBOX_MANAGE = "inbox:manage"
+
 
 P = Permission
 
@@ -94,6 +97,7 @@ _MANAGER = _READ | _SALES | _SUPPORT | _MARKETING | frozenset({
     P.TASKS_EDIT_ANY, P.TASKS_ASSIGN,
     P.TICKETS_ASSIGN,
     P.SUPPLIERS_EDIT,
+    P.INBOX_MANAGE,
     P.LOOKUPS_MANAGE,
     P.DATA_EXPORT,
     P.AUDIT_VIEW,
