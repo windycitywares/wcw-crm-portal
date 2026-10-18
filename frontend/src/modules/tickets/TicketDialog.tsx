@@ -18,6 +18,7 @@ interface Form {
   description: string;
   ticket_type: string;
   priority: string;
+  channel: string;
   customer_id: number | null;
   customer_name: string | null;
   assignee_id: number | null;
@@ -60,6 +61,7 @@ export function TicketDialog({
       description: ticket?.description ?? "",
       ticket_type: ticket?.ticket_type ?? "",
       priority: ticket?.priority ?? "normal",
+      channel: ticket?.channel ?? "manual",
       customer_id: ticket?.customer_id ?? customer?.id ?? null,
       customer_name: ticket?.customer_name ?? customer?.name ?? null,
       assignee_id: ticket?.assignee_id ?? user?.id ?? null,
@@ -97,6 +99,7 @@ export function TicketDialog({
       description: form.description.trim() || null,
       ticket_type: form.ticket_type || null,
       priority: form.priority,
+      channel: form.channel,
       customer_id: form.customer_id,
       assignee_id: form.assignee_id,
       shop_order_id: form.shop_order_id ? Number(form.shop_order_id) : null,
@@ -191,6 +194,17 @@ export function TicketDialog({
               <Select {...p} value={form.ticket_type} onChange={(e) => set("ticket_type", e.target.value)}>
                 <option value="">Not set</option>
                 {lookups.options("ticket_type", ticket?.ticket_type).map((v) => (
+                  <option key={v.key} value={v.key}>
+                    {v.label}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label="Channel" hint="Where the conversation came in.">
+            {(p) => (
+              <Select {...p} value={form.channel} onChange={(e) => set("channel", e.target.value)}>
+                {lookups.options("ticket_channel", form.channel).map((v) => (
                   <option key={v.key} value={v.key}>
                     {v.label}
                   </option>

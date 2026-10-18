@@ -25,6 +25,8 @@ KINDS: dict[str, Kind] = {k.key: k for k in (
           "Product question", "Complaint", "Other")),
     Kind("ticket_priority", "Ticket priorities", "How urgent a ticket is (response targets use these).",
          ("Low", "Normal", "High", "Urgent")),
+    Kind("ticket_channel", "Ticket channels", "How a conversation reached the CRM (SPEC §3.9).",
+         ("Email", "Shop form", "Phone", "Live chat", "Etsy", "Manual")),
     Kind("task_type", "Task types", "Kinds of to-do.", ("Call", "Email", "Follow-up", "Meeting", "To-do")),
     Kind("lead_source", "Lead sources", "Where a lead or customer came from.",
          ("Website", "Shop", "Etsy", "Amazon", "Referral", "Social media", "Trade show", "Other")),

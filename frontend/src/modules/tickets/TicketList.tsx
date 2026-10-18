@@ -8,7 +8,7 @@ import { useLookups } from "@/modules/settings/useLookups";
 import { timeAgo } from "@/lib/utils";
 import { slaState, STATUS_LABEL, STATUS_TONE, type Ticket } from "./api";
 
-/** The ticket queue as a table: number and subject, priority, status, SLA badge, assignee, age. */
+/** The ticket queue as a table: number and subject, priority, channel, status, SLA badge, assignee, age. */
 export function TicketList({ tickets, loading, empty }: { tickets: Ticket[] | null; loading?: boolean; empty?: React.ReactNode }) {
   const lookups = useLookups();
 
@@ -45,6 +45,15 @@ export function TicketList({ tickets, loading, empty }: { tickets: Ticket[] | nu
       cell: (t) => {
         const p = lookups.find("ticket_priority", t.priority);
         return <ColorTag color={p?.color}>{p?.label ?? t.priority}</ColorTag>;
+      },
+    },
+    {
+      key: "channel",
+      header: "Channel",
+      hide: "md",
+      cell: (t) => {
+        const c = lookups.find("ticket_channel", t.channel);
+        return <span className="text-muted">{c?.label ?? t.channel}</span>;
       },
     },
     {

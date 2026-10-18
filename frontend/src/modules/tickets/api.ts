@@ -18,6 +18,7 @@ export interface Ticket {
   description: string | null;
   ticket_type: string | null;
   priority: string;
+  channel: string;
   status: TicketStatus;
   customer_id: number | null;
   customer_name: string | null;
@@ -55,6 +56,7 @@ export interface TicketInput {
   description?: string | null;
   ticket_type?: string | null;
   priority?: string;
+  channel?: string | null;
   customer_id?: number | null;
   shop_order_id?: number | null;
   assignee_id?: number | null;
@@ -68,6 +70,7 @@ export interface TicketFilters {
   status?: TicketStatus | "";
   priority?: string;
   type?: string;
+  channel?: string;
   customer_id?: number;
   breached?: boolean;
   q?: string;

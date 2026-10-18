@@ -10,12 +10,16 @@ Rules:
 - `canned_responses` are saved answers staff can drop into a reply, managed only by `lookups:manage`;
 - a shop contact-form message opens a ticket for the customer (integration §6, `contact_message.created`):
   it is created by the system, so it lands unassigned;
+- a customer's email arriving on a mailbox the CRM reads (SPEC §3.9, the inbox job) joins the thread as
+  `inbound` and reopens a ticket that was waiting or finished with; replies of ours go out carrying our own
+  `Message-ID` and answer theirs, which is how their answer finds this ticket again;
 - SLA due times are counted in business hours (Admin → Settings → Business hours); the `ticket-sla` job
   flags breaches and shows in the queue.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from typing import Any
 
@@ -31,7 +35,7 @@ from app.modules.audit.service import AuditService, diff
 from app.modules.customers.service import CustomerService
 from app.modules.customfields.service import CustomFieldService
 from app.modules.lookups.service import LookupService
-from app.modules.settings.groups import BusinessHours
+from app.modules.settings.groups import BusinessHours, EmailSettings
 from app.modules.settings.service import SettingsService
 from app.modules.users.service import UserService
 
@@ -44,7 +48,8 @@ from .schemas import (
 )
 
 ENTITY = "ticket"
-TRACKED = ("subject", "description", "ticket_type", "priority", "status", "customer_id", "shop_order_id", "assignee_id")
+TRACKED = ("subject", "description", "ticket_type", "priority", "channel", "status", "customer_id",
+           "shop_order_id", "assignee_id")
 LABELS = {"ticket_type": "type", "assignee_id": "assignee", "customer_id": "customer"}
 
 TRANSITIONS: dict[str, frozenset[str]] = {
@@ -167,9 +172,11 @@ class TicketService:
     # ---- reads --------------------------------------------------------------------------
     async def list(self, user, params: PageParams, *, view: str = "all", state: str = "unresolved",
                    status: str | None = None, priority: str | None = None, ticket_type: str | None = None,
-                   customer_id: int | None = None, breached: bool | None = None, q: str | None = None) -> TicketPage:
+                   channel: str | None = None, customer_id: int | None = None, breached: bool | None = None,
+                   q: str | None = None) -> TicketPage:
         filters: dict[str, Any] = {"state": state, "status": status, "priority": priority,
-                                   "ticket_type": ticket_type, "customer_id": customer_id, "breached": breached, "q": q}
+                                   "ticket_type": ticket_type, "channel": channel, "customer_id": customer_id,
+                                   "breached": breached, "q": q}
         if view == "mine":
             filters["assignee_id"] = user.id
         elif view == "unassigned":
@@ -201,10 +208,13 @@ class TicketService:
         return out
 
     # ---- writes -------------------------------------------------------------------------
-    async def create(self, data: TicketCreate, actor=None, *, commit: bool = True) -> TicketOut:
-        """Open a ticket. `actor` is the staff user, or None for a system ticket (the shop webhook), which
-        skips the permission checks and lands unassigned. Shop callers pass `commit=False`, so the ticket is
-        committed together with the rest of the shop event."""
+    async def create(self, data: TicketCreate, actor=None, *, commit: bool = True,
+                     opened_at: datetime | None = None) -> TicketOut:
+        """Open a ticket. `actor` is the staff user, or None for a system ticket (the shop webhook, the
+        inbox job), which skips the permission checks and lands unassigned. Shop callers pass `commit=False`,
+        so the ticket is committed together with the rest of the shop event; the inbox passes `opened_at`
+        when it knows the mail arrived earlier than this (a poll after a quiet night), which is also what
+        its response-time targets are counted from."""
         values = data.model_dump(exclude_unset=True)
         if not values.get("subject"):
             raise ValidationFailedError("A ticket needs a subject")
@@ -217,10 +227,15 @@ class TicketService:
         values["priority"] = await self.lookups.require("ticket_priority", values.get("priority") or "normal")
         if values.get("ticket_type"):
             values["ticket_type"] = await self.lookups.require("ticket_type", values["ticket_type"])
+        # Who opened it and how: a system caller (the shop webhook, the inbox job) says which channel its
+        # message arrived on; anything typed in here is `manual` unless the caller says otherwise.
+        values["channel"] = await self.lookups.require("ticket_channel", values.get("channel") or "manual")
         if values.get("custom_fields") is not None:
             values["custom_fields"] = await self.fields.validate(ENTITY, values["custom_fields"] or {})
         who = actor.id if actor is not None else None
         ticket = Ticket(**{k: v for k, v in values.items() if v is not None}, created_by=who, updated_by=who)
+        if opened_at is not None:  # the mail's own time, not the moment we got round to reading it
+            ticket.created_at = ticket.updated_at = opened_at
         await self.repo.add(ticket)
         ticket.number = f"T-{ticket.id:06d}"
         await self._apply_sla(ticket, ticket.created_at or _now())
@@ -248,6 +263,9 @@ class TicketService:
         if "ticket_type" in values:
             values["ticket_type"] = await self.lookups.require(
                 "ticket_type", values["ticket_type"], allow_inactive_key=ticket.ticket_type)
+        if "channel" in values:
+            values["channel"] = await self.lookups.require(
+                "ticket_channel", values["channel"] or ticket.channel, allow_inactive_key=ticket.channel)
         if values.get("custom_fields") is not None:
             values["custom_fields"] = await self.fields.validate(ENTITY, values["custom_fields"], existing=ticket.custom_fields)
         new_status = values.pop("status", None)
@@ -298,8 +316,15 @@ class TicketService:
             created_by=actor.id, updated_by=actor.id,
         ))
         if data.kind == "reply":
+            message.external_id = await self._reply_id(ticket, message)
+            headers = {"Message-ID": f"<{message.external_id}>"}
+            answered = await self.messages.last_inbound_id(ticket.id)
+            if answered:
+                # Answer the customer's last message, so their reply comes back to this ticket.
+                headers["In-Reply-To"] = headers["References"] = f"<{answered}>"
             await (sender or get_email_sender(self.session)).send(Mail(
-                to=email or "", subject=f"Re: [{ticket.number}] {ticket.subject}", text=data.body))
+                to=email or "", subject=f"Re: [{ticket.number}] {ticket.subject}", text=data.body,
+                headers=headers))
             if ticket.first_responded_at is None:
                 ticket.first_responded_at = _now()
         if ticket.status == "new":
@@ -314,6 +339,50 @@ class TicketService:
         item = TicketMessageOut.model_validate(message)
         item.author_name = getattr(actor, "full_name", None)
         return item
+
+    async def _reply_id(self, ticket: Ticket, message: TicketMessage) -> str:
+        """Our own `Message-ID` for a reply, built from the ticket and the message so that a retry keeps
+        the same one — a second attempt must not look like a second message in the customer's mail client."""
+        settings: EmailSettings = await SettingsService(self.session).get_model("email")  # type: ignore[assignment]
+        domain = str(settings.from_address).split("@")[-1] or "windycitywares.com"
+        return f"{ticket.number or ticket.id}.{message.id}@{domain}"
+
+    # ---- the inbox (SPEC §3.9) ----------------------------------------------------------
+    async def thread_for(self, external_ids: Sequence[str]) -> int | None:
+        """Which ticket a message belongs to, when we have seen one of these `Message-ID`s before: the
+        `In-Reply-To`/`References` chain of a customer's answer, or the message's own id (it is already
+        stored, so it must not be stored twice)."""
+        return await self.messages.ticket_for_ids(list(external_ids))
+
+    async def ticket_by_number(self, number: str) -> int | None:
+        ticket = await self.repo.by_number(number)
+        return ticket.id if ticket else None
+
+    async def add_inbound(self, ticket_id: int, *, body: str, external_id: str, from_email: str | None = None,
+                          to_email: str | None = None, when: datetime | None = None) -> int:
+        """A customer's own message arriving on a mailbox the CRM reads (the inbox job). It joins the
+        thread as `inbound` and reopens a ticket that was waiting or finished with. No actor: the system
+        brought it in, so it lands as "System" like a shop event.
+
+        It deliberately leaves the SLA clock alone: `first_response_due_at` measures how fast *we* answered
+        this ticket, and a customer writing again does not erase that. The resolve target still applies, so
+        a reopened ticket nobody picks up goes overdue as usual. The caller commits.
+        """
+        ticket = await self._get(ticket_id)
+        if ticket.status != "open":
+            await self._set_status(ticket, "open", None)
+        values: dict[str, Any] = {"ticket_id": ticket.id, "direction": "inbound", "body": body,
+                                  "from_email": from_email, "to_email": to_email, "external_id": external_id}
+        if when is not None:  # the mail's own time, so a poll after a quiet weekend reads honestly
+            values["created_at"] = values["updated_at"] = when
+        message = await self.messages.add(TicketMessage(**values))
+        ticket.updated_by = None
+        await self._record(ticket, "ticket.inbound",
+                           f"Customer wrote in on {ticket.number} ({ticket.subject})", None)
+        await self.audit.record("ticket.inbound", entity_type=ENTITY, entity_id=ticket.id,
+                                changes={"from": from_email, "external_id": external_id})
+        await self.session.flush()
+        return message.id
 
     async def delete(self, ticket_id: int, actor) -> None:
         ticket = await self._get(ticket_id)

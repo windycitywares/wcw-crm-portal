@@ -31,14 +31,15 @@ See the shop's `docs/WORKING_IN_BATCHES.md` for the pattern.
 Internal CRM for the owner + team. v1 modules: **Customers** (+ customer types), **Sales** (leads,
 deals, pipelines), **Tasks**, **Support tickets** (+ types, SLA), **Campaigns** (email templates,
 target lists/segments, sending, tracking, suppression), **Suppliers** (+ supplier types), Reports.
-Fed by the shop via signed webhooks + read API. **Later:** B2B accounts UI, communication channels
-(unified inbox, live chat, Etsy, SMS), automation, AI.
+Fed by the shop via signed webhooks + read API. **M8 (from 2026-10-17):** communication channels — the unified
+inbox, arriving as tickets; live chat, Etsy and SMS are later channels on the same footing. **Later:** B2B
+accounts UI, automation, AI.
 Roles: Admin, Manager, Sales, Support, Marketing, Read-only (confirmed).
 Campaign sender/SMTP/daily limits are **configurable in Admin → Settings**, not env-only.
 Shop's inbox + campaigns move into the CRM **later** (after M5); until then the shop keeps them.
 Types/pipelines/SLA seeded from SPEC §9, all editable in Admin.
 Build order: M0 scaffold/auth → M1 shared blocks → M2 customers+shop sync → M3 tasks+tickets →
-M4 sales → M5 campaigns → M6 suppliers → M7 reports.
+M4 sales → M5 campaigns → M6 suppliers → M7 reports → M8 communication channels (unified inbox).
 
 ## Tech stack (inherited from shop.windycitywares.com)
 
@@ -166,4 +167,27 @@ npm run typecheck
   behalf (a `GET` on the same address sends a human on to the web app's page instead, changing nothing); built on `feat/m5-6-one-click-unsubscribe`. Follow-up 3
   turned out to be a decision rather than work and is settled: a test send stays a preview of the words, with neither the tracking links (there is no recipient
   to attribute an open or a click to, and a made-up one would land in that campaign's own report) nor the header.
+- 2026-10-17: **M8 communication channels (unified inbox) started** — SPEC §3.9's first item after v1, and §9 decision 3 makes "the inbox phase" the last thing
+  the shop's own inbox and campaigns wait on. The design keeps the CRM's habit that **a conversation is a ticket** (the shop's contact form already opens one), so
+  the inbox is channels arriving into tickets — one place to work with SLA, assignment and permissions already in it — not a second conversation store. Batch 1
+  (migration 0024) gives a ticket a `channel`: a `ticket_channel` lookup (Email, Shop form, Phone, Live chat, Etsy, Manual), `manual` for everything already in
+  the table, `shop_form` from the shop handler, validated like the other type lists, filterable in `GET /tickets?channel=`, audited, re-fileable by staff, and
+  shown in the web queue (column + filter), the ticket dialog and the ticket page. Built on `feat/m8-1-ticket-channels`. Batch 2 (migration 0025) adds the
+  mailboxes the CRM reads: a new `inbox` module whose `email_accounts` row holds the host, port, security, folder and username (empty = the mailbox's own
+  address) plus a password encrypted with `DATA_ENCRYPTION_KEY` and never returned by the API (a blank password in a patch keeps the stored one), CRUD behind a new
+  `inbox:manage` permission (manager and admin — support works the queue, not the credentials), and `POST /inbox/accounts/{id}/test`, which opens the mailbox now
+  and answers with the folder, message count and unread count or the server's own error. Reading sits behind one `InboundMailbox` interface — a stdlib `imaplib`
+  implementation (in a thread, `readonly`, so testing marks nothing read) and a factory tests stand in for. A mailbox is deleted for real, so a password never
+  outlives the setup. Built on `feat/m8-2-inbox-mailboxes`, which sits on batch 1. Batch 3 (migration 0026) is **email in**: the `inbox` job (once a minute,
+  registered in the module) polls each enabled mailbox, takes its unread mail oldest-first (50 a run), parses it and opens or continues a ticket — deduplicated by
+  the email's own `Message-ID` on `ticket_messages.external_id` (unique, so a re-poll or a crash between storing and marking read can't double a message), threaded
+  by `In-Reply-To`/`References` (newest first) and, if the client lost the headers, by the `[T-000123]` token in the subject. The sender matches a customer on any of
+  their addresses (`by_any_email`: main or alt) and is created if unknown, the way the shop does it; a message with no usable `From` is still filed so staff can link
+  it later. A new ticket is channel `email`, type "Other", unassigned, `new`, and `created_at`/`opened_at` come from the mail's own `Date` so the SLA clock starts
+  when the message arrived and not when we polled. A customer writing again reopens a ticket that was waiting or done with, and deliberately never touches the SLA
+  clock. Our replies carry their own `Message-ID` plus `In-Reply-To`/`References`, so a customer's answer lands back in the same ticket (the SMTP sender honours a
+  header-provided id, so a retry keeps it). `Auto-Submitted` mail and duplicates are skipped but marked read (a robot must not come back); spam is left for a later
+  decision. One message that can't be filed doesn't stop the others (it stays unread to retry), one unreachable mailbox doesn't stop the others either, and both are
+  written on the account as `last_polled_at`/`last_error` (cleared by a good poll). Built on `feat/m8-3-email-in`, which sits on batches 1–2. Next: the inbox web
+  (channel tabs, needs-reply first, reply inline; Settings → Email accounts), attachments after that. Plan of record: `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

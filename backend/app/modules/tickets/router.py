@@ -28,11 +28,12 @@ async def list_tickets(
     state: Literal["unresolved", "resolved", "all"] = "unresolved",
     status_: Annotated[Literal["new", "open", "pending", "resolved", "closed"] | None, Query(alias="status")] = None,
     priority: str | None = None, type: str | None = None, customer_id: int | None = None,
-    breached: bool | None = None, q: Annotated[str | None, Query(max_length=100)] = None,
+    channel: str | None = None, breached: bool | None = None,
+    q: Annotated[str | None, Query(max_length=100)] = None,
 ) -> TicketPage:
     return await TicketService(session).list(
         user, page, view=view, state=state, status=status_, priority=priority, ticket_type=type,
-        customer_id=customer_id, breached=breached, q=q)
+        channel=channel, customer_id=customer_id, breached=breached, q=q)
 
 
 @router.get("/summary", response_model=TicketSummary)

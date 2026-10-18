@@ -167,7 +167,8 @@ class ShopEventService:
 
     async def _contact(self, payload: dict[str, Any]) -> int:
         """A shop contact-form message opens a ticket (SPEC §3.5), so it lands in the support queue instead
-        of only being visible in the shop. The customer is found or created first, so the ticket is linked."""
+        of only being visible in the shop — marked as coming in from the shop form, so the inbox can say so.
+        The customer is found or created first, so the ticket is linked."""
         data = ContactData.model_validate(payload)
         customer_id = await self.customers.sync_from_shop(email=data.email, full_name=data.name, phone=data.phone)
         order = await self.orders.by_number(data.order_number)
@@ -178,7 +179,8 @@ class ShopEventService:
         subject = (data.subject or "").strip() or f"Shop contact: {preview(data.message)}"
         await self.tickets.create(TicketCreate(
             subject=subject, description=data.message, ticket_type=ticket_type, priority="normal",
-            customer_id=customer_id, shop_order_id=order.id if order else None), actor=None, commit=False)
+            channel="shop_form", customer_id=customer_id, shop_order_id=order.id if order else None),
+            actor=None, commit=False)
         return customer_id
 
     async def apply_data(self, event_type: str, data: dict[str, Any]) -> int | None:

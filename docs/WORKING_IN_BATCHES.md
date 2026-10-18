@@ -97,6 +97,37 @@ Also shipped: Admin → Deployments (#18: deploy now, pause, schedule, log) and 
 | 1 | Reports API | overview composed from sales/ticket/campaign summaries; customer type/source/status breakdowns; ticket type/status/priority and SLA counts; supplier type/status/rating summary; permissions and tests | #54 merged |
 | 2 | Reports web | reports page for sales forecast, ticket/SLA, campaign performance, customer mix and supplier summary; CSV export for tabular views | #55 merged |
 
+## Plan — M8 Communication channels (unified inbox) (started 2026-10-17)
+
+v1 ends at M7. SPEC §3.9 puts the unified inbox first after it, and §9 decision 3 makes "the inbox phase" the
+last thing the shop's own inbox and campaigns wait on. The design follows the CRM's existing habit: **a
+conversation is a ticket** (the shop's contact form already opens one, M3 batch 5), so the inbox is channels
+arriving into tickets — one place to work with SLA, assignment and permissions already in it — not a second
+conversation store next to the first one.
+
+| # | Batch | Contents | PR |
+|---|-------|----------|----|
+| 1 | Ticket channels | a ticket says how the conversation reached the CRM: `tickets.channel` (migration 0024; everything already in the table is `manual`) as a `ticket_channel` lookup (Email, Shop form, Phone, Live chat, Etsy, Manual), set when the ticket is opened — the shop handler passes `shop_form`, staff-typed tickets are `manual` — validated like the other lookups, filterable (`GET /tickets?channel=`), audited, and staff can re-file one. Web: a Channel column in the queue + filter, a picker in the dialog and a tag on the ticket page | 1 built (`feat/m8-1-ticket-channels`) |
+| 2 | Mailboxes the CRM reads | new `inbox` module (migration 0025): `email_accounts` — the mailbox's address and display name, IMAP host/port/security (`ssl`/`starttls`/`none`), username (empty = its own address), folder and `is_active`, with the password stored encrypted (`imap_password_enc`, `DATA_ENCRYPTION_KEY`) and never returned by the API; a blank password in a patch keeps the stored one. CRUD for admins (`inbox:manage`, new — manager and admin, so support works the queue but not the credentials) and `POST /inbox/accounts/{id}/test`, which opens the mailbox now and answers `{ok, folder, messages, unseen}` or the server's own error. Reading is a small `InboundMailbox` interface with one stdlib `imaplib` implementation (`check()` in a thread, `readonly` so a test marks nothing read) and a factory tests can stand in for. A mailbox is deleted for real, so a password doesn't outlive the setup | 2 built (`feat/m8-2-inbox-mailboxes`, on top of batch 1) |
+| 3 | Email in | the `inbox` job (once a minute) polls enabled mailboxes, takes the unread mail oldest-first (up to 50 a run), parses it and **opens or continues a ticket**: deduplicated by `Message-ID` (`ticket_messages.external_id`, unique, migration 0026) so a re-poll — or a crash between storing a message and marking it read — can't double a message; threaded by `In-Reply-To`/`References` and, if the client lost the headers, by the `[T-000123]` token in the subject. The sender is matched to a customer on any of their addresses (`by_any_email`: main or alt) and created if unknown, like the shop does. A new ticket is channel `email`, type "Other", unassigned, `status=new`, with `created_at`/`opened_at` from the mail's own `Date` (so the SLA clock starts when it arrived, not when we polled). A customer writing again reopens a resolved ticket and never touches the SLA clock. Our replies get their own `Message-ID` + `In-Reply-To`/`References` so the answer comes back to the same ticket. `Auto-Submitted` mail (out-of-office, robot-to-robot) and duplicates are skipped but marked read; spam is left for a later decision. The mailbox's health (`last_polled_at`, `last_error`, cleared by a good poll) is written on the account. Attachments are a later batch (storage decision) | 3 built (`feat/m8-3-email-in`, on top of batches 1–2) |
+| 4 | Web: inbox + mailboxes | the unified inbox: tickets across channels (channel tabs, needs-reply first, the queue's existing filters), reply inline; Settings → Email accounts (add/test/enable/disable) | not started |
+| later | Chat, Etsy, SMS, attachments, and retiring the shop's own inbox | each a channel that plugs into the same table; the shop side is a `wcw-shop-portal` batch | — |
+
+Two notes for whoever picks this up:
+
+- The three M8 branches were cut one from the next on top of the campaign follow-up branches, so the
+  stack is `main` → `fix/campaign-tracking-links` → `feat/m5-6-one-click-unsubscribe` → batch 1 → batch 2
+  → batch 3. Merge order follows from that: the campaign fix first, then one-click unsubscribe, then M8
+  1 → 2 → 3 (each PR states its dependency). Rebasing M8 onto `main` to make the three PRs independent
+  is possible but needs a force-push, so it is the owner's call.
+- Batch 1's migration is `0024` off `0022_suppliers`, batch 2's is `0025` off `0024` and batch 3's is `0026`
+  off `0025`, so each says "depends on" the one before and the three merge in order. The unmerged
+  `feat/m6-2-supplier-products` carries `0023`; whichever of *those* merges second must repoint its
+  `down_revision` — the usual branch refresh does it (merge `origin/main` in, keep both sides).
+- One SMTP identity still sends: replies go out through Admin → Settings → Email as they do today, even for a
+  message that arrived on a mailbox. Sending *from* the mailbox it arrived on needs per-account SMTP
+  credentials and is a follow-up, not a silent assumption.
+
 ## Post-v1 follow-ups (started 2026-10-17)
 
 v1 (M0–M7) is built; these are the campaign-mail items it left behind, worst first.

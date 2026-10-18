@@ -84,6 +84,7 @@ export default function TicketPage() {
   const canAssign = can("tickets:assign");
   const priority = lookups.find("ticket_priority", ticket.priority);
   const type = lookups.find("ticket_type", ticket.ticket_type);
+  const channel = lookups.find("ticket_channel", ticket.channel);
   const sla = slaState(ticket);
   const changed = () => setRefresh((n) => n + 1);
   const owners = [...directory.people.values()]
@@ -145,6 +146,7 @@ export default function TicketPage() {
             <Pill tone={STATUS_TONE[ticket.status]}>{STATUS_LABEL[ticket.status]}</Pill>
             {priority && <ColorTag color={priority.color}>{priority.label}</ColorTag>}
             {type && <ColorTag color={type.color}>{type.label}</ColorTag>}
+            {channel && <ColorTag color={channel.color}>{channel.label}</ColorTag>}
             {sla && (
               <span title={sla.title}>
                 <Pill tone={sla.tone}>{sla.text}</Pill>
