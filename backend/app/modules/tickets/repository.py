@@ -13,13 +13,27 @@ def escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+# Who has the ball on a ticket: the direction of the newest message (null if nobody has said anything —
+# a ticket typed in by staff, or one the shop opened from its contact form). See `search(needs_reply=…)`.
+NEWEST_DIRECTION = (select(TicketMessage.direction).where(TicketMessage.ticket_id == Ticket.id)
+                    .order_by(TicketMessage.id.desc()).limit(1).scalar_subquery())
+# When we are the ones being waited on, how long the wait has been (message ids are handed out in time
+# order, so the newest inbound id is also the most recent thing the customer said).
+NEWEST_INBOUND = (select(func.max(TicketMessage.id))
+                  .where(TicketMessage.ticket_id == Ticket.id, TicketMessage.direction == "inbound")
+                  .scalar_subquery())
+
+
 class TicketRepository(BaseRepository[Ticket]):
     model = Ticket
 
     def search(self, *, q: str | None = None, state: str = "unresolved", status: str | None = None,
                priority: str | None = None, ticket_type: str | None = None, channel: str | None = None,
                assignee_id: int | None = None, unassigned: bool = False, customer_id: int | None = None,
-               breached: bool | None = None) -> Select[tuple[Ticket]]:
+               breached: bool | None = None, needs_reply: bool | None = None) -> Select[tuple[Ticket]]:
+        """The queue. `needs_reply` is the inbox's own question — is the customer's message the last thing
+        said, nobody having replied since? (True: yes; False: we answered or nobody has spoken; None: don't
+        ask.) It is asked of the newest message, so a reply of ours settles it and a later email re-opens it."""
         stmt = self.query()
         if state == "unresolved":
             stmt = stmt.where(Ticket.status.in_(OPEN_STATUSES))
@@ -42,6 +56,9 @@ class TicketRepository(BaseRepository[Ticket]):
         if breached is not None:
             cond = or_(Ticket.resolve_breached.is_(True), Ticket.first_response_breached.is_(True))
             stmt = stmt.where(cond if breached else ~cond)
+        if needs_reply is not None:
+            waiting = func.coalesce(NEWEST_DIRECTION, "") == "inbound"
+            stmt = stmt.where(waiting if needs_reply else ~waiting)
         if q:
             words = [w for w in q.strip().lower().split() if w][:5]
             for word in words:
@@ -51,6 +68,10 @@ class TicketRepository(BaseRepository[Ticket]):
                     func.lower(Ticket.description).like(p),
                     func.lower(Ticket.number).like(p),
                 ))
+        if needs_reply:
+            # "Waiting on us" is a question about the wait, so it is answered in wait order: whatever has
+            # been sitting unanswered longest comes first.
+            return stmt.order_by(NEWEST_INBOUND.asc(), Ticket.id.asc())
         if state == "resolved":
             return stmt.order_by(func.coalesce(Ticket.closed_at, Ticket.resolved_at, Ticket.updated_at).desc(), Ticket.id.desc())
         # open work: soonest deadline first, undated last, then oldest first

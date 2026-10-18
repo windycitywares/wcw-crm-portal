@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Textarea, Select } from "@/components/ui/Field";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { Pill } from "@/components/ui/Pill";
+import { Segmented } from "@/components/ui/Segmented";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import { cn, formatDateTime } from "@/lib/utils";
@@ -15,6 +16,11 @@ const KIND_LABEL: Record<TicketMessage["direction"], string> = {
   outbound: "Reply sent",
   inbound: "Customer replied",
 };
+
+const KINDS = [
+  { value: "note", label: "Internal note" },
+  { value: "reply", label: "Email reply" },
+] as const;
 
 /**
  * The ticket thread, oldest first: internal notes, replies emailed to the customer, and any inbound
@@ -101,22 +107,7 @@ export function Conversation({ ticket, onChanged }: { ticket: Ticket; onChanged:
         {mayWrite && (
           <form onSubmit={send} className="grid gap-3 border-t border-line pt-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div role="group" aria-label="Message kind" className="inline-flex w-fit rounded-[var(--radius-control)] border border-line bg-surface p-0.5">
-                {(["note", "reply"] as MessageKind[]).map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    aria-pressed={kind === k}
-                    onClick={() => setKind(k)}
-                    className={cn(
-                      "rounded-[calc(var(--radius-control)-2px)] px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-accent",
-                      kind === k ? "bg-accent text-on-accent" : "text-ink hover:bg-sand",
-                    )}
-                  >
-                    {k === "note" ? "Internal note" : "Email reply"}
-                  </button>
-                ))}
-              </div>
+              <Segmented label="Message kind" options={KINDS} value={kind} onChange={setKind} />
               {canned.length > 0 && (
                 <Select
                   aria-label="Insert a saved reply"

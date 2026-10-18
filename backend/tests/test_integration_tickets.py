@@ -201,6 +201,45 @@ class TicketTests(unittest.TestCase):
         self.assertIn("ticket_channel", kinds)
         self.assertIn("shop_form", [v["key"] for v in kinds["ticket_channel"]["values"]])
 
+    def test_waiting_on_us_is_the_customer_s_last_word(self):
+        """The inbox's own question (SPEC §3.9): whose message is the newest, so nobody has answered yet?"""
+        from app.modules.tickets.service import TicketService
+
+        asked = f"Backorder {self.w.sfx}"  # a phrase of its own, so the query sees only these two
+        answered = self.create(subject=f"{asked} answered", customer_id=self.customer["id"])
+        self.assertEqual(self.reply(answered["id"], body="On its way.", kind="reply").status_code, 201)
+        waiting = self.create(subject=f"{asked} waiting", customer_id=self.customer["id"])
+        run(lambda s: TicketService(s).add_inbound(waiting["id"], body="Any news?",
+                                                   external_id=f"backorder-{self.w.sfx}@example.com",
+                                                   from_email=self.customer["email"]))
+
+        def listed(**params):
+            res = self.w.client.get(f"{API}/tickets", headers=self.support_h, params={"q": asked, **params})
+            self.assertEqual(res.status_code, 200, res.text)
+            return [t["id"] for t in res.json()["items"]]
+
+        self.assertEqual(listed(needs_reply="true"), [waiting["id"]])    # they wrote last: ours to answer
+        self.assertEqual(listed(needs_reply="false"), [answered["id"]])  # our reply settled that one
+        self.assertEqual(sorted(listed()), sorted([answered["id"], waiting["id"]]))  # not asked: both
+
+    def test_the_longest_wait_comes_first(self):
+        """The waiting list is worked from the top: whoever has been waiting longest is first."""
+        from app.modules.tickets.service import TicketService
+
+        asked = f"Return {self.w.sfx}"
+        first = self.create(subject=f"{asked} one", customer_id=self.customer["id"])
+        second = self.create(subject=f"{asked} two", customer_id=self.customer["id"])
+        run(lambda s: TicketService(s).add_inbound(first["id"], body="Still waiting.",
+                                                   external_id=f"return-1-{self.w.sfx}@example.com",
+                                                   from_email=self.customer["email"]))
+        run(lambda s: TicketService(s).add_inbound(second["id"], body="Still waiting.",
+                                                   external_id=f"return-2-{self.w.sfx}@example.com",
+                                                   from_email=self.customer["email"]))
+
+        rows = self.w.client.get(f"{API}/tickets", headers=self.support_h,
+                                 params={"needs_reply": "true", "q": asked}).json()["items"]
+        self.assertEqual([t["id"] for t in rows], [first["id"], second["id"]])
+
     def test_sla_breach_job(self):
         from app.modules.tickets.service import TicketService
 

@@ -28,12 +28,14 @@ async def list_tickets(
     state: Literal["unresolved", "resolved", "all"] = "unresolved",
     status_: Annotated[Literal["new", "open", "pending", "resolved", "closed"] | None, Query(alias="status")] = None,
     priority: str | None = None, type: str | None = None, customer_id: int | None = None,
-    channel: str | None = None, breached: bool | None = None,
+    channel: str | None = None, breached: bool | None = None, needs_reply: bool | None = None,
     q: Annotated[str | None, Query(max_length=100)] = None,
 ) -> TicketPage:
+    """The queue. `needs_reply=true` is the inbox's view: the customer's message is the last thing said
+    (see `TicketRepository.search`), oldest wait first."""
     return await TicketService(session).list(
         user, page, view=view, state=state, status=status_, priority=priority, ticket_type=type,
-        channel=channel, customer_id=customer_id, breached=breached, q=q)
+        channel=channel, customer_id=customer_id, breached=breached, needs_reply=needs_reply, q=q)
 
 
 @router.get("/summary", response_model=TicketSummary)

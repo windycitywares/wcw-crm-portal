@@ -23,6 +23,7 @@ export const NAV: NavGroup[] = [
     items: [
       { href: "/tasks", label: "Tasks", icon: "tasks", permission: "tasks:view" },
       { href: "/tickets", label: "Tickets", icon: "ticket", permission: "tickets:view" },
+      { href: "/inbox", label: "Inbox", icon: "inbox", permission: "tickets:view" },
       { href: "/leads", label: "Leads", icon: "inbox", permission: "sales:view" },
       { href: "/sales", label: "Sales", icon: "briefcase", permission: "sales:view" },
       { href: "/campaigns", label: "Campaigns", icon: "mail", permission: "campaigns:view" },
@@ -39,6 +40,7 @@ export const NAV: NavGroup[] = [
       { href: "/settings/pipelines", label: "Pipelines", icon: "funnel", permission: "lookups:manage" },
       { href: "/settings/custom-fields", label: "Custom fields", icon: "edit", permission: "lookups:manage" },
       { href: "/settings/email", label: "Email", icon: "mail", permission: "settings:manage" },
+      { href: "/settings/email-accounts", label: "Email accounts", icon: "mail", permission: "inbox:manage" },
       { href: "/settings/business-hours", label: "Business hours", icon: "clock", permission: "settings:manage" },
       { href: "/settings/sla-policies", label: "SLA policies", icon: "alert", permission: "lookups:manage" },
       { href: "/settings/canned-responses", label: "Canned responses", icon: "copy", permission: "lookups:manage" },

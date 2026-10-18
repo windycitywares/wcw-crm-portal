@@ -173,10 +173,10 @@ class TicketService:
     async def list(self, user, params: PageParams, *, view: str = "all", state: str = "unresolved",
                    status: str | None = None, priority: str | None = None, ticket_type: str | None = None,
                    channel: str | None = None, customer_id: int | None = None, breached: bool | None = None,
-                   q: str | None = None) -> TicketPage:
+                   needs_reply: bool | None = None, q: str | None = None) -> TicketPage:
         filters: dict[str, Any] = {"state": state, "status": status, "priority": priority,
                                    "ticket_type": ticket_type, "channel": channel, "customer_id": customer_id,
-                                   "breached": breached, "q": q}
+                                   "breached": breached, "needs_reply": needs_reply, "q": q}
         if view == "mine":
             filters["assignee_id"] = user.id
         elif view == "unassigned":
