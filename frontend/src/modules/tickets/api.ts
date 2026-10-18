@@ -73,6 +73,8 @@ export interface TicketFilters {
   channel?: string;
   customer_id?: number;
   breached?: boolean;
+  /** The inbox's question: the customer's message is the newest one, so nobody has answered yet. */
+  needs_reply?: boolean;
   q?: string;
   page?: number;
   page_size?: number;

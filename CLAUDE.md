@@ -188,6 +188,12 @@ npm run typecheck
   clock. Our replies carry their own `Message-ID` plus `In-Reply-To`/`References`, so a customer's answer lands back in the same ticket (the SMTP sender honours a
   header-provided id, so a retry keeps it). `Auto-Submitted` mail and duplicates are skipped but marked read (a robot must not come back); spam is left for a later
   decision. One message that can't be filed doesn't stop the others (it stays unread to retry), one unreachable mailbox doesn't stop the others either, and both are
-  written on the account as `last_polled_at`/`last_error` (cleared by a good poll). Built on `feat/m8-3-email-in`, which sits on batches 1–2. Next: the inbox web
-  (channel tabs, needs-reply first, reply inline; Settings → Email accounts), attachments after that. Plan of record: `docs/WORKING_IN_BATCHES.md`.
+  written on the account as `last_polled_at`/`last_error` (cleared by a good poll). Built on `feat/m8-3-email-in`, which sits on batches 1–2. Batch 4 (no migration)
+  is **the web half**: `GET /tickets?needs_reply=` answers the inbox's own question — the customer's message is the newest thing said, nobody having replied since —
+  by looking at the newest `ticket_messages` direction, and when it is asked the list comes back oldest wait first (the order a shared inbox is worked in). The new
+  `/inbox` page puts channel tabs (from the `ticket_channel` lookup), Waiting-on-us / Everything-open, search and paging beside the thread itself — notes, canned
+  replies and email replies through the existing `Conversation`, with `?ticket=`/`?channel=` deep links and a way through to the full ticket for assigning and
+  status. Settings → Email accounts (`inbox:manage`) lists the mailboxes with their last-read health and lets an admin add, test, pause and remove one. `Segmented`
+  moved into `components/ui` and is now the single filter control (queue, inbox, note-or-reply). Built on `feat/m8-4-inbox-web`, which sits on batches 1–3. Next:
+  attachments, then chat/Etsy/SMS. Plan of record: `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

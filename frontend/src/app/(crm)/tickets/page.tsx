@@ -7,9 +7,9 @@ import { Icon } from "@/components/ui/Icon";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Panel } from "@/components/ui/Panel";
+import { Segmented } from "@/components/ui/Segmented";
 import { useAuth } from "@/lib/auth";
 import type { Page } from "@/lib/types";
-import { cn } from "@/lib/utils";
 import { useLookups } from "@/modules/settings/useLookups";
 import { ticketsApi, type Ticket, type TicketFilters } from "@/modules/tickets/api";
 import { TicketDialog } from "@/modules/tickets/TicketDialog";
@@ -26,27 +26,6 @@ const STATES = [
   { value: "resolved", label: "Resolved" },
   { value: "all", label: "Everything" },
 ] as const;
-
-function Segmented<T extends string>({ label, options, value, onChange }: { label: string; options: readonly { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
-  return (
-    <div role="group" aria-label={label} className="inline-flex flex-wrap rounded-[var(--radius-control)] border border-line bg-surface p-0.5">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          aria-pressed={value === o.value}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            "rounded-[calc(var(--radius-control)-2px)] px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-accent",
-            value === o.value ? "bg-accent text-on-accent" : "text-ink hover:bg-sand",
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export default function TicketsPage() {
   const { can } = useAuth();
