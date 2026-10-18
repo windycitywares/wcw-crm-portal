@@ -122,6 +122,9 @@ export default function CampaignsPage() {
             <ButtonLink href="/campaigns/lists" size="sm" variant="secondary">
               Audiences
             </ButtonLink>
+            <ButtonLink href="/campaigns/suppressions" size="sm" variant="secondary">
+              Suppressions
+            </ButtonLink>
           </div>
         }
       />
