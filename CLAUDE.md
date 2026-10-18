@@ -69,7 +69,8 @@ backend/app/
                  custom fields, audit, timeline, import/export
   modules/<name>/  models.py schemas.py repository.py service.py router.py permissions.py events.py
                  (customers, sales, tasks, tickets, campaigns, suppliers, reports, users)
-  integrations/  shop/ (webhooks in, read API out) · email/ (SMTP sender, template renderer)
+  integrations/  shop/ (webhooks in, read API out) · email/ (SMTP sender, the mailbox reader) · files/ (the
+                 bytes customers send, on the server's own disk)
   workers/       cron jobs: outbox, campaign dispatch, SLA checks, shop sync
 frontend/src/
   app/(auth)/ · app/(crm)/<module>/   (sidebar shell layout)
@@ -194,6 +195,20 @@ npm run typecheck
   `/inbox` page puts channel tabs (from the `ticket_channel` lookup), Waiting-on-us / Everything-open, search and paging beside the thread itself — notes, canned
   replies and email replies through the existing `Conversation`, with `?ticket=`/`?channel=` deep links and a way through to the full ticket for assigning and
   status. Settings → Email accounts (`inbox:manage`) lists the mailboxes with their last-read health and lets an admin add, test, pause and remove one. `Segmented`
-  moved into `components/ui` and is now the single filter control (queue, inbox, note-or-reply). Built on `feat/m8-4-inbox-web`, which sits on batches 1–3. Next:
-  attachments, then chat/Etsy/SMS. Plan of record: `docs/WORKING_IN_BATCHES.md`.
+  moved into `components/ui` and is now the single filter control (queue, inbox, note-or-reply). Built on `feat/m8-4-inbox-web`, which sits on batches 1–3. Batch 5
+  (migration 0027) keeps **the files a customer sends**: `attachments` is polymorphic on `(entity_type, entity_id)` exactly as `notes` and `activities` are, so a
+  file hangs on any registered record and the existing `check_entity_access` decides who may reach it — reading takes the record's *view* right, dropping one takes
+  its *edit* right, and **no new permission** was added. It is inbound only: the `inbox` job keeps what arrived on the mailbox (up to 10 files of 15 MB each per
+  message) against the ticket the message belongs to, and whatever it leaves behind is counted and said in the message body, because a ticket that quietly lost a
+  customer's photos is worse than one that admits it. The bytes sit behind a `FileStore` seam in `app/integrations/files/` (a protocol, one `LocalFileStore`,
+  `file_store()`/`set_store_factory` — the same shape as `mailbox_for`), named after the sha256 of their own content: the same file sent twice is stored once, two
+  rows may share it, and the stored bytes are dropped with the last row that pointed at them (soft delete first, then a count). A filename that arrived with mail is
+  display text only — flattened to one line, never a path, and the keys the store accepts are `^[0-9a-f]{64}$`. API: `GET /entities/{type}/{id}/attachments` (a
+  plain list, oldest first), `GET /attachments/{id}` (always a download, ASCII `filename=` plus RFC 5987 `filename*=` so an accented name survives, `nosniff`), and
+  `DELETE /attachments/{id}` (soft, audited `attachment.delete`, one timeline line). Web: an `Attachments` list under the ticket conversation on `/tickets/[id]`
+  (and the inbox pane, which shows the same `Conversation`), with a confirm before removing and nothing rendered when there are no files. Storage is the server's
+  own disk because the deployment is self-hosted: `attachments_dir` defaults to `~/apps/crm/wcw-crm-files`, **outside the checkout** so a deploy can't take a
+  customer's photo with it, and created on first use. Deliberately deferred, and written down: staff uploads, outbound attachments (the reply is plain text through
+  the one SMTP identity, so an attached file would not leave the building), virus scanning, and a "which message brought this?" link. Built on
+  `feat/m8-5-attachments`, which sits on batches 1–4. Next: chat/Etsy/SMS, then retiring the shop's inbox. Plan of record: `docs/WORKING_IN_BATCHES.md`.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

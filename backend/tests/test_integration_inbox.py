@@ -1,5 +1,6 @@
 """The unified inbox (SPEC §3.9): the mailboxes the CRM reads — setting one up, the encrypted password,
-the "can we reach it?" test — and the `inbox` job turning the mail it finds into tickets.
+the "can we reach it?" test — and the `inbox` job turning the mail it finds (and whatever came with it)
+into tickets.
 
 The mailbox itself is never real here: the `InboundMailbox` interface is stubbed (the protocol in the
 pure tests, the whole mailbox in the job's), so nothing in this file opens a socket.
@@ -10,6 +11,7 @@ import unittest
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from email.utils import format_datetime, make_msgid
+from mimetypes import guess_type
 from unittest import mock
 
 from tests.support import API, World, reset_limits, run, skip_unless_db
@@ -19,8 +21,12 @@ def mail_bytes(*, sender: str = "Jane Doe <jane@example.com>", to: str = "suppor
                subject: str = "Where is my order?", body: str = "My parcel hasn't arrived.",
                message_id: str | None = None, in_reply_to: str | None = None,
                references: tuple[str, ...] = (), auto_submitted: str | None = None,
-               when: datetime | None = None) -> bytes:
-    """A real RFC 822 message, so what the tests read is what a mail client would have written."""
+               when: datetime | None = None,
+               attachments: tuple[tuple[str, bytes], ...] = ()) -> bytes:
+    """A real RFC 822 message, so what the tests read is what a mail client would have written.
+
+    An attachment is `(filename, its bytes)`; the type comes from the name, as a mail client would say it.
+    """
     msg = EmailMessage()
     msg["From"] = sender
     msg["To"] = to
@@ -35,6 +41,9 @@ def mail_bytes(*, sender: str = "Jane Doe <jane@example.com>", to: str = "suppor
     if auto_submitted:
         msg["Auto-Submitted"] = auto_submitted
     msg.set_content(body)
+    for name, data in attachments:
+        maintype, subtype = (guess_type(name)[0] or "application/octet-stream").split("/", 1)
+        msg.add_attachment(data, maintype=maintype, subtype=subtype, filename=name)
     return msg.as_bytes()
 
 
@@ -177,6 +186,35 @@ class InboundMailTests(unittest.TestCase):
         self.assertIsNone(message.message_id)  # the client forgot to say — the job makes one up
         self.assertEqual(message.auto_submitted, "auto-replied")
         self.assertEqual(message.text, NO_TEXT)
+
+    def test_a_file_that_came_with_a_message_is_read_with_it(self):
+        from app.integrations.email import parse_message
+
+        raw = mail_bytes(body="Here is the damage.", attachments=(("damage.jpg", b"\xff\xd8\xffjpeg-bytes"),))
+        message = parse_message("11", raw)
+        self.assertIn("damage", message.text)
+        self.assertEqual([(f.filename, f.content_type, f.data) for f in message.attachments],
+                         [("damage.jpg", "image/jpeg", b"\xff\xd8\xffjpeg-bytes")])
+
+    def test_only_named_parts_are_files(self):
+        """An image a message's HTML points at is part of the message, not a file beside it."""
+        from app.integrations.email import parse_message
+
+        msg = EmailMessage()
+        msg["From"] = "jane@example.com"
+        msg["To"] = "support@windycitywares.com"
+        msg["Subject"] = "Look at this"
+        msg.set_content("<p>See the picture</p>", subtype="html")
+        msg.add_related(b"\x89PNG-pixels", maintype="image", subtype="png", cid="<shot@example.com>")  # no name
+        message = parse_message("12", msg.as_bytes())
+        self.assertIn("See the picture", message.text)
+        self.assertEqual(message.attachments, ())
+
+    def test_an_empty_part_is_not_worth_a_file(self):
+        from app.integrations.email import parse_message
+
+        raw = mail_bytes(attachments=(("nothing.txt", b""),))
+        self.assertEqual(parse_message("13", raw).attachments, ())
 
     def test_the_client_takes_unread_mail_and_marks_what_it_took(self):
         from app.integrations.email.inbound import ImapInboundMailbox, MailboxConfig
@@ -372,7 +410,10 @@ class InboxPollTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        import tempfile
+
         from app.integrations.email import set_mailbox_factory
+        from app.integrations.files import LocalFileStore, set_store_factory
         from app.modules.lookups.service import LookupService
 
         cls.w = World()
@@ -381,12 +422,20 @@ class InboxPollTests(unittest.TestCase):
         cls.manager, cls.manager_h = cls.w.user_with_token("manager")
         cls.support, cls.support_h = cls.w.user_with_token("support")
         set_mailbox_factory(cls.FakeInbox)
+        # The files a message brings are kept on a disk: a throwaway directory stands in for the server's.
+        cls.files_dir = tempfile.mkdtemp(prefix="wcw-crm-files-")
+        set_store_factory(lambda: LocalFileStore(cls.files_dir))
 
     @classmethod
     def tearDownClass(cls):
+        import shutil
+
         from app.integrations.email import set_mailbox_factory
+        from app.integrations.files import set_store_factory
 
         set_mailbox_factory(None)
+        set_store_factory(None)
+        shutil.rmtree(cls.files_dir, ignore_errors=True)
 
     def setUp(self):
         reset_limits()
@@ -421,6 +470,11 @@ class InboxPollTests(unittest.TestCase):
 
     def messages(self, ticket_id):
         return self.w.client.get(f"{API}/tickets/{ticket_id}/messages", headers=self.support_h).json()
+
+    def attachments(self, ticket_id):
+        res = self.w.client.get(f"{API}/entities/ticket/{ticket_id}/attachments", headers=self.support_h)
+        self.assertEqual(res.status_code, 200, res.text)
+        return res.json()
 
     # ---- tests -----------------------------------------------------------------------------------
     def test_mail_opens_a_ticket_with_its_customer_and_its_own_time(self):
@@ -462,6 +516,67 @@ class InboxPollTests(unittest.TestCase):
         after = self.w.client.get(f"{API}/inbox/accounts/{account['id']}", headers=self.manager_h).json()
         self.assertIsNotNone(after["last_polled_at"])
         self.assertIsNone(after["last_error"])
+
+    def test_what_came_with_the_message_is_kept_with_its_ticket(self):
+        """A photo of the damage is part of the conversation: it is kept, and it can be read back."""
+        from app.integrations.email.inbound import NO_TEXT
+
+        account = self.mailbox()
+        address, subject = account["address"], f"Damage photo {self.w.sfx}"
+        jane = self.w.email("jane")
+        self.deliver(address, mail_bytes(sender=f"Jane <{jane}>", to=address, subject=subject, body="",
+                                         message_id="<p-1@example.com>",
+                                         attachments=(("damage.jpg", b"jpeg-bytes"), ("receipt.pdf", b"%PDF-1.4"))))
+
+        self.assertIn("files 2", self.poll())
+
+        ticket = self.tickets(subject)[0]
+        kept = self.attachments(ticket["id"])
+        self.assertEqual([(a["filename"], a["content_type"], a["size"], a["source"]) for a in kept],
+                         [("damage.jpg", "image/jpeg", 10, "email"), ("receipt.pdf", "application/pdf", 8, "email")])
+        # nothing to read, so the message says what it was rather than looking empty
+        self.assertEqual(self.messages(ticket["id"])[0]["body"], NO_TEXT)
+
+        got = self.w.client.get(f"{API}/attachments/{kept[0]['id']}", headers=self.support_h)
+        self.assertEqual(got.content, b"jpeg-bytes")
+        self.assertEqual(got.headers["content-disposition"],
+                         'attachment; filename="damage.jpg"; filename*=UTF-8\'\'damage.jpg')
+
+    def test_files_on_an_answer_join_the_ticket_it_answers(self):
+        account = self.mailbox()
+        address, subject = account["address"], f"Follow-up {self.w.sfx}"
+        jane = self.w.email("jane")
+        self.deliver(address, mail_bytes(sender=f"Jane <{jane}>", to=address, subject=subject,
+                                         message_id="<f-1@example.com>"))
+        self.poll()
+        ticket = self.tickets(subject)[0]
+        self.deliver(address, mail_bytes(sender=f"Jane <{jane}>", to=address, subject=f"Re: {subject}",
+                                         body="The second one:", message_id="<f-2@example.com>",
+                                         in_reply_to="<f-1@example.com>",
+                                         attachments=(("second.jpg", b"more-bytes"),)))
+
+        self.assertIn("filed 1 (0 new)", self.poll())
+
+        self.assertEqual([a["filename"] for a in self.attachments(ticket["id"])], ["second.jpg"])
+        self.assertEqual(len(self.tickets(subject)), 1)  # it joined the thread, it didn't open a ticket
+
+    def test_a_file_too_big_to_keep_is_counted_not_lost(self):
+        """The message says what was left behind instead of arriving with a photo quietly missing."""
+        account = self.mailbox()
+        address, subject = account["address"], f"Two photos {self.w.sfx}"
+        self.deliver(address, mail_bytes(to=address, subject=subject, body="Here they are.",
+                                         message_id="<b-1@example.com>",
+                                         attachments=(("huge.jpg", b"x" * 20), ("small.jpg", b"ok"))))
+
+        with mock.patch("app.modules.inbox.poller.MAX_FILE_BYTES", 4):
+            line = self.poll()
+
+        self.assertIn("filed 1 (1 new)", line)
+        self.assertIn("files 1", line)
+        ticket = self.tickets(subject)[0]
+        self.assertEqual([a["filename"] for a in self.attachments(ticket["id"])], ["small.jpg"])
+        self.assertEqual(self.messages(ticket["id"])[0]["body"],
+                         "Here they are.\n\n(1 file came with this message and couldn't be kept)")
 
     def test_our_reply_carries_its_own_id_and_the_answer_joins_the_thread(self):
         account = self.mailbox()

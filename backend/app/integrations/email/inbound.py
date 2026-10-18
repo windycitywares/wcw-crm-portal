@@ -28,7 +28,7 @@ from typing import Protocol
 
 TIMEOUT = 20
 # What a message with no text of its own (a screenshot, a wrapped PDF) becomes in a ticket.
-NO_TEXT = "(no message text — attachments are not kept yet)"
+NO_TEXT = "(no message text — an attachment came with it)"
 
 # A Message-ID, with or without its angle brackets. Anything else in the header is somebody's comment.
 _ID = re.compile(r"<([^<>\s]+@[^<>\s]+)>")
@@ -59,8 +59,23 @@ class MailboxStatus:
 
 
 @dataclass(frozen=True)
+class MailFile:
+    """One file that came with a message: what the sender called it, what it is, and its bytes.
+
+    `data` is what was in the message itself — nothing here fetches anything, so a mailbox that hands
+    over a message hands over everything in it. A file with no name of its own is not a file beside the
+    message (it is a part of the message, e.g. an image its HTML points at), so it isn't one of these.
+    """
+
+    filename: str
+    content_type: str
+    data: bytes
+
+
+@dataclass(frozen=True)
 class InboundMessage:
-    """One message, as the CRM needs it: who wrote it, what it says, and the ids that thread it.
+    """One message, as the CRM needs it: who wrote it, what it says, the files it came with, and the ids
+    that thread it.
 
     `message_id` is the sender's own `Message-ID` with the angle brackets taken off (that is what we
     store and match on); it is None only when the sender didn't provide one.
@@ -77,6 +92,7 @@ class InboundMessage:
     in_reply_to: str | None = None
     references: tuple[str, ...] = ()
     auto_submitted: str | None = None  # the sender's own "a machine wrote this" header, if it has one
+    attachments: tuple[MailFile, ...] = ()
 
 
 class _Text(HTMLParser):
@@ -156,6 +172,33 @@ def _body(msg: object) -> str:
     return _plain(str(content))
 
 
+def _files(msg: object) -> tuple[MailFile, ...]:
+    """Every part with a name of its own: what a customer attached, and what their client called it.
+
+    A part with no name is part of the message — its text, or an image its HTML points at — so it is not
+    a file beside it. Nothing here limits what it collects: the inbox job decides what is worth keeping
+    (and says what it left behind), and the caller sees one message either way.
+    """
+    try:
+        parts = list(msg.walk())  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001 - a message that can't be walked is a message with no files we can read
+        return ()
+    found: list[MailFile] = []
+    for part in parts:
+        try:
+            if part.get_content_maintype() == "multipart":
+                continue
+            name = part.get_filename()
+            payload = part.get_payload(decode=True) if name else None
+            kind = part.get_content_type() if name else ""
+        except Exception:  # noqa: BLE001 - one unreadable part must not cost us the message
+            continue
+        if not name or not payload:
+            continue  # no name (not a file), or nothing in it: not worth a row
+        found.append(MailFile(filename=str(name), content_type=str(kind or ""), data=payload))
+    return tuple(found)
+
+
 def parse_message(uid: str, raw: bytes) -> InboundMessage:
     """Turn one raw message into the fields the CRM keeps.
 
@@ -166,13 +209,10 @@ def parse_message(uid: str, raw: bytes) -> InboundMessage:
     msg = BytesParser(policy=policy.default).parsebytes(raw)
     from_email, from_name = _address(msg.get("From"))
     to_email, _ = _address(msg.get("To"))
+    files = _files(msg)
     text = _body(msg).strip()
     if not text:
-        try:
-            has_attachment = any(part.get_filename() for part in msg.walk())
-        except Exception:  # noqa: BLE001
-            has_attachment = False
-        text = NO_TEXT if has_attachment else ""
+        text = NO_TEXT if files else ""
     return InboundMessage(
         uid=uid,
         subject=" ".join(str(msg.get("Subject") or "").split()),
@@ -185,6 +225,7 @@ def parse_message(uid: str, raw: bytes) -> InboundMessage:
         in_reply_to=_id(msg.get("In-Reply-To")),
         references=tuple(i for i in (_id(v) for v in str(msg.get("References") or "").split()) if i),
         auto_submitted=" ".join(str(msg.get("Auto-Submitted") or "").split()) or None,
+        attachments=files,
     )
 
 

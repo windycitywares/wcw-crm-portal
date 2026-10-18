@@ -10,6 +10,12 @@ that can't be filed doesn't stop the others (and stays unread to be retried), an
 doesn't stop the others either — what went wrong is written on the mailbox (`last_error`) where the admin
 who set it up can see it.
 
+What came with a message — a photo of the damage, a PDF invoice — is kept with the ticket it belongs to
+(see `app.modules.attachments`), so the conversation is complete on the screen. A message may bring a
+limited number of files of a sane size (`MAX_FILES`, `MAX_FILE_BYTES`); anything past that is *counted*
+and the message itself says it was left behind, which is more honest than a ticket that quietly lost a
+customer's photos.
+
 Two things are deliberately *not* done here. Automatic mail (an out-of-office reply, a robot answering a
 robot) is skipped rather than filed: a machine isn't a customer. And spam is left alone — a human reads
 the inbox the CRM fills, so filtering it out is a policy decision for a later batch, not a quiet rule here.
@@ -26,7 +32,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, ValidationFailedError
 from app.core.security import SecretBox
-from app.integrations.email import InboundMessage, MailboxConfig, MailboxError, mailbox_for
+from app.integrations.email import InboundMessage, MailFile, MailboxConfig, MailboxError, mailbox_for
+from app.modules.attachments.service import MAX_BYTES as MAX_FILE_BYTES
+from app.modules.attachments.service import AttachmentService
 from app.modules.customers.service import CustomerService
 from app.modules.lookups.service import LookupService
 from app.modules.tickets.schemas import TicketCreate
@@ -41,6 +49,7 @@ log = logging.getLogger("wcw.crm.inbox")
 PER_RUN = 50        # messages taken from one mailbox in a run; the rest wait for the next minute
 MAX_BODY = 20_000   # what a ticket message holds (the same limit the API enforces)
 MAX_SUBJECT = 200   # tickets.subject is String(200)
+MAX_FILES = 10      # files kept from one message: a mailbox is open to anyone who finds the address
 NUMBER = re.compile(r"\[([A-Za-z]+-\d+)\]")  # the "[T-000123]" our replies carry in the subject
 
 
@@ -70,6 +79,15 @@ class Polled:
     opened: int = 0   # of those, new tickets
     skipped: int = 0  # already stored, or the sender is a machine answering a machine
     missed: int = 0   # couldn't be taken; left unread for the next run
+    files: int = 0    # files kept out of those messages
+
+
+@dataclass(frozen=True)
+class Filed:
+    """What became of one message: which way it was filed, and how many files came with it."""
+
+    outcome: str  # opened | joined | duplicate | automatic
+    files: int = 0
 
 
 class InboxPoller:
@@ -79,6 +97,7 @@ class InboxPoller:
         self.accounts = EmailAccountRepository(session)
         self.customers = CustomerService(session)
         self.tickets = TicketService(session)
+        self.attachments = AttachmentService(session)
         self.box = SecretBox()
 
     # ---- the job ---------------------------------------------------------------------------------
@@ -87,7 +106,7 @@ class InboxPoller:
         if not rows:
             return None
         boxes, unreadable = self._prepare(rows)
-        filed = opened = skipped = missed = broken = 0
+        filed = opened = skipped = missed = files = broken = 0
         for account_id, address, why in unreadable:
             broken += 1
             await self._note(account_id, address, why)
@@ -103,9 +122,10 @@ class InboxPoller:
                 continue
             filed, opened = filed + got.filed, opened + got.opened
             skipped, missed = skipped + got.skipped, missed + got.missed
+            files += got.files
         if not (filed or skipped or missed or broken):
             return None  # a quiet run says nothing: the job log only speaks when something happened
-        return (f"mailboxes {len(rows)}, filed {filed} ({opened} new), skipped {skipped}, "
+        return (f"mailboxes {len(rows)}, filed {filed} ({opened} new), files {files}, skipped {skipped}, "
                 f"missed {missed}, failed {broken}")
 
     def _prepare(self, rows: list[EmailAccount]) -> tuple[list[Mailbox], list[tuple[int, str, str]]]:
@@ -131,18 +151,19 @@ class InboxPoller:
         for message in messages:
             try:
                 async with self.session.begin_nested():
-                    outcome = await self.absorb(box, message)
+                    filed = await self.absorb(box, message)
                 await self.session.commit()
             except Exception as exc:  # noqa: BLE001 - one bad message mustn't stop the rest
                 got.missed += 1
                 log.warning("inbox: %s couldn't take uid %s: %s", box.address, message.uid, exc)
                 continue
-            if outcome == "opened":
+            if filed.outcome == "opened":
                 got.opened, got.filed = got.opened + 1, got.filed + 1
-            elif outcome == "joined":
+            elif filed.outcome == "joined":
                 got.filed += 1
             else:
                 got.skipped += 1
+            got.files += filed.files
             seen.append(message.uid)
         if seen:
             await mailbox.mark_seen(seen)  # only what is safely stored: a crash here only means a re-take
@@ -150,14 +171,15 @@ class InboxPoller:
         return got
 
     # ---- filing one message ----------------------------------------------------------------------
-    async def absorb(self, box: Mailbox, message: InboundMessage) -> str:
+    async def absorb(self, box: Mailbox, message: InboundMessage) -> Filed:
         """File one message. Says what happened: "opened" (a new ticket), "joined" (an existing thread),
-        "duplicate" (already stored under this `Message-ID`) or "automatic" (a machine wrote it)."""
+        "duplicate" (already stored under this `Message-ID`) or "automatic" (a machine wrote it) — and
+        how many files came to the CRM with it."""
         external_id = self._external_id(box, message)
         if message.auto_submitted and message.auto_submitted.lower() != "no":
-            return "automatic"
+            return Filed("automatic")
         if await self.tickets.thread_for([external_id]):
-            return "duplicate"  # a re-take after a crash; the unique id would refuse it anyway
+            return Filed("duplicate")  # a re-take after a crash; the unique id would refuse it anyway
 
         node = [i for i in (message.in_reply_to, *reversed(message.references or ())) if i]
         ticket_id = await self.tickets.thread_for(node) if node else None
@@ -167,16 +189,51 @@ class InboxPoller:
         if message.from_email:  # a message with no usable From still gets filed: staff can link it later
             customer_id = await self.customers.find_or_create(email=message.from_email, full_name=message.from_name,
                                                               how="email")
-        body = (message.text or "")[:MAX_BODY]
+        files, dropped = self._pick(message)
+        body = self._body(message, dropped)
         if ticket_id is not None:
             await self.tickets.add_inbound(ticket_id, body=body, external_id=external_id,
                                            from_email=message.from_email, to_email=box.address,
                                            when=message.date)
-            return "joined"
-        await self.tickets.create(TicketCreate(
+            return Filed("joined", await self._keep(ticket_id, files))
+        ticket = await self.tickets.create(TicketCreate(
             subject=self._subject(message), description=body, ticket_type=await self._default_type(),
             channel="email", customer_id=customer_id), actor=None, commit=False, opened_at=message.date)
-        return "opened"
+        return Filed("opened", await self._keep(ticket.id, files))
+
+    # ---- the files a message brought ---------------------------------------------------------------
+    @staticmethod
+    def _pick(message: InboundMessage) -> tuple[list[MailFile], int]:
+        """Which of the message's files are worth keeping, and how many are left behind.
+
+        A mailbox is open to anyone who finds the address, and the disk is finite: a message brings
+        `MAX_FILES` sane-sized files and no more. What isn't kept is *counted*, and the message says so
+        (`_body`) — a ticket that quietly lost a customer's photos is worse than one that admits it.
+        """
+        kept = [f for f in message.attachments if len(f.data) <= MAX_FILE_BYTES][:MAX_FILES]
+        return kept, len(message.attachments) - len(kept)
+
+    @staticmethod
+    def _body(message: InboundMessage, dropped: int) -> str:
+        body = (message.text or "")[:MAX_BODY]
+        if dropped:
+            body += (f"\n\n({dropped} file{'s' if dropped != 1 else ''} came with this message "
+                     "and couldn't be kept)")
+        return body
+
+    async def _keep(self, ticket_id: int, files: list[MailFile]) -> int:
+        """Keep what came with the message against its ticket, in the order it was sent. Returns how
+        many landed; the caller commits, so a message and its files are filed together or not at all."""
+        kept = 0
+        for file in files:
+            try:
+                await self.attachments.keep("ticket", ticket_id, filename=file.filename,
+                                            content_type=file.content_type, data=file.data, source="email",
+                                            commit=False)
+            except ValidationFailedError:  # empty, or bigger than `_pick` allowed for: counted, not fatal
+                continue
+            kept += 1
+        return kept
 
     # ---- pieces ----------------------------------------------------------------------------------
     @staticmethod

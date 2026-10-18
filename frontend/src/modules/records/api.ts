@@ -28,6 +28,18 @@ export interface Activity {
   data: Record<string, unknown> | null;
 }
 
+export interface Attachment {
+  id: number;
+  entity_type: string;
+  entity_id: number;
+  filename: string;
+  content_type: string;
+  size: number;
+  source: string;
+  created_by: number | null;
+  created_at: string;
+}
+
 export interface Colleague {
   id: number;
   full_name: string;
@@ -47,4 +59,7 @@ export const recordsApi = {
   tags: (r: RecordRef) => apiFetch<Tag[]>(`${base(r)}/tags`),
   setTags: (r: RecordRef, names: string[]) => apiFetch<Tag[]>(`${base(r)}/tags`, json("PUT", { names })),
   directory: () => apiFetch<Colleague[]>("/users/directory"),
+  attachments: (r: RecordRef) => apiFetch<Attachment[]>(`${base(r)}/attachments`),
+  attachmentUrl: (id: number) => `/attachments/${id}`, // fetched with the token by `apiDownload`
+  deleteAttachment: (id: number) => apiFetch<void>(`/attachments/${id}`, { method: "DELETE" }),
 };
