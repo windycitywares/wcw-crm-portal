@@ -115,6 +115,11 @@ conversation store next to the first one.
 
 Two notes for whoever picks this up:
 
+- The three M8 branches were cut one from the next on top of the campaign follow-up branches, so the
+  stack is `main` → `fix/campaign-tracking-links` → `feat/m5-6-one-click-unsubscribe` → batch 1 → batch 2
+  → batch 3. Merge order follows from that: the campaign fix first, then one-click unsubscribe, then M8
+  1 → 2 → 3 (each PR states its dependency). Rebasing M8 onto `main` to make the three PRs independent
+  is possible but needs a force-push, so it is the owner's call.
 - Batch 1's migration is `0024` off `0022_suppliers`, batch 2's is `0025` off `0024` and batch 3's is `0026`
   off `0025`, so each says "depends on" the one before and the three merge in order. The unmerged
   `feat/m6-2-supplier-products` carries `0023`; whichever of *those* merges second must repoint its
