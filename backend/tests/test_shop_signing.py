@@ -2,7 +2,7 @@
 
 import unittest
 
-from app.integrations.shop import signing
+from app.integrations import signing
 
 SECRET = "s" * 40
 

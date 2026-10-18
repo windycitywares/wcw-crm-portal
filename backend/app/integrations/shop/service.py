@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, ValidationFailedError
 from app.core.pagination import PageParams
+from app.integrations import signing
 from app.modules.activity.service import TimelineService, preview
 from app.modules.customers.service import CustomerService
 from app.modules.lookups.service import LookupService
@@ -29,7 +30,6 @@ from app.modules.settings.service import SettingsService
 from app.modules.tickets.schemas import TicketCreate
 from app.modules.tickets.service import TicketService
 
-from . import signing
 from .models import DONE, FAILED, IGNORED, PENDING, ShopEvent, ShopOrder
 from .repository import ShopEventRepository, ShopOrderRepository
 from .schemas import (
