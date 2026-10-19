@@ -22,15 +22,20 @@ function fileSize(bytes: number) {
  * The files kept against a record — what a customer sent with their message, and what the team adds.
  * Anyone who can see the record can fetch one; adding or removing one changes the record, so those
  * buttons take the right to change it. A reader with nothing to look at sees nothing at all.
+ *
+ * `sources` maps a message id to the moment that message was sent: a file that came with one names it
+ * and links to it in the thread (`#message-<id>`), where the record renders the messages.
  */
 export function Attachments({
   record,
   canEdit,
   refreshKey,
+  sources,
 }: {
   record: RecordRef;
   canEdit: boolean;
   refreshKey?: string;
+  sources?: Record<number, string>;
 }) {
   const toast = useToast();
   const [files, setFiles] = useState<Attachment[] | null>(null);
@@ -130,9 +135,18 @@ export function Attachments({
                 <Icon name="download" className="size-3.5" />
                 <span className="max-w-[16rem] truncate">{f.filename}</span>
               </Button>
-              <span className="text-xs text-muted">
-                {fileSize(f.size)} · {formatDateTime(f.created_at)}
-              </span>
+              <span className="text-xs text-muted">{fileSize(f.size)}</span>
+              {f.message_id != null && sources?.[f.message_id] ? (
+                // Which message brought this file — links back to it in the thread above.
+                <a
+                  href={`#message-${f.message_id}`}
+                  className="text-xs text-muted underline decoration-dotted hover:text-ink"
+                >
+                  Message · {sources[f.message_id]}
+                </a>
+              ) : (
+                <span className="text-xs text-muted">{formatDateTime(f.created_at)}</span>
+              )}
               {canEdit && (
                 <Button
                   size="sm"

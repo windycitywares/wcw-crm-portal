@@ -32,6 +32,7 @@ export interface Attachment {
   id: number;
   entity_type: string;
   entity_id: number;
+  message_id: number | null;
   filename: string;
   content_type: string;
   size: number;

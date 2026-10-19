@@ -12,6 +12,7 @@ class AttachmentOut(BaseModel):
     id: int
     entity_type: str
     entity_id: int
+    message_id: int | None
     filename: str
     content_type: str
     size: int

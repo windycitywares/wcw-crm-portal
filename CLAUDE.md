@@ -276,4 +276,11 @@ npm run typecheck
   (`Cannot find module '../lightningcss.linux-x64-gnu.node'`). **#73** regenerates the lockfile with `node_modules` out
   of the way (npm otherwise prunes it to the installed tree, which is how the other platforms were lost) so every
   platform's package is listed — only postcss moved (8.5.30 → 8.5.31). Both workflows are green on `main` after #72/#73.
+- 2026-10-19: **M8 batch 9 (which message brought a file)** — a file the inbox filed now says which message carried
+  it: `attachments.message_id` (migration 0030, nullable, a plain id — no cross-module foreign key) is set by
+  `MessageFiler` from the id `TicketService.add_inbound` returns, so a file on an *answer* points at the answer, not at
+  the message that opened the ticket; a file a member of staff added (batch 8) has none. The id rides along on the
+  attachments API, and the `Attachments` panel names the moment and links to the message in the thread (`#message-<id>`;
+  the conversation now renders each message with that id). No new permission, no new endpoint. Built on
+  `feat/m8-9-which-message`. Next: the connectors themselves and retiring the shop's inbox.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

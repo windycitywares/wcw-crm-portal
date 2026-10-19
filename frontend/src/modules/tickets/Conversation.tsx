@@ -87,8 +87,9 @@ export function Conversation({ ticket, onChanged }: { ticket: Ticket; onChanged:
             {messages.map((m) => (
               <li
                 key={m.id}
+                id={`message-${m.id}`}
                 className={cn(
-                  "rounded-[var(--radius-control)] border px-4 py-3",
+                  "scroll-mt-24 rounded-[var(--radius-control)] border px-4 py-3",
                   m.direction === "internal" && "border-line bg-sand",
                   m.direction === "outbound" && "border-accent/25 bg-accent-soft",
                   m.direction === "inbound" && "border-line bg-surface",
@@ -105,8 +106,14 @@ export function Conversation({ ticket, onChanged }: { ticket: Ticket; onChanged:
           </ol>
         )}
 
-        {/* What the customer sent with their message: the ticket's files, not the thread's. */}
-        <Attachments record={{ type: "ticket", id: ticket.id }} canEdit={mayWrite} refreshKey={ticket.updated_at} />
+        {/* What the customer sent with their message: the ticket's files, not the thread's. A file that
+            came with a message names it and links back to it above. */}
+        <Attachments
+          record={{ type: "ticket", id: ticket.id }}
+          canEdit={mayWrite}
+          refreshKey={ticket.updated_at}
+          sources={Object.fromEntries((messages ?? []).map((m) => [m.id, formatDateTime(m.created_at)]))}
+        />
 
         {mayWrite && (
           <form onSubmit={send} className="grid gap-3 border-t border-line pt-4">

@@ -534,6 +534,9 @@ class InboxPollTests(unittest.TestCase):
         kept = self.attachments(ticket["id"])
         self.assertEqual([(a["filename"], a["content_type"], a["size"], a["source"]) for a in kept],
                          [("damage.jpg", "image/jpeg", 10, "email"), ("receipt.pdf", "application/pdf", 8, "email")])
+        # each file says which message it came with, so the conversation can point back to it
+        message_id = self.messages(ticket["id"])[0]["id"]
+        self.assertEqual([a["message_id"] for a in kept], [message_id, message_id])
         # nothing to read, so the message says what it was rather than looking empty
         self.assertEqual(self.messages(ticket["id"])[0]["body"], NO_TEXT)
 
@@ -558,6 +561,9 @@ class InboxPollTests(unittest.TestCase):
         self.assertIn("filed 1 (0 new)", self.poll())
 
         self.assertEqual([a["filename"] for a in self.attachments(ticket["id"])], ["second.jpg"])
+        # the file belongs to the answer that carried it, not to the message that opened the ticket
+        self.assertEqual([a["message_id"] for a in self.attachments(ticket["id"])],
+                         [self.messages(ticket["id"])[-1]["id"]])
         self.assertEqual(len(self.tickets(subject)), 1)  # it joined the thread, it didn't open a ticket
 
     def test_a_file_too_big_to_keep_is_counted_not_lost(self):
