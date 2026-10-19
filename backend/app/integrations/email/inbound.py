@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import imaplib
+import logging
 import re
 import ssl
 from collections.abc import Callable, Sequence
@@ -25,6 +26,8 @@ from email.parser import BytesParser
 from email.utils import parseaddr, parsedate_to_datetime
 from html.parser import HTMLParser
 from typing import Protocol
+
+log = logging.getLogger("wcw.crm.email.inbound")
 
 TIMEOUT = 20
 # What a message with no text of its own (a screenshot, a wrapped PDF) becomes in a ticket.
@@ -154,7 +157,8 @@ def _when(msg: object) -> datetime | None:
         return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
     try:
         return parsedate_to_datetime(str(parsed or ""))
-    except Exception:  # noqa: BLE001 - ditto
+    except (ValueError, TypeError, OverflowError):
+        # Malformed, empty or absurd dates are not worth losing the message over.
         return None
 
 
@@ -164,6 +168,7 @@ def _body(msg: object) -> str:
         part = msg.get_body(preferencelist=("plain", "html"))  # type: ignore[attr-defined]
         content = part.get_content() if part is not None else None
     except Exception:  # noqa: BLE001 - an unreadable charset or part is not worth losing the ticket over
+        log.debug("email: could not read message body", exc_info=True)
         return ""
     if content is None:
         return ""
@@ -182,6 +187,7 @@ def _files(msg: object) -> tuple[MailFile, ...]:
     try:
         parts = list(msg.walk())  # type: ignore[attr-defined]
     except Exception:  # noqa: BLE001 - a message that can't be walked is a message with no files we can read
+        log.debug("email: could not walk message parts", exc_info=True)
         return ()
     found: list[MailFile] = []
     for part in parts:
@@ -192,6 +198,7 @@ def _files(msg: object) -> tuple[MailFile, ...]:
             payload = part.get_payload(decode=True) if name else None
             kind = part.get_content_type() if name else ""
         except Exception:  # noqa: BLE001 - one unreadable part must not cost us the message
+            log.debug("email: skipping unreadable message part", exc_info=True)
             continue
         if not name or not payload:
             continue  # no name (not a file), or nothing in it: not worth a row
@@ -287,7 +294,7 @@ class ImapInboundMailbox:
         try:
             client.logout()
         except Exception:  # noqa: BLE001 - a failed goodbye must not hide the real answer
-            pass
+            log.debug("email: IMAP logout failed (non-fatal)", exc_info=True)
 
     # ---- the three things a mailbox is asked -----------------------------------------------------
     def _check_sync(self) -> MailboxStatus:
