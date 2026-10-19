@@ -293,4 +293,12 @@ npm run typecheck
     `products()`, so the shop token stays server-side), and picking a match starts the line with name, SKU, base unit
     price and `shop_product_id`. An unset/down shop is a readable 422; the line can still be typed by hand. Sales
     access reads it. No migration.
+- 2026-10-19: **M3 is complete — the shop's contact form opens a CRM ticket** (`wcw-shop-portal` #74, its last open
+  row). The shop records a written contact message in its own `crm_outbox` (kind `contact`, in the same transaction
+  as the message) and the `crm_sync` job sends `contact_message.created` with `name`, `email`, `subject`, `message`
+  and `order_number`; the handler from batch 5 (#32) already opens an unassigned *Other* ticket on the `shop_form`
+  channel, linking the order when the quoted number matches and finding or creating the customer by email. Sent
+  **once, when the message arrives**: opening, replying to or closing it in the shop's inbox, and its `emailed` flag,
+  are the shop's own bookkeeping and never send a second event — no duplicate ticket. The form has no phone field, so
+  none is sent (`ContactData.phone` is optional). No migration, no setting on either side.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.
