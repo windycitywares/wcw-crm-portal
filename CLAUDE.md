@@ -234,7 +234,7 @@ npm run typecheck
   find the customer by pasting the whole number into the search box (digits ≥ 7) — the merge keeps only the kept record's
   phone (only live rows match). Pure tests (`test_text.py`) + intake/customers DB tests. Merged as #67 (M8 batches 1–6
   already in `main`). Next: the connectors themselves and retiring the shop's inbox.
-- 2026-10-18: **code-quality pass** on the code M8 touched, on top of #67, on branch `chore/code-quality` (awaiting a PR; no
+- 2026-10-18: **code-quality pass** on the code M8 touched, on top of #67, on branch `chore/code-quality`, opened as **#68** (no
   behaviour is meant to change, but two real bugs turned up and were fixed). The custom-field validators in
   `customfields/types.py` are typed (`JsonValue`, a `FieldDef` protocol, a `Validator` TypedDict) rather than `Any`, and the
   11 per-module `_snapshot()` copies are now one `app/shared/snapshot.py`. **Bug 1:** `CustomFieldService.field_types()` still
