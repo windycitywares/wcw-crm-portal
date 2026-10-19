@@ -47,7 +47,7 @@ Rules:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone
 from typing import Any
 
 from sqlalchemy import Select
@@ -84,12 +84,12 @@ from .repository import (
 from .schemas import (
     CampaignIn, CampaignOut, CampaignPage, CampaignReport, CampaignSchedule, CampaignStats, CampaignSummary,
     LinkClicks, MemberOut, MemberPage, MembersAdded, MembersIn, RecipientCounts, RecipientOut, RecipientPage,
-    RenderedEmail, SegmentField, SuppressionIn, SuppressionOut, SuppressionPage, TargetListIn, TargetListOut,
+    RenderedEmail, SuppressionIn, SuppressionOut, SuppressionPage, TargetListIn, TargetListOut,
     TargetListPage, TargetListUpdate, TemplateIn, TemplateOut, TemplatePage, TemplatePreviewIn, TemplateSummary, TemplateUpdate,
     TestIn, TestSent, UnsubscribeIn, UnsubscribeOut,
 )
 from .tokens import (
-    click_url, open_url, read_click_token, read_open_token, read_unsubscribe_token, unsubscribe_one_click_url,
+    click_url, open_url, read_unsubscribe_token, unsubscribe_one_click_url,
     unsubscribe_url,
 )
 

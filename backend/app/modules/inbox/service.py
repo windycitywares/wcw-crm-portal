@@ -6,8 +6,6 @@ admin who has just typed a host, a folder and a password needs to know it works 
 depends on it.
 """
 
-from typing import Any
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, ValidationFailedError
