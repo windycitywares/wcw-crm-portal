@@ -61,7 +61,7 @@ class SettingsService:
     async def _row(self, key: str) -> AppSetting | None:
         return await self.session.get(AppSetting, key)
 
-    async def get_model[T: BaseModel](self, key: str, *, factory: Callable[[], T] | None = None) -> T:
+    async def get_model(self, key: str, *, factory: Callable[[], T] | None = None) -> T:
         """The group's values with secrets decrypted (server-side use only).
 
         Pass `factory=` for a typed call site (e.g. `get_model("email", factory=EmailSettings)`)
