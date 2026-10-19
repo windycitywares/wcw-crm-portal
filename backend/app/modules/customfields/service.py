@@ -32,7 +32,7 @@ class CustomFieldService:
 
     @staticmethod
     def field_types() -> list[FieldTypeOut]:
-        return [FieldTypeOut(key=k, label=label) for k, (label, _) in FIELD_TYPES.items()]
+        return [FieldTypeOut(key=k, label=v["label"]) for k, v in FIELD_TYPES.items()]
 
     async def list(self, entity_type: str, *, active_only: bool = False) -> list[FieldDefOut]:
         get_entity_type(entity_type)
