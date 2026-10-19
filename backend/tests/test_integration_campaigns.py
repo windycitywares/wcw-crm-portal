@@ -88,7 +88,7 @@ class CampaignTrackingUnitTests(unittest.TestCase):
         from app.modules.campaigns.models import Campaign, CampaignRecipient, CLICK, OPEN
         from app.modules.campaigns.service import CampaignService
 
-        service = CampaignService(MagicMock())
+        service = CampaignService(AsyncMock())
         service.recipients.with_campaign = AsyncMock(return_value=(CampaignRecipient(
             id=21, campaign_id=7, customer_id=9, email="pink@example.com", status="sent"
         ), "Spring sale"))
@@ -166,7 +166,7 @@ class CampaignTests(unittest.TestCase):
         made = self.template("<p>Hello {{ customer.first_name }},</p><p>Sale this week.</p>")
         self.assertEqual(made["version"], 1)
         # the text body is derived from the HTML, so every email has one
-        self.assertEqual(made["text"], "Hello {{ customer.first_name }},\nSale this week.")
+        self.assertEqual(made["text"], "Hello {{ customer.first_name }},\n\nSale this week.")
 
         res = self.w.client.get(f"{API}/campaigns/templates/{made['id']}", headers=self.marketing_h)
         self.assertEqual(res.status_code, 200, res.text)

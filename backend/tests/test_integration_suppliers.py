@@ -55,7 +55,8 @@ class SupplierTests(unittest.TestCase):
         cls.manager, cls.manager_h = cls.w.user_with_token("manager")
         cls.sales, cls.sales_h = cls.w.user_with_token("sales")
         cls.read_only, cls.read_only_h = cls.w.user_with_token("read_only")
-        values = run(lambda session: LookupService(session).values("supplier_type"))
+        # the first *active* value: an earlier test may have added and deactivated one (tests share the database)
+        values = run(lambda session: LookupService(session).values("supplier_type", include_inactive=False))
         cls.supplier_type = values[0].key
 
     def setUp(self):

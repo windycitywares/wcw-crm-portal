@@ -49,10 +49,9 @@ def _contact_snapshot(contact: SupplierContact) -> dict[str, Any]:
 
 
 def _product_snapshot(product: SupplierProduct) -> dict[str, Any]:
-    return {field: getattr(product, field) for field in (
-        "shop_sku", "supplier_sku", "description", "unit_cost", "currency", "minimum_order_quantity",
-        "lead_time_days", "notes",
-    )}
+    # through the shared helper, so the money columns are stored as text — the audit column is JSON
+    return snapshot(product, ("shop_sku", "supplier_sku", "description", "unit_cost", "currency",
+                              "minimum_order_quantity", "lead_time_days", "notes"))
 
 
 class SupplierService:
@@ -210,6 +209,7 @@ class SupplierService:
                                        f"Contact updated: {contact.name}", actor=actor,
                                        data={"contact_id": contact.id, "fields": list(changes)})
         await self.session.commit()
+        await self.session.refresh(contact)  # `updated_at` is written by the database; read it back, don't lazy-load
         return SupplierContactOut.model_validate(contact)
 
     async def delete_contact(self, supplier_id: int, contact_id: int, actor) -> None:
@@ -283,6 +283,7 @@ class SupplierService:
                                        f"Supplied product updated: {product.shop_sku}", actor=actor,
                                        data={"product_id": product.id, "fields": list(changes)})
         await self.session.commit()
+        await self.session.refresh(product)  # `updated_at` is written by the database; read it back, don't lazy-load
         return SupplierProductOut.model_validate(product)
 
     async def delete_product(self, supplier_id: int, product_id: int, actor) -> None:

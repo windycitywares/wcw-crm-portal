@@ -33,7 +33,10 @@ async def list_attachments(session: SessionDep, user: CurrentUser, entity_type: 
 @router.get("/attachments/{attachment_id}")
 async def download_attachment(session: SessionDep, user: CurrentUser, attachment_id: int) -> Response:
     row, data = await AttachmentService(session).download(user, attachment_id)
-    return Response(data, media_type=row.content_type, headers={"Content-Disposition": _disposition(row.filename)})
+    # `clean_type` stored a plain `type/subtype`; hand it back exactly. Setting the header rather than
+    # `media_type` stops Starlette appending a charset to `text/*`, so the client gets what was stored.
+    return Response(data, headers={"Content-Type": row.content_type,
+                                   "Content-Disposition": _disposition(row.filename)})
 
 
 @router.delete("/attachments/{attachment_id}", status_code=status.HTTP_204_NO_CONTENT)

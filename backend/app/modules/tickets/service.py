@@ -432,6 +432,7 @@ class TicketService:
         await self.audit.record("sla_policy.update", actor=actor, entity_type="sla_policy", entity_id=policy.id,
                                 changes=diff(before, {**before, **changes}))
         await self.session.commit()
+        await self.session.refresh(policy)  # `updated_at` is written by the database; read it back, don't lazy-load
         return SlaPolicyOut.model_validate(policy)
 
     # ---- canned responses (Admin → Settings → Canned responses) -------------------------
@@ -469,6 +470,7 @@ class TicketService:
         await self.audit.record("canned_response.update", actor=actor, entity_type="canned_response", entity_id=row.id,
                                 changes=diff(before, {**before, **changes}))
         await self.session.commit()
+        await self.session.refresh(row)  # `updated_at` is written by the database; read it back, don't lazy-load
         return CannedResponseOut.model_validate(row)
 
     async def delete_canned(self, response_id: int, actor) -> None:

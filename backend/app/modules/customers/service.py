@@ -126,10 +126,13 @@ class CustomerService:
     def _consent(self, customer: Customer, consent: bool | None, how: str) -> None:
         if consent is None or consent == customer.marketing_consent:
             return
+        # A brand-new customer has not *agreed*, so recording "no consent" is not an unsubscribe: only someone
+        # who had agreed and then changed their mind gets an `unsubscribed_at`.
+        had_consent = bool(customer.marketing_consent)
         customer.marketing_consent = consent
         if consent:
             customer.consent_at, customer.consent_source, customer.unsubscribed_at = utcnow(), how, None
-        else:
+        elif had_consent:
             customer.unsubscribed_at = utcnow()
 
     async def create(self, data: CustomerCreate, actor, *, commit: bool = True) -> CustomerOut:

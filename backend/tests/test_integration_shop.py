@@ -25,6 +25,11 @@ class ShopWebhookTests(unittest.TestCase):
         res = cls.w.client.put(f"{API}/settings/shop", headers=cls.admin_h,
                                json={"enabled": True, "webhook_secret": SECRET})
         assert res.status_code == 200, res.text
+        # a response-time target, so a ticket the form opens gets an SLA (the module seed never runs in tests)
+        policy = cls.w.client.post(f"{API}/tickets/sla-policies", headers=cls.admin_h, json={
+            "name": f"Normal {cls.w.sfx}", "priority": "normal", "first_response_minutes": 480,
+            "resolve_minutes": 1440})
+        assert policy.status_code == 201, policy.text
         cls.shop_ids = iter(range(int(time.time() * 1000) % 10**9 * 10, 10**12))
 
     def setUp(self):

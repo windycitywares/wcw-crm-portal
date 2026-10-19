@@ -113,8 +113,8 @@ def _list_snapshot(target: TargetList) -> dict[str, Any]:
 
 
 def _campaign_snapshot(campaign: Campaign) -> dict[str, Any]:
-    return {"name": campaign.name, "status": campaign.status, "template_id": campaign.template_id,
-            "target_list_id": campaign.target_list_id, "scheduled_at": campaign.scheduled_at}
+    # through the shared helper, so `scheduled_at` is stored as text — the audit column is JSON
+    return snapshot(campaign, ("name", "status", "template_id", "target_list_id", "scheduled_at"))
 
 
 def _recipient_counts(counts: dict[str, int] | None) -> RecipientCounts:
@@ -801,6 +801,8 @@ class CampaignService:
         await self.timeline.record("customer", recipient.customer_id, "campaign.tracked", message,
                                    data={"campaign_id": recipient.campaign_id, "campaign": campaign_name,
                                          "kind": kind, "url": url or None})
+        # a pixel fetch or a click is its own small write: the request session does not commit for us
+        await self.session.commit()
         return True
 
     async def report(self, campaign_id: int) -> CampaignReport:

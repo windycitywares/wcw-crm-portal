@@ -27,11 +27,12 @@ class CampaignSendTests(unittest.TestCase):
     def setUp(self):
         reset_limits()
         self.clear_outbox()
+        self.close_stale_campaigns()
         self.email(enabled=True, daily_limit=300, per_minute=600)
 
     # ---- helpers ------------------------------------------------------------------------------
     def name(self, label: str = "x") -> str:
-        self._n += 1
+        type(self)._n += 1  # a per-class counter, so names never repeat between tests
         return f"{label}-{self._n}-{self.w.sfx}@example.com"
 
     def clear_outbox(self):
@@ -39,6 +40,21 @@ class CampaignSendTests(unittest.TestCase):
         from app.modules.mail.models import EmailOutbox
 
         run(lambda s: s.execute(update(EmailOutbox).values(status="failed", sent_at=None)))
+
+    def close_stale_campaigns(self):
+        """End any campaign another test left mid-flight: the dispatcher works over the whole database."""
+        from app.modules.campaigns.models import Campaign, CampaignRecipient
+
+        async def go(session):
+            sending = select(Campaign.id).where(Campaign.status == "sending")
+            await session.execute(
+                update(CampaignRecipient)
+                .where(CampaignRecipient.campaign_id.in_(sending),
+                       CampaignRecipient.status.in_(("pending", "queued")))
+                .values(status="skipped", reason="left over from another test"))
+            await session.execute(update(Campaign).where(Campaign.status == "sending").values(status="sent"))
+
+        run(go)
 
     def email(self, **values):
         base = {"smtp_host": "mail.example.com", "from_address": "crm@example.com",
@@ -76,11 +92,12 @@ class CampaignSendTests(unittest.TestCase):
         return self.w.client.post(f"{API}/campaigns/lists/{list_id}/members", headers=self.marketing_h,
                                   json={"customer_ids": ids})
 
-    def tag(self, customer_id: int, *names: str) -> None:
-        self._n += 1
-        res = self.w.client.put(f"{API}/entities/customer/{customer_id}/tags", headers=self.marketing_h,
+    def tag(self, customer_id: int, *names: str) -> dict[str, int]:
+        # tagging changes the customer, and marketing may only *see* customers (SPEC §2), so an admin tags
+        res = self.w.client.put(f"{API}/entities/customer/{customer_id}/tags", headers=self.admin_h,
                                 json={"names": [f"{n}-{self.w.sfx}" for n in names]})
         self.assertEqual(res.status_code, 200, res.text)
+        return {tag["name"]: tag["id"] for tag in res.json()}
 
     def campaign(self, template: dict, audience: dict, headers=None, **data) -> dict:
         data.setdefault("name", self.name("campaign"))
@@ -181,7 +198,7 @@ class CampaignSendTests(unittest.TestCase):
         self.assertIn("unsubscribe?token=", body[ada["email"]])
         self.assertIn(f"&c={campaign['id']}", body[ada["email"]])  # the campaign is noted on the link
         self.assertIn(f"&c={campaign['id']}", body[grace["email"]])
-        links = {m.to: re.search(r"unsubscribe\?token=([\w\-.]+)", m.html).group(1) for m in transport.sent}
+        links = {m.to: re.search(r"unsubscribe\?token=([\w\-.:]+)", m.html).group(1) for m in transport.sent}
         self.assertEqual(len(set(links.values())), 2)  # … and it is each customer's own token
 
         # the campaign learns from the outbox and closes itself
@@ -244,9 +261,9 @@ class CampaignSendTests(unittest.TestCase):
     def test_a_segment_is_frozen_when_the_campaign_starts(self):
         ada = self.customer(first_name="Ada")
         gary = self.customer(first_name="Gary")
-        self.tag(ada["id"], "vip")
+        vip = self.tag(ada["id"], "vip")[f"vip-{self.w.sfx}"]
         segment = self.audience(kind="segment", rules={
-            "match": "all", "rules": [{"field": "tags", "op": "has_any", "value": [f"vip-{self.w.sfx}"]}]})
+            "match": "all", "rules": [{"field": "tags", "op": "has_any", "value": [vip]}]})
         campaign = self.campaign(self.template(), segment)
         self.assertEqual(campaign["target_list_kind"], "segment")
         self.assertEqual(campaign["audience"], 1)
@@ -425,7 +442,7 @@ class CampaignSendTests(unittest.TestCase):
 
         # a reader whose client opened that link anyway lands on the footer's page: a GET never acts
         opened = self.w.client.get(f"{API}/campaigns/unsubscribe/one-click", params=query,
-                                   allow_redirects=False)
+                                   follow_redirects=False)
         self.assertEqual(opened.status_code, 307, opened.text)
         self.assertEqual(urlsplit(opened.headers["location"]).path, "/unsubscribe")
         self.assertTrue(self.w.client.get(f"{API}/customers/{person['id']}",
@@ -473,6 +490,7 @@ class CampaignSendTests(unittest.TestCase):
         transport = FakeTransport()
         self.dispatch()
         self.deliver(transport)
+        self.dispatch()  # a run of the job learns from the outbox that the message went
 
         sent = next(mail for mail in transport.sent if mail.to == person["email"])
         self.assertNotIn(destination, sent.html)  # the real address hides behind the redirect
@@ -486,7 +504,7 @@ class CampaignSendTests(unittest.TestCase):
         opened = self.w.client.get(f"{API}/campaigns/open", params={"token": pixel.group(1)})
         self.assertEqual(opened.status_code, 200, opened.text)
         followed = self.w.client.get(f"{API}/campaigns/click", params={"token": click.group(1)},
-                                     allow_redirects=False)
+                                     follow_redirects=False)
         self.assertEqual(followed.status_code, 307, followed.text)
         self.assertEqual(followed.headers.get("location"), destination)
 
@@ -503,6 +521,7 @@ class CampaignSendTests(unittest.TestCase):
         self.start(campaign["id"])
         self.dispatch()
         self.deliver(FakeTransport())
+        self.dispatch()  # learn from the outbox that the message went, so the report counts it delivered
 
         async def fetch_recipient_id(session):
             stmt = select(CampaignRecipient.id).where(CampaignRecipient.campaign_id == campaign["id"],
@@ -510,14 +529,15 @@ class CampaignSendTests(unittest.TestCase):
             return (await session.execute(stmt)).scalar_one()
 
         recipient_id = run(fetch_recipient_id)
-        open_res = self.w.client.get(f"{API}/campaigns/open", params={"token": tokens.open_url(recipient_id, base_url="https://crm.example.com")})
+        open_token = tokens.open_url(recipient_id, base_url="https://crm.example.com").split("token=", 1)[1]
+        open_res = self.w.client.get(f"{API}/campaigns/open", params={"token": open_token})
         self.assertEqual(open_res.status_code, 200, open_res.text)
         self.assertEqual(open_res.headers.get("content-type", "").startswith("image/gif"), True)
 
         dest = "https://shop.example.com/sale?x=1"
-        click_res = self.w.client.get(f"{API}/campaigns/click",
-                                      params={"token": tokens.click_url(recipient_id, dest, base_url="https://crm.example.com")},
-                                      allow_redirects=False)
+        click_token = tokens.click_url(recipient_id, dest, base_url="https://crm.example.com").split("token=", 1)[1]
+        click_res = self.w.client.get(f"{API}/campaigns/click", params={"token": click_token},
+                                      follow_redirects=False)
         self.assertEqual(click_res.status_code, 307, click_res.text)
         self.assertEqual(click_res.headers.get("location"), dest)
 
@@ -528,10 +548,12 @@ class CampaignSendTests(unittest.TestCase):
         self.assertEqual(report["links"][0]["url"], dest)
 
         stats = self.w.client.get(f"{API}/campaigns/stats", headers=self.marketing_h, params={"days": 7}).json()
-        self.assertEqual(stats["campaigns"], 1)
-        self.assertEqual(stats["sent"], 1)
-        self.assertEqual(stats["opened"], 1)
-        self.assertEqual(stats["clicked"], 1)
+        # the dashboard adds up every campaign that went out in the window and tests share one database,
+        # so this campaign is a floor, not the only one
+        self.assertGreaterEqual(stats["campaigns"], 1)
+        self.assertGreaterEqual(stats["sent"], 1)
+        self.assertGreaterEqual(stats["opened"], 1)
+        self.assertGreaterEqual(stats["clicked"], 1)
 
     # ---- permissions ----------------------------------------------------------------------------
     def test_permissions(self):
