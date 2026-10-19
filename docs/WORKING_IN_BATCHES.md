@@ -164,7 +164,7 @@ No behaviour is meant to change; two real bugs were found and fixed while doing 
 Not done (deliberately, for a later batch if wanted): DB-gated coverage already exercises `InboxService.check()`
 and `InboxPoller.absorb()` through the API and the `inbox` job, so no new tests were added for them.
 
-## CI repair (2026-10-18)
+## CI repair (2026-10-18 → 19)
 
 `backend.yml`'s DB suite had not passed since M3 batch 1 (#27) — about 70 red runs — so everything merged since was
 never executed. Two PRs put it green: **#69** fixed the one compile-time break that stopped the suite running at
@@ -179,6 +179,16 @@ all; **#70** then repaired the product and the tests the run exposed.
 Result: **264 tests, OK (2 skipped)** — the first green DB run since 2026-10-17. CI and the server run Python 3.11;
 a syntax the local interpreter accepts can still fail there, so prefer 3.11-compatible code.
 
+**The other workflow (`web.yml`) was red too**, since at least 2026-10-17 and for an unrelated reason: the
+`frontend/package-lock.json` had been regenerated on Windows and listed only the win32 optional binaries
+(`@next/swc-win32-x64-msvc`, `@tailwindcss/oxide-win32-x64-msvc`, `lightningcss-win32-x64-msvc`), so `npm install` on the
+Linux runner never fetched `lightningcss-linux-x64-gnu` and `next build` died evaluating `globals.css` (`Cannot find
+module '../lightningcss.linux-x64-gnu.node'`). **#73** regenerates the lockfile with `node_modules` out of the way (npm
+otherwise prunes the lockfile to whatever is installed on this machine, which is how the other platforms were lost) so
+every platform's package is listed — the only version that moves is postcss 8.5.30 → 8.5.31. `next build` passes on
+Linux. Switching the install step from `npm install` to `npm ci` would make the lockfile authoritative, but that needs a
+token with the `workflow` scope.
+
 
 ## Next milestones
-M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → M5 campaigns (complete and merged, #40–#48 and #50, except the template-workflow polish on `feat/m5-5d-template-workflow`) → M6 suppliers (batch 1 merged, #51; batches 2–3 built on `feat/m6-2-supplier-products` / `feat/m6-3-suppliers-web`) → M7 reports (batch 1 merged, #54; batch 2 in #55) → **post-v1 campaign-mail follow-ups (1 built on `fix/campaign-tracking-links`, 2 on `feat/m5-6-one-click-unsubscribe`; 3 is a decision, no work)** → **M8 communication channels / unified inbox (batch 1 ticket channels on `feat/m8-1-ticket-channels`, batch 2 the mailboxes the CRM reads on `feat/m8-2-inbox-mailboxes`, batch 3 email in on `feat/m8-3-email-in`, batch 4 the inbox web on `feat/m8-4-inbox-web`, batch 5 attachments on `feat/m8-5-attachments`, batch 6 channels that aren't mailboxes on `feat/m8-6-other-channels`, batch 7 phone-only sender matching merged as #67 — the CRM half of chat, Etsy and SMS, batch 8 staff uploads on `feat/m8-8-staff-uploads`; the connectors and the shop's own inbox retirement are next)** → **code-quality pass on `chore/code-quality` (PR #68; two bugs fixed: the field-types label and JSON-unsafe audit snapshots)** → **CI repair (#69 the 3.11 compile break, #70 the DB suite — 264 tests green, the first green DB run since #27)**.
+M4 sales (6 of 7 batches built: Sales API + web, Leads API + web, Deal items API + web; 4c waits on the shop's `products` read resource) → M5 campaigns (complete and merged, #40–#48 and #50, except the template-workflow polish on `feat/m5-5d-template-workflow`) → M6 suppliers (batch 1 merged, #51; batches 2–3 built on `feat/m6-2-supplier-products` / `feat/m6-3-suppliers-web`) → M7 reports (batch 1 merged, #54; batch 2 in #55) → **post-v1 campaign-mail follow-ups (1 built on `fix/campaign-tracking-links`, 2 on `feat/m5-6-one-click-unsubscribe`; 3 is a decision, no work)** → **M8 communication channels / unified inbox (batch 1 ticket channels on `feat/m8-1-ticket-channels`, batch 2 the mailboxes the CRM reads on `feat/m8-2-inbox-mailboxes`, batch 3 email in on `feat/m8-3-email-in`, batch 4 the inbox web on `feat/m8-4-inbox-web`, batch 5 attachments on `feat/m8-5-attachments`, batch 6 channels that aren't mailboxes on `feat/m8-6-other-channels`, batch 7 phone-only sender matching merged as #67 — the CRM half of chat, Etsy and SMS, batch 8 staff uploads merged as #72; the connectors and the shop's own inbox retirement are next)** → **code-quality pass on `chore/code-quality` (PR #68; two bugs fixed: the field-types label and JSON-unsafe audit snapshots)** → **CI repair (#69 the 3.11 compile break, #70 the DB suite — 264 tests green, the first green DB run since #27; #73 the web build, whose lockfile had lost every non-Windows binary)**.
