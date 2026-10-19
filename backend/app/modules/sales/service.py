@@ -29,6 +29,7 @@ from app.core.entities import EntityType, check_entity_access, entity_labels, re
 from app.core.exceptions import NotFoundError, PermissionDeniedError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.core.permissions import Permission, has_permission
+from app.integrations.shop.client import ShopApiError, shop_client
 from app.modules.activity.service import TimelineService
 from app.modules.audit.service import AuditService, diff
 from app.modules.customfields.service import CustomFieldService
@@ -42,7 +43,8 @@ from .models import Deal, DealItem, Pipeline, PipelineStage
 from .repository import DealItemRepository, DealRepository, PipelineRepository, PipelineStageRepository
 from .schemas import (
     Board, BoardStage, DealCreate, DealItemIn, DealItemOut, DealItems, DealItemUpdate, DealOut, DealPage,
-    DealUpdate, PipelineIn, PipelineOut, PipelineUpdate, SalesSummary, StageIn, StageOut, StageUpdate,
+    DealUpdate, PipelineIn, PipelineOut, PipelineUpdate, SalesSummary, ShopProductOut, StageIn, StageOut,
+    StageUpdate,
 )
 
 ENTITY = "deal"
@@ -375,6 +377,19 @@ class SalesService:
         """The lines on a deal. Anyone who can see sales can see what a deal is made of."""
         await self._get(deal_id)  # a missing deal is a 404, not an empty list
         return await self._deal_items(deal_id)
+
+    async def shop_products(self, q: str = "", limit: int = 20) -> list[ShopProductOut]:
+        """Search the shop's catalog for the picker on a deal's lines (SPEC §3.3).
+
+        A shop that isn't set up, or doesn't answer, is a readable 422 rather than a 500 — the salesperson
+        can always type the line by hand, and the draft they were filling in is not lost.
+        """
+        try:
+            client = shop_client(await SettingsService(self.session).get_model("shop"))
+            page = await client.products(q, limit)
+        except ShopApiError as exc:
+            raise ValidationFailedError(f"Can't reach the shop catalog: {exc}") from None
+        return [ShopProductOut(**item) for item in (page.get("items") or [])]
 
     async def add_item(self, deal_id: int, data: DealItemIn, actor) -> DealItemOut:
         deal = await self._deal_to_change(deal_id, actor)

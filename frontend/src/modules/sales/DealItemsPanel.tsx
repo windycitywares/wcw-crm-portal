@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
-import { money, salesApi, type DealItem, type DealItems, type Money } from "./api";
+import { money, salesApi, type DealItem, type DealItems, type Money, type ShopProduct } from "./api";
 
 /**
  * The products on a deal: what is being quoted, at what price. The lines add up to their own total,
@@ -33,6 +33,11 @@ function fields(item: DealItem): Fields {
 const INPUT =
   "min-w-0 rounded-md bg-transparent px-1.5 py-1 text-sm placeholder:text-muted/70 hover:bg-sand " +
   "focus-visible:bg-surface focus-visible:outline focus-visible:outline-1 focus-visible:outline-accent";
+
+/** A blank line. `shop_product_id` says the line came from the catalog (set by the picker). */
+function emptyDraft() {
+  return { name: "", sku: "", quantity: "1", unit_price: "", shop_product_id: null as number | null };
+}
 
 /** One line, edited where it sits: fix what's wrong and save, or take it off the deal. */
 function LineRow({
@@ -188,8 +193,48 @@ export function DealItemsPanel({
   const [data, setData] = useState<DealItems | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState({ name: "", sku: "", quantity: "1", unit_price: "" });
+  const [draft, setDraft] = useState(emptyDraft);
   const [busy, setBusy] = useState(false);
+  const [shopQuery, setShopQuery] = useState("");
+  const [shopResults, setShopResults] = useState<ShopProduct[] | null>(null);
+  const [shopBusy, setShopBusy] = useState(false);
+  const [shopError, setShopError] = useState<string | null>(null);
+
+  // The catalog picker: two characters and a pause, so a fast typist sends one request, not one per key.
+  useEffect(() => {
+    const q = shopQuery.trim();
+    if (!adding || q.length < 2) {
+      setShopResults(null);
+      setShopError(null);
+      setShopBusy(false);
+      return;
+    }
+    let live = true;
+    setShopBusy(true);
+    const timer = setTimeout(() => {
+      salesApi
+        .shopProducts(q)
+        .then((rows) => {
+          if (live) {
+            setShopResults(rows);
+            setShopError(null);
+          }
+        })
+        .catch((err) => {
+          if (live) {
+            setShopResults([]); // the manual fields below still work
+            setShopError(err instanceof Error ? err.message : "Couldn't search the shop");
+          }
+        })
+        .finally(() => {
+          if (live) setShopBusy(false);
+        });
+    }, 250);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [adding, shopQuery]);
 
   const load = useCallback(async () => {
     try {
@@ -214,10 +259,13 @@ export function DealItemsPanel({
       await salesApi.addDealItem(dealId, {
         name: draft.name.trim(),
         sku: draft.sku.trim() || null,
+        shop_product_id: draft.shop_product_id,
         quantity: draft.quantity.trim() || "1",
         unit_price: draft.unit_price.trim() || "0",
       });
-      setDraft({ name: "", sku: "", quantity: "1", unit_price: "" });
+      setDraft(emptyDraft());
+      setShopQuery("");
+      setShopResults(null);
       setAdding(false);
       await load();
     } catch (err) {
@@ -232,7 +280,22 @@ export function DealItemsPanel({
   const matches = Math.abs(lines - value) < 0.005;
   const hasLines = (data?.count ?? 0) > 0;
 
-  const set = (key: keyof typeof draft, value: string) => setDraft((d) => ({ ...d, [key]: value }));
+  const set = (key: "name" | "sku" | "quantity" | "unit_price", value: string) =>
+    setDraft((d) => ({ ...d, [key]: value }));
+
+  /** Take a catalog row: its name, SKU and base price start the line, and its id travels with it. */
+  function pick(product: ShopProduct) {
+    setDraft({
+      name: product.name,
+      sku: product.sku,
+      quantity: "1",
+      unit_price: String(Number(product.price)),
+      shop_product_id: product.id,
+    });
+    setShopQuery("");
+    setShopResults(null);
+    setShopError(null);
+  }
 
   return (
     <section aria-label="Products on this deal">
@@ -287,11 +350,48 @@ export function DealItemsPanel({
       {canEdit &&
         (adding ? (
           <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-line pt-2">
+            <div className="w-full">
+              <input
+                aria-label="Search the shop catalog"
+                placeholder="Search the shop catalog…"
+                className={cn(INPUT, "w-full border border-line")}
+                value={shopQuery}
+                onChange={(e) => setShopQuery(e.target.value)}
+                autoFocus
+              />
+              {shopError && (
+                <p role="alert" className="mt-1 text-xs text-danger">
+                  {shopError}
+                </p>
+              )}
+              {shopBusy && <p className="mt-1 text-xs text-muted">Searching…</p>}
+              {shopResults && shopResults.length > 0 && (
+                <ul aria-label="Shop catalog matches" className="mt-1 max-h-48 overflow-y-auto rounded-md border border-line">
+                  {shopResults.map((product) => (
+                    <li key={product.id}>
+                      <button
+                        type="button"
+                        onClick={() => pick(product)}
+                        className="flex w-full items-baseline justify-between gap-2 px-2 py-1 text-left text-sm hover:bg-sand focus-visible:bg-sand"
+                      >
+                        <span className="min-w-0 truncate">
+                          {product.name}
+                          <span className="ml-2 text-xs text-muted">{product.sku}</span>
+                        </span>
+                        <span className="num shrink-0 text-xs text-muted">{money(product.price, product.currency)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {shopResults && shopResults.length === 0 && !shopBusy && !shopError && (
+                <p className="mt-1 text-xs text-muted">Nothing in the shop matches “{shopQuery.trim()}”.</p>
+              )}
+            </div>
             <input
               aria-label="Product"
               placeholder="Product or service"
               className={cn(INPUT, "flex-1 basis-40 border border-line")}
-              autoFocus
               value={draft.name}
               onChange={(e) => set("name", e.target.value)}
               onKeyDown={(e) => {
@@ -330,7 +430,17 @@ export function DealItemsPanel({
             <Button size="sm" disabled={busy} onClick={() => void add()}>
               {busy ? "Adding…" : "Add"}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setAdding(false);
+                setDraft(emptyDraft());
+                setShopQuery("");
+                setShopResults(null);
+                setShopError(null);
+              }}
+            >
               Cancel
             </Button>
           </div>

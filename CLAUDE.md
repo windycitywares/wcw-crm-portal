@@ -283,4 +283,14 @@ npm run typecheck
   attachments API, and the `Attachments` panel names the moment and links to the message in the thread (`#message-<id>`;
   the conversation now renders each message with that id). No new permission, no new endpoint. Built on
   `feat/m8-9-which-message`. Next: the connectors themselves and retiring the shop's inbox.
+- 2026-10-19: **shop repo unblocked**. `gh auth setup-git` gave git the `gh` token, so the shop repo takes pushes
+  again (the stored credential had no write access). Two batches followed:
+  - **shop: CRM sync 3/3 — the catalog** (`wcw-shop-portal` #73): `GET /integrations/crm/products` returns the
+    published catalog paged by id, `q` searches name/SKU/slug, each row carrying `id`, `sku`, `name`, `slug`, `price`
+    (base), `compare_at_price`, `currency`, `status`, `stock_status`, `parent_id` and `image`.
+  - **M4 batch 4c — the shop catalog picker** (`feat/m4-4c-shop-picker`, needs the shop's #73): the deal dialog's
+    add-a-line form searches the catalog through the server (`GET /sales/shop-products?q=` → the shop client's new
+    `products()`, so the shop token stays server-side), and picking a match starts the line with name, SKU, base unit
+    price and `shop_product_id`. An unset/down shop is a readable 422; the line can still be typed by hand. Sales
+    access reads it. No migration.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

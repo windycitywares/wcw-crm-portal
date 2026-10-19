@@ -209,6 +209,12 @@ class FakeShop:
         clean = [{k: v for k, v in i.items() if k != "_id"} for i in items]
         return {"items": clean, "next_after_id": items[-1]["_id"] if len(items) == limit else None}
 
+    async def products(self, q="", limit=20):
+        """The catalog resource: a `q` matches the name or the SKU, as the shop's own search does."""
+        rows = [r for r in self.data.get("products", [])
+                if not q or q.lower() in f"{r.get('name', '')} {r.get('sku', '')}".lower()][:limit]
+        return {"items": [{k: v for k, v in r.items() if k != "_id"} for r in rows], "next_after_id": None}
+
 
 @skip_unless_db
 class ShopBackfillTests(unittest.TestCase):
@@ -289,3 +295,45 @@ class ShopBackfillTests(unittest.TestCase):
         self.assertIn("refused the API token", res.text)
         test = self.w.client.get(f"{API}/integrations/shop/test", headers=self.admin_h).json()
         self.assertFalse(test["ok"])
+
+    def test_the_catalog_picker_searches_the_shop(self):
+        from app.integrations.shop.client import set_shop_client_factory
+
+        shop = FakeShop({"products": [
+            {"_id": 1, "id": 501, "parent_id": None, "sku": "WC-1", "name": "Walnut bowl", "price": "42.50",
+             "compare_at_price": None, "currency": "USD", "stock_status": "in_stock",
+             "image": "https://media.example.com/bowl.jpg", "slug": "walnut-bowl", "status": "published"},
+            {"_id": 2, "id": 502, "parent_id": 501, "sku": "WC-1-L", "name": "Walnut bowl (large)", "price": "55.00",
+             "compare_at_price": "60.00", "currency": "USD", "stock_status": "out_of_stock", "image": None},
+            {"_id": 3, "id": 503, "parent_id": None, "sku": "MB-9", "name": "Maple board", "price": "30.00",
+             "currency": "USD", "stock_status": "in_stock", "image": None},
+        ]})
+        set_shop_client_factory(lambda settings: shop)
+
+        res = self.w.client.get(f"{API}/sales/shop-products", headers=self.sales_h, params={"q": "walnut"})
+        self.assertEqual(res.status_code, 200, res.text)
+        items = res.json()
+        self.assertEqual([i["name"] for i in items], ["Walnut bowl", "Walnut bowl (large)"])
+        self.assertEqual(items[0], {"id": 501, "parent_id": None, "sku": "WC-1", "name": "Walnut bowl",
+                                    "price": "42.50", "compare_at_price": None, "currency": "USD",
+                                    "stock_status": "in_stock", "image": "https://media.example.com/bowl.jpg"})
+        self.assertEqual((items[1]["parent_id"], items[1]["compare_at_price"]), (501, "60.00"))
+
+        # an empty `q` offers the catalog, and the picker is behind sales access like the rest of the board
+        self.assertEqual(len(self.w.client.get(f"{API}/sales/shop-products", headers=self.sales_h).json()), 3)
+        _, marketing_h = self.w.user_with_token("marketing")
+        self.assertEqual(self.w.client.get(f"{API}/sales/shop-products", headers=marketing_h).status_code, 403)
+        self.assertEqual(self.w.client.get(f"{API}/sales/shop-products").status_code, 401)
+
+    def test_the_picker_says_so_when_the_shop_cannot_be_reached(self):
+        from app.integrations.shop.client import ShopApiError, set_shop_client_factory
+
+        class Offline:
+            async def products(self, *a, **k):
+                raise ShopApiError("HTTP 404: the shop's read API is off (CRM_API_TOKEN not set there)")
+
+        set_shop_client_factory(lambda settings: Offline())
+        res = self.w.client.get(f"{API}/sales/shop-products", headers=self.sales_h, params={"q": "bowl"})
+        self.assertEqual(res.status_code, 422)  # a readable answer, not a 500 — the line can still be typed in
+        self.assertIn("Can't reach the shop catalog", res.text)
+        self.assertIn("read API is off", res.text)
