@@ -269,4 +269,11 @@ npm run typecheck
   record's timeline (`attachment.added`). Web: an **Add file** button in the `Attachments` panel, shown to whoever may change
   the record even when it holds no files yet; a reader with nothing to look at still sees nothing. No migration. Built on
   `feat/m8-8-staff-uploads`. Next: the connectors themselves and retiring the shop's inbox.
+- 2026-10-19: **the web build is green again** — `web.yml` had been red since at least 2026-10-17, and not because of any
+  code: `frontend/package-lock.json` had been regenerated on Windows and listed only the win32 optional binaries
+  (`@next/swc-win32-x64-msvc`, `@tailwindcss/oxide-win32-x64-msvc`, `lightningcss-win32-x64-msvc`), so `npm install` on
+  the Linux runner never fetched `lightningcss-linux-x64-gnu` and `next build` died evaluating `globals.css`
+  (`Cannot find module '../lightningcss.linux-x64-gnu.node'`). **#73** regenerates the lockfile with `node_modules` out
+  of the way (npm otherwise prunes it to the installed tree, which is how the other platforms were lost) so every
+  platform's package is listed — only postcss moved (8.5.30 → 8.5.31). Both workflows are green on `main` after #72/#73.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.
