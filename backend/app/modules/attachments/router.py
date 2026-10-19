@@ -1,8 +1,9 @@
+from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, File, Response, UploadFile, status
 
-from app.modules.attachments.service import AttachmentService
+from app.modules.attachments.service import MAX_BYTES, AttachmentService
 from app.modules.users.deps import CurrentUser, SessionDep
 
 from .schemas import AttachmentOut
@@ -28,6 +29,17 @@ async def list_attachments(session: SessionDep, user: CurrentUser, entity_type: 
                            entity_id: int) -> list[AttachmentOut]:
     """The files kept against a record, oldest first."""
     return await AttachmentService(session).list_for(user, entity_type, entity_id)
+
+
+@router.post(BASE + "/attachments", response_model=AttachmentOut, status_code=status.HTTP_201_CREATED)
+async def upload_attachment(session: SessionDep, user: CurrentUser, entity_type: str, entity_id: int,
+                            file: Annotated[UploadFile, File()]) -> AttachmentOut:
+    """Put a file on a record. Whoever may change the record may add one; the file is stored under the
+    hash of its own bytes, so the same file attached twice is kept once."""
+    data = await file.read(MAX_BYTES + 1)  # one byte past the limit is enough to refuse an oversized file
+    return await AttachmentService(session).upload(user, entity_type, entity_id,
+                                                   filename=file.filename or "file", data=data,
+                                                   content_type=file.content_type)
 
 
 @router.get("/attachments/{attachment_id}")

@@ -156,11 +156,13 @@ Outgoing email (password resets, later campaigns) waits in the outbox until the 
 switched on in Admin → Settings → Email; use the **Send test email** button there to check it. Until then,
 admins set passwords in **Users**.
 
-## 8. Files customers send (attachments)
+## 8. Files on a record (attachments)
 
 Mail that arrives on a mailbox the CRM reads is filed with whatever came with it — a photo of the damage, a
 PDF invoice — kept against the ticket it belongs to. A message may bring up to 10 files of 15 MB each;
-anything past that is counted, and the message itself says it was left behind.
+anything past that is counted, and the message itself says it was left behind. A member of staff can add a
+file too, from the record's own **Add file** button, if they may change that record (15 MB, one file at a
+time).
 
 The files live on the server's own disk, **outside the checkout** (a deploy replaces the checkout, and a
 customer's photo has to outlive it):

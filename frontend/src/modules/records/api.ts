@@ -60,6 +60,11 @@ export const recordsApi = {
   setTags: (r: RecordRef, names: string[]) => apiFetch<Tag[]>(`${base(r)}/tags`, json("PUT", { names })),
   directory: () => apiFetch<Colleague[]>("/users/directory"),
   attachments: (r: RecordRef) => apiFetch<Attachment[]>(`${base(r)}/attachments`),
+  uploadAttachment: (r: RecordRef, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return apiFetch<Attachment>(`${base(r)}/attachments`, { method: "POST", body: form });
+  },
   attachmentUrl: (id: number) => `/attachments/${id}`, // fetched with the token by `apiDownload`
   deleteAttachment: (id: number) => apiFetch<void>(`/attachments/${id}`, { method: "DELETE" }),
 };

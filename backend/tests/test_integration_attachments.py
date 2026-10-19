@@ -163,6 +163,14 @@ class AttachmentApiTests(unittest.TestCase):
     def list_for(self, entity_type: str, entity_id: int, headers):
         return self.w.client.get(f"{API}/entities/{entity_type}/{entity_id}/attachments", headers=headers)
 
+    def put_file(self, entity_type: str, entity_id: int, *, filename: str = "notes.txt",
+                 data: bytes = b"staff-file", content_type: str = "text/plain", headers=None):
+        """Put a file on a record the way a member of staff does, over the API."""
+        return self.w.client.post(
+            f"{API}/entities/{entity_type}/{entity_id}/attachments",
+            headers=self.support_h if headers is None else headers,
+            files={"file": (filename, data, content_type)})
+
     # ---- tests -----------------------------------------------------------------------------------
     def test_a_record_s_files_are_listed_for_whoever_may_see_the_record(self):
         ticket = self.ticket()
@@ -244,6 +252,61 @@ class AttachmentApiTests(unittest.TestCase):
         audit = self.w.client.get(f"{API}/audit", headers=self.manager_h,
                                   params={"action": "attachment.delete"}).json()["items"]
         self.assertTrue(any(r["entity_type"] == "ticket" and r["entity_id"] == ticket["id"] for r in audit), audit)
+
+    def test_a_member_of_staff_can_put_a_file_on_a_record(self):
+        ticket = self.ticket()
+
+        res = self.put_file("ticket", ticket["id"], filename="Receipt.pdf", data=b"%PDF-1.4",
+                            content_type="application/pdf")
+        self.assertEqual(res.status_code, 201, res.text)
+        row = res.json()
+        self.assertEqual((row["filename"], row["content_type"], row["size"], row["source"]),
+                         ("Receipt.pdf", "application/pdf", 8, "upload"))
+        self.assertEqual(row["created_by"], self.support["id"])  # staff know who added it
+        self.assertEqual([r["id"] for r in self.list_for("ticket", ticket["id"], self.support_h).json()],
+                         [row["id"]])
+
+        # the upload has no message to explain it, so the record says so itself
+        timeline = self.w.client.get(f"{API}/entities/ticket/{ticket['id']}/timeline",
+                                     headers=self.support_h).json()["items"]
+        self.assertIn("attachment.added", [line["kind"] for line in timeline])
+        audit = self.w.client.get(f"{API}/audit", headers=self.manager_h,
+                                  params={"action": "attachment.upload"}).json()["items"]
+        self.assertTrue(any(r["entity_type"] == "ticket" and r["entity_id"] == ticket["id"] for r in audit), audit)
+
+    def test_adding_a_file_takes_the_right_to_change_the_record(self):
+        ticket = self.ticket()
+        # a ticket sales may see but not change: no upload …
+        self.assertEqual(self.put_file("ticket", ticket["id"], headers=self.sales_h).status_code, 403)
+        # … and no team at all: not told the record is there
+        self.assertEqual(self.put_file("ticket", ticket["id"], headers=self.marketing_h).status_code, 403)
+        # an unknown record type, and a record that isn't there, are both "not found"
+        self.assertEqual(self.put_file("pigeon", 1, headers=self.support_h).status_code, 404)
+        self.assertEqual(self.put_file("ticket", 9_999_999, headers=self.support_h).status_code, 404)
+
+    def test_an_uploaded_name_is_never_a_path_and_a_bad_file_is_refused(self):
+        from app.modules.attachments import service as attachments
+
+        ticket = self.ticket()
+        row = self.put_file("ticket", ticket["id"], filename="../../etc/passwd",
+                            data=b"x", content_type="nonsense").json()
+        self.assertEqual(row["filename"], "passwd")
+        self.assertEqual(row["content_type"], "application/octet-stream")  # an unusable type isn't echoed
+
+        # the same size rule as the inbox's, checked before a byte is stored
+        with mock.patch.object(attachments, "MAX_BYTES", 4):
+            self.assertEqual(self.put_file("ticket", ticket["id"], data=b"12345").status_code, 422)
+        self.assertEqual(self.put_file("ticket", ticket["id"], data=b"").status_code, 422)
+
+    def test_the_same_file_uploaded_twice_is_kept_once(self):
+        first, second = self.ticket(), self.ticket()
+        before = len(stored(self.files_dir))
+        one = self.put_file("ticket", first["id"], filename="photo.jpg", data=b"duplicate-bytes",
+                            content_type="image/jpeg").json()
+        two = self.put_file("ticket", second["id"], filename="photo.jpg", data=b"duplicate-bytes",
+                            content_type="image/jpeg").json()
+        self.assertNotEqual(one["id"], two["id"])
+        self.assertEqual(len(stored(self.files_dir)), before + 1)  # one copy of the bytes, two rows
 
     def test_files_follow_a_record_into_the_one_it_is_merged_with(self):
         keep, dup = self.customer("Kate"), self.customer("K.")

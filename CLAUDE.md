@@ -262,4 +262,11 @@ npm run typecheck
   ends campaigns a test left mid-flight (the dispatcher works over the whole database). **264 tests, OK
   (2 skipped)** — the first green DB run since #27. CI runs 3.11; a syntax the local interpreter accepts can
   still fail there.
+- 2026-10-18: **M8 batch 8 (staff uploads)** — the other half of attachments: a member of staff can now put a file on a record
+  (`POST /entities/{type}/{id}/attachments`, multipart, one file). It takes the record's own *edit* right, exactly as dropping
+  one does — **no new permission** — and runs the same rules as the inbox (`safe_name`, `clean_type`, `MAX_BYTES`, the same
+  bytes kept once). An upload has no message to explain it, so it is written to the audit log (`attachment.upload`) and the
+  record's timeline (`attachment.added`). Web: an **Add file** button in the `Attachments` panel, shown to whoever may change
+  the record even when it holds no files yet; a reader with nothing to look at still sees nothing. No migration. Built on
+  `feat/m8-8-staff-uploads`. Next: the connectors themselves and retiring the shop's inbox.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.
