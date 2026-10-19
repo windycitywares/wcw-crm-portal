@@ -6,14 +6,13 @@ admin who has just typed a host, a folder and a password needs to know it works 
 depends on it.
 """
 
-from typing import Any
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, ValidationFailedError
 from app.core.security import SecretBox
 from app.integrations.email import MailboxConfig, MailboxError, mailbox_for
 from app.modules.audit.service import AuditService, diff
+from app.shared.snapshot import snapshot
 
 from .models import EmailAccount
 from .repository import EmailAccountRepository
@@ -26,9 +25,6 @@ ACCOUNT_FIELDS = ("address", "display_name", "imap_host", "imap_port", "imap_sec
 # which is also what stops a null reaching a NOT NULL column.
 NULLABLE = ("display_name", "imap_user")
 
-
-def _snapshot(account: EmailAccount) -> dict[str, Any]:
-    return {field: getattr(account, field) for field in ACCOUNT_FIELDS}
 
 
 def config_for(account: EmailAccount, *, password: str) -> MailboxConfig:
@@ -87,7 +83,7 @@ class InboxService:
         account = EmailAccount(**values, imap_password_enc=secret, created_by=actor.id, updated_by=actor.id)
         await self.repo.add(account)
         await self.audit.record("inbox.account_create", actor=actor, entity_type=ENTITY, entity_id=account.id,
-                                changes=diff({}, _snapshot(account)))
+                                changes=diff({}, snapshot(account, ACCOUNT_FIELDS)))
         await self.session.commit()
         return await self.get(account.id)
 
@@ -98,7 +94,7 @@ class InboxService:
         if values.get("address") is not None:
             values["address"] = str(values["address"]).strip()
             await self._check_address(values["address"], exclude_id=account.id)
-        before = _snapshot(account)
+        before = snapshot(account, ACCOUNT_FIELDS)
         secret_changed = values.get("imap_password") not in (None, "")
         if secret_changed:
             account.imap_password_enc = self.box.encrypt(values.pop("imap_password"))
@@ -106,7 +102,7 @@ class InboxService:
             values.pop("imap_password", None)  # blank = keep the stored password
         self.repo.apply(account, values)
         account.updated_by = actor.id
-        changes = diff(before, _snapshot(account))
+        changes = diff(before, snapshot(account, ACCOUNT_FIELDS))
         if secret_changed:
             changes["imap_password"] = ["••••", "••••"]
         if changes:

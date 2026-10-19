@@ -47,7 +47,7 @@ Rules:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone
 from typing import Any
 
 from sqlalchemy import Select
@@ -69,6 +69,7 @@ from app.modules.mail.service import MailService
 from app.modules.settings.groups import EmailSettings
 from app.modules.settings.service import SettingsService
 from app.modules.users.service import UserService
+from app.shared.snapshot import snapshot
 from app.shared.time import utcnow
 
 from . import render, segments
@@ -83,12 +84,12 @@ from .repository import (
 from .schemas import (
     CampaignIn, CampaignOut, CampaignPage, CampaignReport, CampaignSchedule, CampaignStats, CampaignSummary,
     LinkClicks, MemberOut, MemberPage, MembersAdded, MembersIn, RecipientCounts, RecipientOut, RecipientPage,
-    RenderedEmail, SegmentField, SuppressionIn, SuppressionOut, SuppressionPage, TargetListIn, TargetListOut,
+    RenderedEmail, SuppressionIn, SuppressionOut, SuppressionPage, TargetListIn, TargetListOut,
     TargetListPage, TargetListUpdate, TemplateIn, TemplateOut, TemplatePage, TemplatePreviewIn, TemplateSummary, TemplateUpdate,
     TestIn, TestSent, UnsubscribeIn, UnsubscribeOut,
 )
 from .tokens import (
-    click_url, open_url, read_click_token, read_open_token, read_unsubscribe_token, unsubscribe_one_click_url,
+    click_url, open_url, read_unsubscribe_token, unsubscribe_one_click_url,
     unsubscribe_url,
 )
 
@@ -99,9 +100,9 @@ CAMPAIGN = "campaign"
 TRACKED = ("name", "subject", "preheader", "version")
 
 
-def _snapshot(template: EmailTemplate) -> dict[str, Any]:
-    """What the audit log keeps: the words that matter and the size of the two bodies."""
-    snap: dict[str, Any] = {key: getattr(template, key) for key in TRACKED}
+def _template_snapshot(template: EmailTemplate) -> dict[str, Any]:
+    """What the audit log keeps: the tracked words, plus the size of the two bodies."""
+    snap = snapshot(template, TRACKED)
     snap["html"] = f"{len(template.html)} chars"
     snap["text"] = f"{len(template.text)} chars"
     return snap
@@ -254,7 +255,7 @@ class CampaignService:
                                  html=html, text=text, version=1, created_by=actor.id, updated_by=actor.id)
         await self.templates.add(template)
         await self.audit.record("email_template.create", actor=actor, entity_type=ENTITY, entity_id=template.id,
-                                changes=diff({}, _snapshot(template)))
+                                changes=diff({}, _template_snapshot(template)))
         await self.session.commit()
         return await self.get_template(template.id)
 
@@ -274,9 +275,9 @@ class CampaignService:
                   "preheader": values["preheader"] if "preheader" in values else template.preheader,
                   "html": html, "text": values.get("text") or template.text}
         await self._check(**merged)
-        before = _snapshot(template)
+        before = _template_snapshot(template)
         self.templates.apply(template, values)
-        changes = diff(before, _snapshot(template))
+        changes = diff(before, _template_snapshot(template))
         if changes:
             template.version += 1
             template.updated_by = actor.id

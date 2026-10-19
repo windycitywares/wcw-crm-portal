@@ -14,7 +14,6 @@ Rules:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +31,7 @@ from app.modules.lookups.service import LookupService
 from app.modules.sales.schemas import DealCreate
 from app.modules.sales.service import SalesService
 from app.modules.users.service import UserService
+from app.shared.snapshot import snapshot
 from app.shared.time import utcnow
 
 from .models import Lead
@@ -42,9 +42,6 @@ ENTITY = "lead"
 TRACKED = ("first_name", "last_name", "company", "email", "phone", "source", "status", "notes", "owner_id")
 LABELS = {"first_name": "first name", "last_name": "last name", "owner_id": "owner"}
 
-
-def _snapshot(lead: Lead) -> dict[str, Any]:
-    return {k: getattr(lead, k) for k in TRACKED}
 
 
 async def _exists(session, entity_id: int) -> bool:
@@ -173,7 +170,7 @@ class LeadService:
                     created_by=actor.id, updated_by=actor.id)
         await self.repo.add(lead)
         await self.audit.record("lead.create", actor=actor, entity_type=ENTITY, entity_id=lead.id,
-                                changes=diff({}, _snapshot(lead)))
+                                changes=diff({}, snapshot(lead, TRACKED)))
         await self.timeline.record(ENTITY, lead.id, "lead.created", f"Lead added: {lead.display_name}", actor=actor)
         await self.session.commit()
         return await self.get(lead.id)
@@ -195,10 +192,10 @@ class LeadService:
                 values["owner_id"] = lead.owner_id
             self._check_owner(actor, values["owner_id"], lead.owner_id)
         values = await self._validate(values, lead)
-        before = _snapshot(lead)
+        before = snapshot(lead, TRACKED)
         self.repo.apply(lead, values)
         lead.updated_by = actor.id
-        changes = diff(before, _snapshot(lead))
+        changes = diff(before, snapshot(lead, TRACKED))
         if changes:
             await self.audit.record("lead.update", actor=actor, entity_type=ENTITY, entity_id=lead.id, changes=changes)
             what = ", ".join(LABELS.get(k, k.replace("_", " ")) for k in changes)

@@ -10,6 +10,7 @@ from app.modules.activity.service import TimelineService
 from app.modules.audit.service import AuditService, diff
 from app.modules.customfields.service import CustomFieldService
 from app.modules.lookups.service import LookupService
+from app.shared.snapshot import snapshot
 
 from .models import Supplier, SupplierContact, SupplierProduct
 from .repository import SupplierContactRepository, SupplierProductRepository, SupplierRepository
@@ -41,9 +42,6 @@ def register() -> None:
         exists=_exists, labels=_labels,
     ))
 
-
-def _snapshot(supplier: Supplier) -> dict[str, Any]:
-    return {field: getattr(supplier, field) for field in SUPPLIER_FIELDS}
 
 
 def _contact_snapshot(contact: SupplierContact) -> dict[str, Any]:
@@ -140,7 +138,7 @@ class SupplierService:
         for contact in data.contacts:
             await self._add_contact(supplier, contact, actor)
         await self.audit.record("supplier.create", actor=actor, entity_type=ENTITY, entity_id=supplier.id,
-                                changes=diff({}, _snapshot(supplier)))
+                                changes=diff({}, snapshot(supplier, SUPPLIER_FIELDS)))
         await self.timeline.record(ENTITY, supplier.id, "supplier.created", "Supplier added", actor=actor)
         await self.session.commit()
         return await self.get(supplier.id)
@@ -156,11 +154,11 @@ class SupplierService:
             values.pop("status", None)
         if values.get("currency") is None:
             values.pop("currency", None)
-        before = _snapshot(supplier)
+        before = snapshot(supplier, SUPPLIER_FIELDS)
         values = await self._validate(values, supplier)
         self.repo.apply(supplier, values)
         supplier.updated_by = actor.id
-        changes = diff(before, _snapshot(supplier))
+        changes = diff(before, snapshot(supplier, SUPPLIER_FIELDS))
         if changes:
             await self.audit.record("supplier.update", actor=actor, entity_type=ENTITY, entity_id=supplier.id,
                                     changes=changes)

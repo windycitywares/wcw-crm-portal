@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationFailedError
 from app.modules.audit.service import AuditService, diff
+from app.shared.snapshot import snapshot
 from app.shared.text import slugify
 
 from .kinds import KINDS, Kind
@@ -13,9 +14,6 @@ from .models import LookupValue
 from .repository import LookupRepository
 from .schemas import KindOut, LookupCreate, LookupOut, LookupUpdate
 
-
-def _snapshot(v: LookupValue) -> dict:
-    return {"label": v.label, "color": v.color, "is_active": v.is_active, "sort_order": v.sort_order}
 
 
 class LookupService:
@@ -72,14 +70,14 @@ class LookupService:
             sort_order=await self.repo.next_sort(kind), created_by=actor.id, updated_by=actor.id,
         ))
         await self.audit.record("lookup.create", actor=actor, entity_type="lookup", entity_id=value.id,
-                                changes={"kind": kind, "key": key, **diff({}, _snapshot(value))})
+                                changes={"kind": kind, "key": key, **diff({}, snapshot(value, ("label", "color", "is_active", "sort_order")))})
         await self.session.commit()
         await self.session.refresh(value)
         return LookupOut.model_validate(value)
 
     async def update(self, kind: str, value_id: int, data: LookupUpdate, actor) -> LookupOut:
         value = await self._get(kind, value_id)
-        before = _snapshot(value)
+        before = snapshot(value, ("label", "color", "is_active", "sort_order"))
         changes = data.model_dump(exclude_unset=True)
         if "label" in changes and changes["label"] is None:
             changes.pop("label")
@@ -88,7 +86,7 @@ class LookupService:
         self.repo.apply(value, changes)
         value.updated_by = actor.id
         await self.audit.record("lookup.update", actor=actor, entity_type="lookup", entity_id=value.id,
-                                changes=diff(before, _snapshot(value)))
+                                changes=diff(before, snapshot(value, ("label", "color", "is_active", "sort_order"))))
         await self.session.commit()
         await self.session.refresh(value)
         return LookupOut.model_validate(value)

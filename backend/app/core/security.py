@@ -1,13 +1,28 @@
 """Password hashing, JWT helpers and encryption of secrets stored in the database."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, TypedDict, cast
 
 import bcrypt
 import jwt
 from cryptography.fernet import Fernet, InvalidToken
 
 from app.core.config import get_settings
+
+
+class AccessTokenPayload(TypedDict):
+    """The claims carried by an access token once decoded.
+
+    PyJWT turns the `iat`/`exp` datetimes we encode into Unix timestamps on the way out, so
+    they arrive here as integers. Fields are not guaranteed to be present in a token we did
+    not mint — callers still have to handle a missing `sub` or `role`.
+    """
+
+    sub: str
+    role: str
+    iat: int
+    exp: int
+    type: str
 
 
 def hash_password(password: str) -> str:
@@ -35,13 +50,13 @@ def create_access_token(subject: str | int, role: str, expires_minutes: int | No
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def decode_access_token(token: str) -> dict[str, Any]:
+def decode_access_token(token: str) -> AccessTokenPayload:
     """Raises jwt.PyJWTError on an invalid or expired token."""
     settings = get_settings()
     payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
     if payload.get("type") != "access":
         raise jwt.InvalidTokenError("Wrong token type")
-    return payload
+    return cast(AccessTokenPayload, payload)
 
 
 class SecretBox:

@@ -232,6 +232,16 @@ npm run typecheck
   harder to undo than an unlinked ticket. The number is stored on the message (`ticket_messages.from_phone`, migration 0028)
   so staff can see it and link the ticket by hand; an email always outranks a phone when both are present. Staff can also
   find the customer by pasting the whole number into the search box (digits ≥ 7) — the merge keeps only the kept record's
-  phone (only live rows match). Pure tests (`test_text.py`) + intake/customers DB tests. Built on `main` (M8 batches 1–6 merged
-  into `main`). Next: the connectors themselves and retiring the shop's inbox.
+  phone (only live rows match). Pure tests (`test_text.py`) + intake/customers DB tests. Merged as #67 (M8 batches 1–6
+  already in `main`). Next: the connectors themselves and retiring the shop's inbox.
+- 2026-10-18: **code-quality pass** on the code M8 touched, on top of #67, on branch `chore/code-quality`, opened as **#68** (no
+  behaviour is meant to change, but two real bugs turned up and were fixed). The custom-field validators in
+  `customfields/types.py` are typed (`JsonValue`, a `FieldDef` protocol, a `Validator` TypedDict) rather than `Any`, and the
+  11 per-module `_snapshot()` copies are now one `app/shared/snapshot.py`. **Bug 1:** `CustomFieldService.field_types()` still
+  unpacked the old `(label, check)` tuple, so every custom-field type advertised the label `"label"` in the admin's picker.
+  **Bug 2:** the shared `snapshot()` returned `Decimal`/`date`/`datetime` unchanged, but audit `changes` go into a JSONB column
+  serialised with plain `json.dumps` (which cannot encode them) — sales/tasks used to stringify those fields locally, so the
+  helper now makes every value JSON-safe, with a pure unit test. Also: `decode_access_token()` returns an `AccessTokenPayload`
+  TypedDict; the inbound-mail parser debug-logs the parts/messages it skips instead of swallowing them silently; imports left
+  unused by the earlier `utcnow()`/snapshot refactors are removed. 264 tests green (175 DB-gated).
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.

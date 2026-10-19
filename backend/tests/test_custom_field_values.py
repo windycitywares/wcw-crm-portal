@@ -79,6 +79,15 @@ class CheckValuesTests(unittest.TestCase):
             check_values([field("n", "number", required=True)], {"n": "x"}, None)
         self.assertEqual(ctx.exception.message, "N must be a number")
 
+    def test_each_type_advertises_its_own_label(self):
+        """`field_types()` feeds the admin's picker: every entry must carry its own label."""
+        from app.modules.customfields.service import CustomFieldService
+
+        listed = {t.key: t.label for t in CustomFieldService.field_types()}
+        self.assertEqual(listed["text"], "Short text")
+        self.assertEqual(listed["number"], "Number")
+        self.assertEqual(len(set(listed.values())), len(listed))  # no type borrows another's label
+
 
 if __name__ == "__main__":
     unittest.main()
