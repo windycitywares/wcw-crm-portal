@@ -100,6 +100,13 @@ CAMPAIGN = "campaign"
 TRACKED = ("name", "subject", "preheader", "version")
 
 
+def _template_snapshot(template: EmailTemplate) -> dict[str, Any]:
+    """What the audit log keeps: the tracked words, plus the size of the two bodies."""
+    snap = snapshot(template, TRACKED)
+    snap["html"] = f"{len(template.html)} chars"
+    snap["text"] = f"{len(template.text)} chars"
+    return snap
+
 
 def _list_snapshot(target: TargetList) -> dict[str, Any]:
     return {"name": target.name, "description": target.description, "rules": target.rules}
@@ -248,7 +255,7 @@ class CampaignService:
                                  html=html, text=text, version=1, created_by=actor.id, updated_by=actor.id)
         await self.templates.add(template)
         await self.audit.record("email_template.create", actor=actor, entity_type=ENTITY, entity_id=template.id,
-                                changes=diff({}, snapshot(template, TRACKED)))
+                                changes=diff({}, _template_snapshot(template)))
         await self.session.commit()
         return await self.get_template(template.id)
 
@@ -268,9 +275,9 @@ class CampaignService:
                   "preheader": values["preheader"] if "preheader" in values else template.preheader,
                   "html": html, "text": values.get("text") or template.text}
         await self._check(**merged)
-        before = snapshot(template, TRACKED)
+        before = _template_snapshot(template)
         self.templates.apply(template, values)
-        changes = diff(before, snapshot(template, TRACKED))
+        changes = diff(before, _template_snapshot(template))
         if changes:
             template.version += 1
             template.updated_by = actor.id
