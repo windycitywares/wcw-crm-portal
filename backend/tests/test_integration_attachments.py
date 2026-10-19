@@ -285,7 +285,6 @@ class AttachmentApiTests(unittest.TestCase):
         self.assertEqual(self.put_file("ticket", 9_999_999, headers=self.support_h).status_code, 404)
 
     def test_an_uploaded_name_is_never_a_path_and_a_bad_file_is_refused(self):
-        from app.modules.attachments import router as attachments_router
         from app.modules.attachments import service as attachments
 
         ticket = self.ticket()
@@ -295,18 +294,19 @@ class AttachmentApiTests(unittest.TestCase):
         self.assertEqual(row["content_type"], "application/octet-stream")  # an unusable type isn't echoed
 
         # the same size rule as the inbox's, checked before a byte is stored
-        with mock.patch.object(attachments, "MAX_BYTES", 4), mock.patch.object(attachments_router, "MAX_BYTES", 4):
+        with mock.patch.object(attachments, "MAX_BYTES", 4):
             self.assertEqual(self.put_file("ticket", ticket["id"], data=b"12345").status_code, 422)
         self.assertEqual(self.put_file("ticket", ticket["id"], data=b"").status_code, 422)
 
     def test_the_same_file_uploaded_twice_is_kept_once(self):
         first, second = self.ticket(), self.ticket()
-        one = self.put_file("ticket", first["id"], filename="photo.jpg", data=b"same-bytes",
+        before = len(stored(self.files_dir))
+        one = self.put_file("ticket", first["id"], filename="photo.jpg", data=b"duplicate-bytes",
                             content_type="image/jpeg").json()
-        two = self.put_file("ticket", second["id"], filename="photo.jpg", data=b"same-bytes",
+        two = self.put_file("ticket", second["id"], filename="photo.jpg", data=b"duplicate-bytes",
                             content_type="image/jpeg").json()
         self.assertNotEqual(one["id"], two["id"])
-        self.assertEqual(len(stored(self.files_dir)), 1)  # one copy of the bytes on the disk
+        self.assertEqual(len(stored(self.files_dir)), before + 1)  # one copy of the bytes, two rows
 
     def test_files_follow_a_record_into_the_one_it_is_merged_with(self):
         keep, dup = self.customer("Kate"), self.customer("K.")
