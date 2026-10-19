@@ -31,7 +31,7 @@ class CampaignSendTests(unittest.TestCase):
 
     # ---- helpers ------------------------------------------------------------------------------
     def name(self, label: str = "x") -> str:
-        self._n += 1
+        type(self)._n += 1  # a per-class counter, so names never repeat between tests
         return f"{label}-{self._n}-{self.w.sfx}@example.com"
 
     def clear_outbox(self):
@@ -77,8 +77,8 @@ class CampaignSendTests(unittest.TestCase):
                                   json={"customer_ids": ids})
 
     def tag(self, customer_id: int, *names: str) -> None:
-        self._n += 1
-        res = self.w.client.put(f"{API}/entities/customer/{customer_id}/tags", headers=self.marketing_h,
+        # tagging changes the customer, and marketing may only *see* customers (SPEC §2), so an admin tags
+        res = self.w.client.put(f"{API}/entities/customer/{customer_id}/tags", headers=self.admin_h,
                                 json={"names": [f"{n}-{self.w.sfx}" for n in names]})
         self.assertEqual(res.status_code, 200, res.text)
 
@@ -181,7 +181,7 @@ class CampaignSendTests(unittest.TestCase):
         self.assertIn("unsubscribe?token=", body[ada["email"]])
         self.assertIn(f"&c={campaign['id']}", body[ada["email"]])  # the campaign is noted on the link
         self.assertIn(f"&c={campaign['id']}", body[grace["email"]])
-        links = {m.to: re.search(r"unsubscribe\?token=([\w\-.]+)", m.html).group(1) for m in transport.sent}
+        links = {m.to: re.search(r"unsubscribe\?token=([\w\-.:]+)", m.html).group(1) for m in transport.sent}
         self.assertEqual(len(set(links.values())), 2)  # … and it is each customer's own token
 
         # the campaign learns from the outbox and closes itself

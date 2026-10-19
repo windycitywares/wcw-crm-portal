@@ -129,7 +129,8 @@ class SegmentTests(unittest.TestCase):
         return res.json()
 
     def tag(self, customer_id: int, *names: str) -> dict[str, int]:
-        res = self.w.client.put(f"{API}/entities/customer/{customer_id}/tags", headers=self.marketing_h,
+        # tagging changes the customer, and marketing may only *see* customers (SPEC §2), so an admin tags
+        res = self.w.client.put(f"{API}/entities/customer/{customer_id}/tags", headers=self.admin_h,
                                 json={"names": list(names)})
         self.assertEqual(res.status_code, 200, res.text)
         return {tag["name"]: tag["id"] for tag in res.json()}

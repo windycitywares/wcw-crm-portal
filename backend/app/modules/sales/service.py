@@ -412,6 +412,7 @@ class SalesService:
             await self.audit.record("deal_item.update", actor=actor, entity_type=ENTITY, entity_id=deal.id,
                                     changes=changes | {"item_id": item.id})
         await self.session.commit()
+        await self.session.refresh(item)  # `updated_at` is written by the database; read it back, don't lazy-load
         return DealItemOut.model_validate(item)
 
     async def remove_item(self, deal_id: int, item_id: int, actor) -> None:

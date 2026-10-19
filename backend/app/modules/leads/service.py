@@ -242,10 +242,15 @@ class LeadService:
 
         deal_id = None
         if data.create_deal:
-            deal = await self.deals.create(DealCreate(
-                title=data.deal_title or lead.company or lead.display_name, customer_id=customer_id,
-                stage_id=data.stage_id, owner_id=owner_id, value=data.value, currency=data.currency,
-                expected_close_on=data.expected_close_on, source=source), actor, commit=False)
+            fields: dict[str, Any] = {
+                "title": data.deal_title or lead.company or lead.display_name, "customer_id": customer_id,
+                "owner_id": owner_id, "value": data.value, "currency": data.currency,
+                "expected_close_on": data.expected_close_on, "source": source,
+            }
+            # a stage is only passed when one was asked for, so "none" still lands in the default pipeline's first
+            if data.stage_id is not None:
+                fields["stage_id"] = data.stage_id
+            deal = await self.deals.create(DealCreate(**fields), actor, commit=False)
             deal_id = deal.id
 
         lead.status = "converted"

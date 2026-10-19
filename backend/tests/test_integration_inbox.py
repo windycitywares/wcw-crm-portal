@@ -568,7 +568,7 @@ class InboxPollTests(unittest.TestCase):
                                          message_id="<b-1@example.com>",
                                          attachments=(("huge.jpg", b"x" * 20), ("small.jpg", b"ok"))))
 
-        with mock.patch("app.modules.inbox.poller.MAX_FILE_BYTES", 4):
+        with mock.patch("app.modules.inbox.filing.MAX_FILE_BYTES", 4):
             line = self.poll()
 
         self.assertIn("filed 1 (1 new)", line)

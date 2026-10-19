@@ -28,7 +28,8 @@ class ReportsTests(unittest.TestCase):
         cls.lead_source = run(lambda session: LookupService(session).values("lead_source"))[0].key
         cls.ticket_type = run(lambda session: LookupService(session).values("ticket_type"))[0].key
         cls.ticket_priority = run(lambda session: LookupService(session).values("ticket_priority"))[0].key
-        cls.supplier_type = run(lambda session: LookupService(session).values("supplier_type"))[0].key
+        cls.supplier_type = run(lambda session: LookupService(session)
+                                .values("supplier_type", include_inactive=False))[0].key
 
     def setUp(self):
         reset_limits()
