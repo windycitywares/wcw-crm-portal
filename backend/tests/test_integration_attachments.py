@@ -263,6 +263,7 @@ class AttachmentApiTests(unittest.TestCase):
         self.assertEqual((row["filename"], row["content_type"], row["size"], row["source"]),
                          ("Receipt.pdf", "application/pdf", 8, "upload"))
         self.assertEqual(row["created_by"], self.support["id"])  # staff know who added it
+        self.assertIsNone(row["message_id"])                     # ... and an upload has no message to point at
         self.assertEqual([r["id"] for r in self.list_for("ticket", ticket["id"], self.support_h).json()],
                          [row["id"]])
 

@@ -70,10 +70,13 @@ class AttachmentService:
 
     async def keep(self, entity_type: str, entity_id: int, *, filename: str, data: bytes,
                    content_type: str | None = None, source: str = "upload", actor: Any = None,
-                   commit: bool = False) -> AttachmentOut:
+                   message_id: int | None = None, commit: bool = False) -> AttachmentOut:
         """Keep one file against a record. The caller has already decided the record may hold it: the
         inbox job files what arrived on a mailbox, and an upload would have checked the record's own
         edit permission before calling this.
+
+        `message_id` is the message that carried the file, when one did (a staff upload has none), so the
+        conversation can point back to it.
 
         Raises `ValidationFailedError` for a file bigger than `MAX_BYTES` — the caller is expected to
         count those and carry on, not to lose the message they came with.
@@ -85,7 +88,7 @@ class AttachmentService:
         key = await self.store.save(data)
         who = getattr(actor, "id", None)
         row = await self.repo.add(Attachment(
-            entity_type=entity_type, entity_id=entity_id, filename=safe_name(filename),
+            entity_type=entity_type, entity_id=entity_id, message_id=message_id, filename=safe_name(filename),
             content_type=clean_type(content_type), size=len(data), sha256=key, source=source,
             created_by=who, updated_by=who,
         ))

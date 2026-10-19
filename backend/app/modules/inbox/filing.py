@@ -9,7 +9,8 @@ here, so a message is filed by one set of rules whatever brought it in:
 - a message that answers something we have already seen joins *that* ticket — by the ids the sender
   carried, or by the "[T-000123]" every reply of ours puts in the subject — otherwise it opens one;
 - the channel it came in on is written on a new ticket, and staff can re-file it;
-- what came with it is kept against the ticket (see `app.modules.attachments`);
+- what came with it is kept against the ticket, each pointing at the message that carried it (see
+  `app.modules.attachments`);
 - a message we have already stored under the same external id is a duplicate, not a second ticket.
 
 Nothing here commits: the caller does, so a message and its files are filed together or not at all.
@@ -104,10 +105,11 @@ class MessageFiler:
         files, dropped = self._pick(incoming.attachments)
         body = self._body(incoming.body, dropped)
         if ticket_id is not None:
-            await self.tickets.add_inbound(ticket_id, body=body, external_id=incoming.external_id,
-                                           from_email=incoming.from_email, to_email=incoming.to_email,
-                                           from_phone=incoming.from_phone, when=incoming.when)
-            return Filed("joined", ticket_id, await self._keep(ticket_id, files, incoming.source))
+            message_id = await self.tickets.add_inbound(ticket_id, body=body, external_id=incoming.external_id,
+                                                        from_email=incoming.from_email, to_email=incoming.to_email,
+                                                        from_phone=incoming.from_phone, when=incoming.when)
+            return Filed("joined", ticket_id,
+                         await self._keep(ticket_id, files, incoming.source, message_id))
         ticket = await self.tickets.create(TicketCreate(
             subject=self._subject(incoming), description=body, ticket_type=await self._default_type(),
             channel=incoming.channel, customer_id=customer_id), actor=None, commit=False,
@@ -116,10 +118,10 @@ class MessageFiler:
         # that is what makes the ticket count as waiting on us, and what our reply answers so the
         # customer's next message finds its way back here. (A ticket staff typed in by hand has no
         # messages: nobody wrote in.)
-        await self.tickets.add_inbound(ticket.id, body=body, external_id=incoming.external_id,
-                                       from_email=incoming.from_email, to_email=incoming.to_email,
-                                       from_phone=incoming.from_phone, when=incoming.when, opened=True)
-        return Filed("opened", ticket.id, await self._keep(ticket.id, files, incoming.source))
+        message_id = await self.tickets.add_inbound(ticket.id, body=body, external_id=incoming.external_id,
+                                                    from_email=incoming.from_email, to_email=incoming.to_email,
+                                                    from_phone=incoming.from_phone, when=incoming.when, opened=True)
+        return Filed("opened", ticket.id, await self._keep(ticket.id, files, incoming.source, message_id))
 
     # ---- the files a message brought ---------------------------------------------------------------
     @staticmethod
@@ -142,15 +144,16 @@ class MessageFiler:
                      "and couldn't be kept)")
         return body
 
-    async def _keep(self, ticket_id: int, files: list[MailFile], source: str) -> int:
-        """Keep what came with the message against its ticket, in the order it was sent. Returns how
-        many landed; the caller commits, so a message and its files are filed together or not at all."""
+    async def _keep(self, ticket_id: int, files: list[MailFile], source: str, message_id: int) -> int:
+        """Keep what came with the message against its ticket, in the order it was sent, each pointing at
+        the message that carried it. Returns how many landed; the caller commits, so a message and its
+        files are filed together or not at all."""
         kept = 0
         for file in files:
             try:
                 await self.attachments.keep("ticket", ticket_id, filename=file.filename,
                                             content_type=file.content_type, data=file.data, source=source,
-                                            commit=False)
+                                            message_id=message_id, commit=False)
             except ValidationFailedError:  # empty, or bigger than `_pick` allowed for: counted, not fatal
                 continue
             kept += 1
