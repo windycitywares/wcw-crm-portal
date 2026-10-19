@@ -142,6 +142,19 @@ export interface DealItemInput {
   position?: number;
 }
 
+/** A line the shop's catalog offers. The CRM reads it server-side, so the shop's token never reaches a browser. */
+export interface ShopProduct {
+  id: number;
+  parent_id: number | null;
+  sku: string;
+  name: string;
+  price: Money;
+  compare_at_price: Money | null;
+  currency: string;
+  stock_status: string | null;
+  image: string | null;
+}
+
 export interface StageInput {
   name: string;
   probability?: number;
@@ -203,6 +216,7 @@ export const salesApi = {
   updateDeal: (id: number, data: DealInput) => apiFetch<Deal>(`/sales/deals/${id}`, json("PATCH", data)),
   removeDeal: (id: number) => apiFetch<void>(`/sales/deals/${id}`, { method: "DELETE" }),
   dealItems: (dealId: number) => apiFetch<DealItems>(`/sales/deals/${dealId}/items`),
+  shopProducts: (q: string) => apiFetch<ShopProduct[]>(`/sales/shop-products${qs({ q })}`),
   addDealItem: (dealId: number, data: DealItemInput) => apiFetch<DealItem>(`/sales/deals/${dealId}/items`, json("POST", data)),
   updateDealItem: (dealId: number, itemId: number, data: DealItemInput) =>
     apiFetch<DealItem>(`/sales/deals/${dealId}/items/${itemId}`, json("PATCH", data)),

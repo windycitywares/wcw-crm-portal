@@ -9,7 +9,7 @@ from app.modules.users.models import User
 
 from .schemas import (
     Board, DealCreate, DealItemIn, DealItemOut, DealItems, DealItemUpdate, DealOut, DealPage, DealUpdate,
-    PipelineIn, PipelineOut, PipelineUpdate, SalesSummary, StageIn, StageOut, StageUpdate,
+    PipelineIn, PipelineOut, PipelineUpdate, SalesSummary, ShopProductOut, StageIn, StageOut, StageUpdate,
 )
 from .service import SalesService
 
@@ -31,6 +31,12 @@ async def sales_summary(session: SessionDep, user: CurrentUser) -> SalesSummary:
 async def sales_board(session: SessionDep, pipeline_id: int | None = None) -> Board:
     """The kanban: every stage of a pipeline with its open deals (the default pipeline when none is given)."""
     return await SalesService(session).board(pipeline_id)
+
+
+@router.get("/shop-products", response_model=list[ShopProductOut])
+async def shop_products(session: SessionDep, q: str = "", limit: int = Query(20, ge=1, le=50)) -> list[ShopProductOut]:
+    """Search the shop's catalog when adding a line to a deal (`shop_product_id` and SKU come across)."""
+    return await SalesService(session).shop_products(q, limit)
 
 
 @router.get("/pipelines", response_model=list[PipelineOut])

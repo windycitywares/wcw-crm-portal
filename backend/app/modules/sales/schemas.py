@@ -195,3 +195,20 @@ class DealItems(BaseModel):
     items: list[DealItemOut]
     count: int
     total: Decimal
+
+
+class ShopProductOut(BaseModel):
+    """A line the shop's catalog offers, as the picker on a deal reads it (shop docs/CRM_SYNC.md).
+
+    `price` is the catalog's base price — a starting unit price the salesperson may change on the line.
+    """
+
+    id: int
+    parent_id: int | None = None
+    sku: str
+    name: str
+    price: Decimal = Decimal("0")
+    compare_at_price: Decimal | None = None
+    currency: str = "USD"
+    stock_status: str | None = None
+    image: str | None = None

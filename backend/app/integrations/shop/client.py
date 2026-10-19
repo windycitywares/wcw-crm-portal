@@ -20,6 +20,8 @@ class ShopApiError(Exception):
 class ShopClient(Protocol):
     async def page(self, resource: str, after_id: int, limit: int = 200) -> dict[str, Any]: ...
 
+    async def products(self, q: str = "", limit: int = 20) -> dict[str, Any]: ...
+
 
 class HttpShopClient:
     def __init__(self, base_url: str, token: str):
@@ -40,6 +42,14 @@ class HttpShopClient:
     async def page(self, resource: str, after_id: int, limit: int = 200) -> dict[str, Any]:
         query = urllib.parse.urlencode({"after_id": after_id, "limit": limit})
         return await asyncio.to_thread(self._get, f"{self.base_url}/integrations/crm/{resource}?{query}")
+
+    async def products(self, q: str = "", limit: int = 20) -> dict[str, Any]:
+        """Search the shop's catalog (shop docs/CRM_SYNC.md → `/integrations/crm/products`)."""
+        query: dict[str, Any] = {"limit": limit}
+        if q.strip():
+            query["q"] = q.strip()
+        return await asyncio.to_thread(
+            self._get, f"{self.base_url}/integrations/crm/products?{urllib.parse.urlencode(query)}")
 
 
 _factory = None
