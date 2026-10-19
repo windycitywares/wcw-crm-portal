@@ -49,10 +49,9 @@ def _contact_snapshot(contact: SupplierContact) -> dict[str, Any]:
 
 
 def _product_snapshot(product: SupplierProduct) -> dict[str, Any]:
-    return {field: getattr(product, field) for field in (
-        "shop_sku", "supplier_sku", "description", "unit_cost", "currency", "minimum_order_quantity",
-        "lead_time_days", "notes",
-    )}
+    # through the shared helper, so the money columns are stored as text — the audit column is JSON
+    return snapshot(product, ("shop_sku", "supplier_sku", "description", "unit_cost", "currency",
+                              "minimum_order_quantity", "lead_time_days", "notes"))
 
 
 class SupplierService:

@@ -113,8 +113,8 @@ def _list_snapshot(target: TargetList) -> dict[str, Any]:
 
 
 def _campaign_snapshot(campaign: Campaign) -> dict[str, Any]:
-    return {"name": campaign.name, "status": campaign.status, "template_id": campaign.template_id,
-            "target_list_id": campaign.target_list_id, "scheduled_at": campaign.scheduled_at}
+    # through the shared helper, so `scheduled_at` is stored as text — the audit column is JSON
+    return snapshot(campaign, ("name", "status", "template_id", "target_list_id", "scheduled_at"))
 
 
 def _recipient_counts(counts: dict[str, int] | None) -> RecipientCounts:

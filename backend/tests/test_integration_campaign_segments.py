@@ -236,7 +236,9 @@ class SegmentTests(unittest.TestCase):
             return sorted(self.matched(self.make_segment({"rules": [tag_rule, rule]})["id"]))
 
         self.assertEqual(who({"field": "total_spent", "op": "gte", "value": 500}), [big["id"]])
-        self.assertEqual(who({"field": "total_spent", "op": "lte", "value": 20}), [small["id"]])
+        # a customer who has never ordered has spent 0, so they are "at most 20" as well
+        self.assertEqual(who({"field": "total_spent", "op": "lte", "value": 20}),
+                         sorted([small["id"], quiet["id"]]))
         self.assertEqual(who({"field": "orders_count", "op": "gte", "value": 2}), [big["id"]])
         self.assertEqual(who({"field": "orders_count", "op": "eq", "value": 0}), [quiet["id"]])
         self.assertEqual(who({"field": "last_order_at", "op": "within_days", "value": 30}), [big["id"]])
