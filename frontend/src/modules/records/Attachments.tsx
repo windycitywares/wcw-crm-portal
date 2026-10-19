@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { ConfirmDialog } from "@/components/ui/Modal";
@@ -19,9 +19,9 @@ function fileSize(bytes: number) {
 }
 
 /**
- * The files kept against a record — what a customer sent with their message, today. Anyone who can see
- * the record can fetch one; removing one changes the record, so the button takes the right to change it.
- * Renders nothing at all when there are no files: a conversation with no attachments has nothing to say.
+ * The files kept against a record — what a customer sent with their message, and what the team adds.
+ * Anyone who can see the record can fetch one; adding or removing one changes the record, so those
+ * buttons take the right to change it. A reader with nothing to look at sees nothing at all.
  */
 export function Attachments({
   record,
@@ -36,6 +36,7 @@ export function Attachments({
   const [files, setFiles] = useState<Attachment[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<Attachment | null>(null);
+  const input = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
     recordsApi
@@ -70,40 +71,85 @@ export function Attachments({
     }
   }
 
-  if (!files?.length) return null;
+  async function add(file: File) {
+    setBusy(true);
+    try {
+      await recordsApi.uploadAttachment(record, file);
+      toast.push({ title: "File added", description: file.name });
+      load();
+    } catch (err) {
+      toast.push({ tone: "danger", title: "Couldn't add the file", description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setBusy(false);
+      if (input.current) input.current.value = ""; // the same file can be picked again
+    }
+  }
+
+  // A reader with no files has nothing to look at; somebody who can change the record needs the button
+  // even when the record is empty, or a file could never be added to it.
+  if (!files?.length && !canEdit) return null;
 
   return (
     <section className="grid gap-2 border-t border-line pt-4">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
-        {files.length === 1 ? "1 file" : `${files.length} files`}
-      </h3>
-      <ul className="grid gap-1.5">
-        {files.map((f) => (
-          <li
-            key={f.id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[var(--radius-control)] border border-line bg-sand px-3 py-2"
-          >
-            <Button size="sm" variant="ghost" className="h-7 gap-1.5 px-2 text-xs" onClick={() => void download(f)}>
-              <Icon name="download" className="size-3.5" />
-              <span className="max-w-[16rem] truncate">{f.filename}</span>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+          {files?.length ? (files.length === 1 ? "1 file" : `${files.length} files`) : "Files"}
+        </h3>
+        {canEdit && (
+          <>
+            <input
+              ref={input}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void add(file);
+              }}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1.5 px-2 text-xs"
+              disabled={busy}
+              onClick={() => input.current?.click()}
+            >
+              <Icon name="import" className="size-3.5" />
+              Add file
             </Button>
-            <span className="text-xs text-muted">
-              {fileSize(f.size)} · {formatDateTime(f.created_at)}
-            </span>
-            {canEdit && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="ml-auto h-7 px-2 text-xs"
-                onClick={() => setRemoving(f)}
-                aria-label={`Remove ${f.filename}`}
-              >
-                <Icon name="trash" className="size-3.5" />
+          </>
+        )}
+      </div>
+      {files?.length ? (
+        <ul className="grid gap-1.5">
+          {files.map((f) => (
+            <li
+              key={f.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[var(--radius-control)] border border-line bg-sand px-3 py-2"
+            >
+              <Button size="sm" variant="ghost" className="h-7 gap-1.5 px-2 text-xs" onClick={() => void download(f)}>
+                <Icon name="download" className="size-3.5" />
+                <span className="max-w-[16rem] truncate">{f.filename}</span>
               </Button>
-            )}
-          </li>
-        ))}
-      </ul>
+              <span className="text-xs text-muted">
+                {fileSize(f.size)} · {formatDateTime(f.created_at)}
+              </span>
+              {canEdit && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="ml-auto h-7 px-2 text-xs"
+                  onClick={() => setRemoving(f)}
+                  aria-label={`Remove ${f.filename}`}
+                >
+                  <Icon name="trash" className="size-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-muted">No files yet.</p>
+      )}
       <ConfirmDialog
         open={!!removing}
         title="Remove this file?"

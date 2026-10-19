@@ -4,8 +4,8 @@ The same shared block as notes and the timeline: `(entity_type, entity_id)` says
 and `check_entity_access` says who may see it, so a feature that can hold a note can hold a file
 without knowing anything about this module (`/entities/ticket/{id}/attachments`).
 
-Reading a record's files asks for the record's *view* permission; dropping one asks for its *edit*
-permission — taking the photo out of a complaint changes the record, so it is a change, not a read.
+Reading a record's files asks for the record's *view* permission; adding or dropping one asks for its
+*edit* permission — a file on a complaint changes the record either way, so it is a change, not a read.
 
 The files themselves live behind `app.integrations.files`; here they are only ever kept by content, so
 the same file sent twice is stored once, and the stored bytes are dropped with the last row that
@@ -93,6 +93,25 @@ class AttachmentService:
             await self.session.commit()
             await self.session.refresh(row)
         return AttachmentOut.model_validate(row)
+
+    async def upload(self, user: Any, entity_type: str, entity_id: int, *, filename: str, data: bytes,
+                     content_type: str | None = None) -> AttachmentOut:
+        """Keep a file a member of staff attached to a record.
+
+        Adding a file changes the record, so it takes the record's own *edit* permission, exactly as
+        dropping one does — there is nothing new to grant. Unlike a file that came with a message, this
+        one has no message to explain it, so the upload is written to the audit log and the timeline.
+        """
+        await check_entity_access(self.session, user, entity_type, entity_id, write=True)
+        row = await self.keep(entity_type, entity_id, filename=filename, data=data,
+                              content_type=content_type, source="upload", actor=user, commit=False)
+        noted = {"attachment_id": row.id, "filename": row.filename, "size": row.size}
+        await self.audit.record("attachment.upload", actor=user, entity_type=entity_type,
+                                entity_id=entity_id, changes=noted)
+        await self.timeline.record(entity_type, entity_id, "attachment.added",
+                                   f"File added ({row.filename})", actor=user, data=noted)
+        await self.session.commit()
+        return row
 
     async def list_for(self, user: Any, entity_type: str, entity_id: int) -> list[AttachmentOut]:
         """A record's files, oldest first, for anyone who may see the record."""
