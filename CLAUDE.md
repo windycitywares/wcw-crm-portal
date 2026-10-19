@@ -244,4 +244,22 @@ npm run typecheck
   helper now makes every value JSON-safe, with a pure unit test. Also: `decode_access_token()` returns an `AccessTokenPayload`
   TypedDict; the inbound-mail parser debug-logs the parts/messages it skips instead of swallowing them silently; imports left
   unused by the earlier `utcnow()`/snapshot refactors are removed. 264 tests green (175 DB-gated).
+- 2026-10-18: **CI green again** — `backend.yml`'s DB suite had not passed since M3 batch 1 (#27), so everything
+  merged since was never executed. **#69** removed the one compile-time break (PEP 695 `def get_model[T]`: CI and
+  the **server run Python 3.11**, which cannot parse it — local was newer). **#70** then repaired what the first
+  run exposed. Real bugs: post-commit `updated_at` lazy-load (`MissingGreenlet` 500) on deal-item / SLA-policy /
+  canned-response / supplier-contact / supplier-product updates (they now `refresh()` after commit, the pattern
+  tags/lookups/notes already used); a customer created with `marketing_consent=false` wrongly stamped
+  `unsubscribed_at` (only true → false is an unsubscribe); lead convert lost the default pipeline's first stage;
+  an attachment download gained `; charset=utf-8` on `text/*`; audit `changes` for a campaign's `scheduled_at`
+  (a datetime) and a product's money columns (Decimals) were not JSON, so scheduling and product edits 500'd;
+  **and `record_event` never committed, so every open pixel and every click was rolled back and the tracking
+  report read 0 in production.** Stale tests: the inbox patch target, campaign helpers tag customers as an
+  **admin** (marketing may only *view* them, SPEC §2), a per-class name counter, the unsubscribe-token regex
+  kept the `:`, `<p>`-derived text keeps its blank line, the first *active* supplier type, the shop suite's SLA
+  setup, `follow_redirects` (httpx spelling), passing a token not a URL, a `tags` rule takes ids, "spent ≤ 20"
+  includes a never-ordered customer (spend defaults to 0), dashboard stats count the whole window, and `setUp`
+  ends campaigns a test left mid-flight (the dispatcher works over the whole database). **264 tests, OK
+  (2 skipped)** — the first green DB run since #27. CI runs 3.11; a syntax the local interpreter accepts can
+  still fail there.
 - Claude merges green PRs (owner's standing OK) but can't create server secrets/cron; ask the owner.
