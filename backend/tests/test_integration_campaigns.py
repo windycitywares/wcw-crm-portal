@@ -88,7 +88,7 @@ class CampaignTrackingUnitTests(unittest.TestCase):
         from app.modules.campaigns.models import Campaign, CampaignRecipient, CLICK, OPEN
         from app.modules.campaigns.service import CampaignService
 
-        service = CampaignService(MagicMock())
+        service = CampaignService(AsyncMock())
         service.recipients.with_campaign = AsyncMock(return_value=(CampaignRecipient(
             id=21, campaign_id=7, customer_id=9, email="pink@example.com", status="sent"
         ), "Spring sale"))
