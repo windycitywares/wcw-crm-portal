@@ -50,6 +50,7 @@ export const NAV: NavGroup[] = [
       { href: "/settings/canned-responses", label: "Canned responses", icon: "copy", permission: "lookups:manage", hidden: true },
       { href: "/settings/integrations", label: "Integrations", icon: "globe", permission: "settings:manage", hidden: true },
       { href: "/settings/deployments", label: "Deployments", icon: "download", permission: "settings:manage", hidden: true },
+      { href: "/settings/environment", label: "Test mode", icon: "flask", permission: "settings:manage", hidden: true },
       { href: "/settings/audit", label: "Audit log", icon: "shield", permission: "audit:view", hidden: true },
     ],
   },
