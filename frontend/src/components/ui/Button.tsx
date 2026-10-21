@@ -26,13 +26,22 @@ export function buttonClass(variant: Variant = "primary", size: Size = "md", cla
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
+  loading?: boolean;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "primary", size = "md", className, type = "button", ...props },
+  { variant = "primary", size = "md", className, type = "button", loading, ...props },
   ref,
 ) {
-  return <button ref={ref} type={type} className={buttonClass(variant, size, className)} {...props} />;
+  return (
+    <button ref={ref} type={type} className={cn(buttonClass(variant, size, className), loading && "opacity-70 cursor-not-allowed")}
+      disabled={loading} {...props} aria-busy={loading}>
+      {loading && <span className="flex items-center gap-1.5">
+        <span className="relative h-3.5 w-3.5 rounded-full border-2 border-current border-transparent border-t-current animate-spin" />
+      </span>}
+      {!loading && props.children}
+    </button>
+  );
 });
 
 export function ButtonLink({

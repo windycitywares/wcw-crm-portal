@@ -9,7 +9,7 @@ from app.modules.suppliers.models import Supplier
 from app.modules.tickets.service import TicketService
 
 from .repository import ReportsRepository
-from .schemas import CustomerReport, ReportsOverview, SupplierReport, TicketReport
+from .schemas import CustomerReport, ReportsOverview, SupplierReport, TicketReport, TrendReport
 
 
 class ReportsService:
@@ -34,3 +34,6 @@ class ReportsService:
 
     async def suppliers(self) -> SupplierReport:
         return SupplierReport.model_validate(await self.repo.supplier_report())
+
+    async def trend(self, days: int) -> TrendReport:
+        return TrendReport(points=await self.repo.order_trend(days))

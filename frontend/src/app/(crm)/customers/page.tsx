@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { ColorTag } from "@/components/ui/ColorTag";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,6 +11,8 @@ import { Pagination } from "@/components/ui/Pagination";
 import { Panel } from "@/components/ui/Panel";
 import { Pill } from "@/components/ui/Pill";
 import { useToast } from "@/components/ui/Toast";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import type { Page } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
@@ -34,6 +36,7 @@ function loadFilters(): CustomerFilters {
 
 export default function CustomersPage() {
   const { can } = useAuth();
+  const router = useRouter();
   const toast = useToast();
   const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
   const { name } = useDirectory();
@@ -45,6 +48,8 @@ export default function CustomersPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
     const f = loadFilters();
@@ -84,6 +89,30 @@ export default function CustomersPage() {
   }, [search, ready, filters.q]);
 
   const update = (patch: Partial<CustomerFilters>) => setFilters((f) => ({ ...f, ...patch, page: 1 }));
+
+  const handleEdit = useCallback((c: Customer) => {
+    router.push(`/customers/${c.id}/edit`);
+  }, [router]);
+
+  const handleDelete = useCallback((c: Customer) => {
+    setDeleteTarget({ id: c.id, name: c.display_name });
+  }, []);
+
+  const handleDeleteConfirmed = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeletingId(deleteTarget.id);
+    try {
+      await customersApi.remove(deleteTarget.id);
+      toast.push({ title: "Customer deleted", description: `${deleteTarget.name} was removed.` });
+      void load(filters);
+    } catch (e) {
+      toast.push({ tone: "danger", title: "Couldn't delete", description: e instanceof Error ? e.message : undefined });
+    } finally {
+      setDeletingId(null);
+      setDeleteTarget(null);
+    }
+  }, [deleteTarget, load, toast]);
+
   const filtered = JSON.stringify({ ...filters, page: 1 }) !== JSON.stringify({ ...BLANK, page: 1 });
 
   const columns: Column<Customer>[] = [
@@ -266,6 +295,8 @@ export default function CustomersPage() {
             rows={data?.items ?? null}
             rowKey={(c) => c.id}
             loading={loading}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
             empty={filtered ? "No customers match these filters." : "No customers yet. Add the first one, or connect the shop to bring them in."}
           />
         </div>
@@ -273,6 +304,14 @@ export default function CustomersPage() {
       {data && data.total > PAGE_SIZE && (
         <Pagination className="mt-4" page={filters.page ?? 1} pageSize={PAGE_SIZE} total={data.total} onPage={(page) => setFilters((f) => ({ ...f, page }))} />
       )}
+
+      <ConfirmationDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete customer"
+        message={`Delete "${deleteTarget?.name}"? This can't be undone.`}
+        onConfirm={handleDeleteConfirmed}
+      />
     </>
   );
 }

@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Icon } from "./Icon";
+import { IconButton } from "./LoadingButton";
 
 export interface Column<T> {
   key: string;
@@ -18,6 +19,8 @@ export interface Column<T> {
 const HIDE = { sm: "hidden sm:table-cell", md: "hidden md:table-cell", lg: "hidden lg:table-cell" } as const;
 const ALIGN = { left: "text-left", right: "text-right", center: "text-center" } as const;
 
+const ACTIONS_WIDTH = 72;
+
 /**
  * Standard admin table. `rows === null` shows skeleton rows on first load; while refetching, pass
  * `loading` to dim the existing rows instead of flashing them away.
@@ -33,6 +36,9 @@ export function DataTable<T>({
   onSort,
   className,
   rowClassName,
+  onEdit,
+  onDelete,
+  deleteLabel = "Delete",
 }: {
   columns: Column<T>[];
   rows: T[] | null;
@@ -45,7 +51,13 @@ export function DataTable<T>({
   onSort?: (key: string) => void;
   className?: string;
   rowClassName?: (row: T) => string | undefined;
+  /** Edit a row (opens the edit link/dialog). */
+  onEdit?: (row: T) => void;
+  /** Delete a row (page handles the confirmation dialog). */
+  onDelete?: (row: T) => void;
+  deleteLabel?: string;
 }) {
+  const hasActions = !!onEdit || !!onDelete;
   return (
     <div className={cn("relative overflow-x-auto", className)}>
       <table className="w-full text-left text-sm">
@@ -72,6 +84,7 @@ export function DataTable<T>({
                 </th>
               );
             })}
+            {hasActions && <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-right" style={{ width: ACTIONS_WIDTH }} />}
           </tr>
         </thead>
         <tbody className={cn("divide-y divide-line transition-opacity duration-200", loading && "opacity-50")}>
@@ -83,6 +96,7 @@ export function DataTable<T>({
                       <div className="skeleton h-4 w-3/4" />
                     </td>
                   ))}
+                  {hasActions && <td key="actions" className="px-3 py-3.5 text-right" style={{ width: ACTIONS_WIDTH }} />}
                 </tr>
               ))
             : rows.map((row, i) => (
@@ -92,11 +106,27 @@ export function DataTable<T>({
                       {c.cell(row, i)}
                     </td>
                   ))}
+                  {hasActions && (
+                    <td key="actions" className="px-3 py-3 align-middle text-right" style={{ width: ACTIONS_WIDTH }}>
+                      <div className="flex items-center justify-end gap-1.5">
+                        {onEdit && (
+                          <IconButton variant="ghost" size="sm" title="Edit" onClick={() => onEdit(row)}>
+                            <Icon name="edit" className="size-4" />
+                          </IconButton>
+                        )}
+                        {onDelete && (
+                          <IconButton variant="danger" size="sm" title={deleteLabel} onClick={() => onDelete(row)}>
+                            <Icon name="trash" className="size-4" />
+                          </IconButton>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
         </tbody>
+        {rows !== null && rows.length === 0 && <div className="px-4 py-12 text-center text-sm text-muted">{empty ?? "Nothing here yet."}</div>}
       </table>
-      {rows !== null && rows.length === 0 && <div className="px-4 py-12 text-center text-sm text-muted">{empty ?? "Nothing here yet."}</div>}
     </div>
   );
 }

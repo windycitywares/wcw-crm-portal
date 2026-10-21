@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.integrations.shop.models import ShopOrder
 from app.modules.customers.models import Customer
 from app.modules.suppliers.models import Supplier
 from app.modules.tickets.models import OPEN_STATUSES, Ticket
@@ -60,3 +61,23 @@ class ReportsRepository:
             "by_status": await self.breakdown(Supplier, Supplier.status),
             "average_rating": float(average) if average is not None else None,
         }
+
+    async def order_trend(self, days: int) -> list[dict[str, Any]]:
+        """Daily order count + value over the last `days` days, including zeros for quiet days."""
+        now = datetime.now(timezone.utc)
+        start = (now - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        # bucket by calendar date (UTC)
+        day = func.date_trunc("day", ShopOrder.placed_at)
+        stmt = (
+            select(day.label("date"), func.count(ShopOrder.id).label("count"), func.coalesce(func.sum(ShopOrder.grand_total), 0).label("value"))
+            .where(ShopOrder.placed_at >= start)
+            .group_by(day)
+            .order_by(day.asc())
+        )
+        rows = {str(r.date.date()): {"count": int(r.count), "value": float(r.value or 0)} for r in (await self.session.execute(stmt)).all()}
+        out = []
+        for i in range(days):
+            d = (start + timedelta(days=i)).date().isoformat()
+            row = rows.get(d, {"count": 0, "value": 0.0})
+            out.append({"date": d, "count": row["count"], "value": row["value"]})
+        return out
