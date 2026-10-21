@@ -2,7 +2,7 @@ import { forwardRef, useId } from "react";
 import { cn } from "@/lib/utils";
 
 const control =
-  "w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70 focus-visible:border-accent aria-[invalid=true]:border-danger";
+  "w-full rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted/70 focus-visible:border-accent focus-visible:outline-none aria-[invalid=true]:border-danger aria-[invalid=true]:focus-visible:border-danger";
 
 export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
@@ -18,12 +18,12 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
 
 export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
   function Textarea({ className, ...props }, ref) {
-    return <textarea ref={ref} className={cn(control, "min-h-28", className)} {...props} />;
+    return <textarea ref={ref} className={cn(control, "min-h-[100px]", className)} {...props} />;
   },
 );
 
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
-  return <label className={cn("mb-1.5 block text-sm font-medium text-ink", className)} {...props} />;
+  return <label className={cn("mb-1 block text-sm font-semibold text-ink", className)} {...props} />;
 }
 
 /** Label + control + hint/error, wired together with ids for screen readers. */
@@ -45,16 +45,16 @@ export function Field({
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
   return (
-    <div className={className}>
+    <div className={cn("space-y-1", className)}>
       <Label htmlFor={id}>{label}</Label>
       {children({ id, "aria-describedby": describedBy, "aria-invalid": error ? true : undefined })}
       {hint && (
-        <p id={hintId} className="mt-1 text-xs text-muted">
+        <p id={hintId} className="text-xs text-muted">
           {hint}
         </p>
       )}
       {error && (
-        <p id={errorId} className="mt-1 text-xs text-danger">
+        <p id={errorId} className="text-xs text-danger font-medium">
           {error}
         </p>
       )}

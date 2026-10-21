@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
-import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
+import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { useAuth } from "@/lib/auth";
 import { CustomFieldsEditor, type CustomValues } from "@/modules/records/CustomFields";
 import { useDirectory } from "@/modules/records/useDirectory";
@@ -150,9 +150,9 @@ export function CustomerForm({ customer, onSaved }: { customer: Customer | null;
         </p>
       )}
 
-      <Panel>
-        <PanelHeader title="Contact" />
-        <PanelBody className="grid gap-4 sm:grid-cols-2">
+      <Card>
+        <CardHeader title="Contact" />
+        <CardBody className="grid gap-4 sm:grid-cols-2">
           <Field label="First name">{(p) => <Input {...p} autoComplete="off" maxLength={80} value={form.first_name} onChange={(e) => set("first_name", e.target.value)} />}</Field>
           <Field label="Last name">{(p) => <Input {...p} autoComplete="off" maxLength={80} value={form.last_name} onChange={(e) => set("last_name", e.target.value)} />}</Field>
           <Field label="Company" hint="For business customers." className="sm:col-span-2">
@@ -185,12 +185,12 @@ export function CustomerForm({ customer, onSaved }: { customer: Customer | null;
           <Field label="Other emails" hint="Separate with commas. Used to match shop orders and replies." className="sm:col-span-2">
             {(p) => <Input {...p} autoComplete="off" value={form.alt_emails} onChange={(e) => set("alt_emails", e.target.value)} />}
           </Field>
-        </PanelBody>
-      </Panel>
+        </CardBody>
+      </Card>
 
-      <Panel>
-        <PanelHeader title="Classification" />
-        <PanelBody className="grid gap-4 sm:grid-cols-2">
+      <Card>
+        <CardHeader title="Classification" />
+        <CardBody className="grid gap-4 sm:grid-cols-2">
           <Field label="Customer type">
             {(p) => (
               <Select {...p} value={form.customer_type} onChange={(e) => set("customer_type", e.target.value)}>
@@ -250,12 +250,12 @@ export function CustomerForm({ customer, onSaved }: { customer: Customer | null;
               <span className="block text-muted">Tick only if the customer said yes. Campaigns skip everyone else.</span>
             </span>
           </label>
-        </PanelBody>
-      </Panel>
+        </CardBody>
+      </Card>
 
-      <Panel>
-        <PanelHeader title="Address" />
-        <PanelBody className="grid gap-4 sm:grid-cols-2">
+      <Card>
+        <CardHeader title="Address" />
+        <CardBody className="grid gap-4 sm:grid-cols-2">
           {ADDRESS_FIELDS.map((a) => (
             <Field key={a.key} label={a.label} className={a.className}>
               {(p) => (
@@ -263,16 +263,16 @@ export function CustomerForm({ customer, onSaved }: { customer: Customer | null;
               )}
             </Field>
           ))}
-        </PanelBody>
-      </Panel>
+        </CardBody>
+      </Card>
 
       {defs.length > 0 && (
-        <Panel>
-          <PanelHeader title="More details" description="Fields your team added in Administration → Custom fields." />
-          <PanelBody>
+        <Card>
+          <CardHeader title="More details" description="Fields your team added in Administration → Custom fields." />
+          <CardBody>
             <CustomFieldsEditor defs={defs} values={form.custom_fields} onChange={(v) => set("custom_fields", v)} />
-          </PanelBody>
-        </Panel>
+          </CardBody>
+        </Card>
       )}
 
       <div className="flex flex-wrap gap-2">
