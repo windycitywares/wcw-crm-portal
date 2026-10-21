@@ -13,6 +13,7 @@ import { Popover } from "@/components/ui/Popover";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { ToastProvider } from "@/components/ui/Toast";
+import { TestModeBanner } from "@/components/ui/TestModeBanner";
 import { NAV, isActive, titleFor } from "./nav";
 
 function useTheme() {
@@ -124,6 +125,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <a href="#main" className="skip-link">
         Skip to content
       </a>
+      <TestModeBanner label="Test mode" text="Test mode: you're working on a copy of the CRM's data. Nothing here changes the live data.">
+        {" "}
+        <Link href="/settings/environment" className="underline underline-offset-4">
+          Test mode settings
+        </Link>
+      </TestModeBanner>
       <div className="min-h-dvh lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
         <aside className={cn("sticky top-0 hidden h-dvh flex-col bg-night text-night-muted lg:flex", collapsed ? "w-[4.5rem]" : "w-[15rem]")}>
           <div className="px-2 pb-3 pt-5">
