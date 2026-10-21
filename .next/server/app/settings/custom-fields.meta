@@ -1,0 +1,44 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/settings/layout,_N_T_/(crm)/settings/custom-fields/layout,_N_T_/(crm)/settings/custom-fields/page,_N_T_/settings/custom-fields"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/settings/custom-fields/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 96,
+                "slots": {
+                  "children": {
+                    "hints": 160,
+                    "slots": null
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/a7debb4268f8d40351b83d123ae0ff16ac1378835d5c765d409235b20ee38023/$/settings/custom-fields",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/settings/custom-fields/page"
+    },
+    "isFallback": false
+  }
+}

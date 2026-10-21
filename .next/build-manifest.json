@@ -1,0 +1,542 @@
+{
+  "pages": {
+    "/_app": []
+  },
+  "devFiles": [],
+  "polyfillFiles": [
+    "static/chunks/0cz1d0mv5g_q7.js"
+  ],
+  "lowPriorityFiles": [
+    "static/dnNbeAZ23_uPQ3SDCt-S2/_buildManifest.js",
+    "static/dnNbeAZ23_uPQ3SDCt-S2/_ssgManifest.js",
+    "static/dnNbeAZ23_uPQ3SDCt-S2/_clientMiddlewareManifest.js"
+  ],
+  "rootMainFiles": [
+    "static/chunks/1x6obpmlu1_c2.js",
+    "static/chunks/2r4s4h5xul1n-.js",
+    "static/chunks/2khxl0v1q4i6n.js",
+    "static/chunks/2e268anpfvdoc.js",
+    "static/chunks/turbopack-3-ry682tkyiqk.js"
+  ],
+  "rootMainFilesTree": {},
+  "pagesChunkGroupBootstrapParams": {
+    "/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/_not-found/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/_global-error/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(auth)/forgot-password/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(auth)/login/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(auth)/reset-password/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/account/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/campaigns/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/campaigns/[id]/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/campaigns/lists/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/campaigns/lists/[id]/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/campaigns/new/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/campaigns/suppressions/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/campaigns/templates/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/contacts/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/customers/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/customers/[id]/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/customers/[id]/edit/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/customers/import/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/customers/new/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/dashboard/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/inbox/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/leads/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/reports/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/sales/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/audit/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/business-hours/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/canned-responses/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/custom-fields/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/deployments/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/email/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/email-accounts/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/environment/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/integrations/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/pipelines/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/sla-policies/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/tags/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/types/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/settings/users/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/suppliers/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/suppliers/[id]/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/suppliers/[id]/edit/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/suppliers/new/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/tasks/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/tickets/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(crm)/tickets/[id]/page": {
+      "otherChunks": [
+        "static/chunks/1x6obpmlu1_c2.js",
+        "static/chunks/2r4s4h5xul1n-.js",
+        "static/chunks/2khxl0v1q4i6n.js",
+        "static/chunks/2e268anpfvdoc.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    }
+  },
+  "chunkLoadingGlobal": "TURBOPACK"
+}

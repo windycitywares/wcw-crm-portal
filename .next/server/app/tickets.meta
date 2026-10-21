@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/tickets/layout,_N_T_/(crm)/tickets/page,_N_T_/tickets"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/tickets/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/41c95b96f3b3e776fd26f2505afac3e34cbf968a70b019f5cd0d5b17ae8523b9/$/tickets",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/tickets/page"
+    },
+    "isFallback": false
+  }
+}

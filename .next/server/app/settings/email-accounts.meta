@@ -1,0 +1,44 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/settings/layout,_N_T_/(crm)/settings/email-accounts/layout,_N_T_/(crm)/settings/email-accounts/page,_N_T_/settings/email-accounts"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/settings/email-accounts/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 96,
+                "slots": {
+                  "children": {
+                    "hints": 160,
+                    "slots": null
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/8b0c92a0540712f3a48951e74a0f081075ca5c248185c0adc5e0a030b20025aa/$/settings/email-accounts",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/settings/email-accounts/page"
+    },
+    "isFallback": false
+  }
+}
