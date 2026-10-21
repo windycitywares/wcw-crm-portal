@@ -46,6 +46,26 @@
   color-scheme: light;
 }
 
+.dark {
+  --color-canvas: #0f172a;
+  --color-surface: #1e293b;
+  --color-sand: #334155;
+  --color-line: #475569;
+  --color-ink: #f8fafc;
+  --color-muted: #94a3b8;
+  --color-accent: #60a5fa;
+  --color-accent-strong: #93c5fd;
+  --color-accent-soft: #1e3a8a;
+  --color-night: #020617;
+  --color-night-muted: #94a3b8;
+  --color-success: #4ade80;
+  --color-danger: #f87171;
+  --color-on-accent: #ffffff;
+  --color-warning: #fbbf24;
+  --color-gold: #c9902f;
+  color-scheme: dark;
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;

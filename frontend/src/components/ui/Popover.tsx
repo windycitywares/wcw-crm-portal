@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Disclosure popover built on <details>: works without JavaScript state, closes on outside click and
- * Escape. `trigger` is the visible button content.
+ * Escape. `trigger` is the visible button content. Supports controlled `open` state.
  */
 export function Popover({
   trigger,
@@ -15,6 +15,7 @@ export function Popover({
   className,
   panelClassName,
   triggerClassName,
+  open: openProp,
   onOpenChange,
 }: {
   trigger: React.ReactNode;
@@ -25,11 +26,14 @@ export function Popover({
   className?: string;
   panelClassName?: string;
   triggerClassName?: string;
+  /** Controlled open state. */
+  open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
   const ref = useRef<HTMLDetailsElement>(null);
   const close = () => {
     if (ref.current) ref.current.open = false;
+    onOpenChange?.(false);
   };
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -49,25 +53,32 @@ export function Popover({
     };
   }, []);
   return (
-    <details ref={ref} className={cn("relative", className)} onToggle={(e) => onOpenChange?.(e.currentTarget.open)}>
+    <details
+      ref={ref}
+      className={cn("relative", className)}
+      open={openProp}
+      onToggle={(e) => {
+        onOpenChange?.(e.currentTarget.open);
+      }}>
       <summary
         className={cn(
           "flex h-9 cursor-pointer list-none items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-sm font-medium hover:border-ink/40 [&::-webkit-details-marker]:hidden",
           triggerClassName,
-        )}
-      >
+        )}>
         {trigger}
         {label && <span className="sr-only">{label}</span>}
       </summary>
-      <div
-        className={cn(
-          "absolute top-full z-50 mt-1.5 min-w-56 rounded-[var(--radius-card)] border border-line bg-surface p-1.5 shadow-[0_16px_40px_-16px_rgb(0_0_0/0.4)]",
-          align === "right" ? "right-0" : "left-0",
-          panelClassName,
-        )}
-      >
-        {typeof children === "function" ? children(close) : children}
-      </div>
+      {openProp && (
+        <div
+          className={cn(
+            "absolute top-full z-50 mt-1.5 min-w-56 rounded-[var(--radius-card)] border border-line bg-surface p-1.5 shadow-[0_16px_40px_-16px_rgb(0_0_0/0.4)]",
+            align === "right" ? "right-0" : "left-0",
+            panelClassName,
+          )}
+        >
+          {typeof children === "function" ? children(close) : children}
+        </div>
+      )}
     </details>
   );
 }
