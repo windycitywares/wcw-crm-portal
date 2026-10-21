@@ -23,18 +23,7 @@ async def list_groups(_: Admin) -> list[dict]:
     return [{"key": k, "label": label} for k, (label, _) in GROUPS.items()]
 
 
-@router.get("/{key}", response_model=dict)
-async def get_group(session: SessionDep, _: Admin, key: str) -> dict[str, Any]:
-    return await SettingsService(session).get_public(key)
-
-
-@router.put("/{key}", response_model=dict)
-async def save_group(session: SessionDep, actor: Admin, key: str, values: dict[str, Any] = Body(...)) -> dict[str, Any]:
-    return await SettingsService(session).update(key, values, actor)
-
-
-# ---- test mode (live/test switch) ----
-import json as _json
+# ---- test mode (live/test switch) ---- must come before /{key} to avoid route shadowing
 
 @router.get("/environment")
 async def environment(response: Response, _: Admin):
@@ -68,6 +57,16 @@ async def set_mail_to(session: SessionDep, user: Admin, email: str | None = None
     return await TestEnvironment(engine).status()
 
 
+@router.get("/{key}", response_model=dict)
+async def get_group(session: SessionDep, _: Admin, key: str) -> dict[str, Any]:
+    return await SettingsService(session).get_public(key)
+
+
+@router.put("/{key}", response_model=dict)
+async def save_group(session: SessionDep, actor: Admin, key: str, values: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    return await SettingsService(session).update(key, values, actor)
+
+
 @router.post("/email/test", response_model=dict)
 async def send_test_email(session: SessionDep, actor: Admin, to: Annotated[EmailStr, Body(embed=True)]) -> dict[str, Any]:
     """Send one message with the saved settings right now and report the SMTP server's answer."""
@@ -77,7 +76,7 @@ async def send_test_email(session: SessionDep, actor: Admin, to: Annotated[Email
     try:
         await SmtpEmailSender(smtp_config(settings)).send(Mail(
             to=to, subject="Test email from the Windy City Wares CRM",
-            text=f"This is a test sent by {actor.full_name} from Admin → Settings → Email.\n\nIf you can read it, outgoing email works.",
+            text=f"This is a test sent by {actor.full_name} from Admin \u2014 Settings \u2014 Email.\n\nIf you can read it, outgoing email works.",
             reply_to=str(settings.reply_to) or None,
         ))
     except Exception as exc:  # noqa: BLE001 - show the SMTP error to the admin
