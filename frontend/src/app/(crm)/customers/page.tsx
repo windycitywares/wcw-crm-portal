@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { ColorTag } from "@/components/ui/ColorTag";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Panel } from "@/components/ui/Panel";
-import { Pill } from "@/components/ui/Pill";
+import { Badge } from "@/components/ui/Badge";
+import { Avatar } from "@/components/ui/Avatar";
 import { useToast } from "@/components/ui/Toast";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -121,9 +121,12 @@ export default function CustomersPage() {
       header: "Customer",
       cell: (c) => (
         <div className="min-w-0">
-          <Link href={`/customers/${c.id}`} className="font-medium text-ink hover:text-accent-strong hover:underline">
-            {c.display_name}
-          </Link>
+          <div className="flex items-center gap-2">
+            <Avatar name={c.display_name} size="sm" />
+            <Link href={`/customers/${c.id}`} className="font-medium text-ink hover:text-accent-strong hover:underline">
+              {c.display_name}
+            </Link>
+          </div>
           {c.company && c.display_name !== c.company && <div className="truncate text-xs text-muted">{c.company}</div>}
           {c.email && <div className="truncate text-xs text-muted">{c.email}</div>}
         </div>
@@ -135,7 +138,7 @@ export default function CustomersPage() {
       hide: "md",
       cell: (c) => {
         const t = lookups.find("customer_type", c.customer_type);
-        return t ? <ColorTag color={t.color}>{t.label}</ColorTag> : <span className="text-muted">—</span>;
+        return t ? <Badge variant="accent">{t.label}</Badge> : <span className="text-muted">—</span>;
       },
     },
     {
@@ -144,9 +147,11 @@ export default function CustomersPage() {
       hide: "sm",
       cell: (c) =>
         c.deleted_at ? (
-          <Pill tone="danger">Deleted</Pill>
+          <Badge variant="danger">Deleted</Badge>
         ) : (
-          <Pill tone={c.status === "active" ? "success" : c.status === "blocked" ? "danger" : "neutral"}>{STATUS_LABEL[c.status]}</Pill>
+          <Badge variant={c.status === "active" ? "success" : c.status === "blocked" ? "danger" : "neutral"}>
+            {STATUS_LABEL[c.status]}
+          </Badge>
         ),
     },
     { key: "owner", header: "Owner", hide: "lg", cell: (c) => (c.owner_id ? name(c.owner_id) : <span className="text-muted">—</span>) },

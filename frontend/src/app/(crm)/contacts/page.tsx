@@ -9,7 +9,8 @@ import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Panel } from "@/components/ui/Panel";
-import { Pill } from "@/components/ui/Pill";
+import { Badge } from "@/components/ui/Badge";
+import { Avatar } from "@/components/ui/Avatar";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import { qs } from "@/lib/client-api";
@@ -87,14 +88,17 @@ export default function ContactsPage() {
       header: "Contact",
       cell: (c) => (
         <div className="min-w-0">
-          <button type="button" onClick={() => { setEditing(c); setShowForm(true); }}
-            className="font-medium text-ink hover:text-accent-strong hover:underline">
-            {c.display_name}
-          </button>
+          <div className="flex items-center gap-2">
+            <Avatar name={c.display_name} size="sm" />
+            <button type="button" onClick={() => { setEditing(c); setShowForm(true); }}
+              className="font-medium text-ink hover:text-accent-strong hover:underline">
+              {c.display_name}
+            </button>
+          </div>
           {c.company && c.display_name !== c.company && <div className="truncate text-xs text-muted">{c.company}</div>}
           {c.email && <div className="truncate text-xs text-muted">{c.email}</div>}
-          {c.user_id && <div className="mt-0.5 text-xs text-muted">Staff user</div>}
-          {c.customer_id && <div className="text-xs text-muted">Customer</div>}
+          {c.user_id && <div className="mt-0.5 text-xs text-muted"><Badge variant="neutral">Staff user</Badge></div>}
+          {c.customer_id && <div className="mt-0.5 text-xs text-muted"><Badge variant="accent">Customer</Badge></div>}
         </div>
       ),
     },
@@ -106,13 +110,14 @@ export default function ContactsPage() {
         <div className="flex flex-wrap gap-1">
           {c.types.length ? c.types.map((t) => {
             const v = lookups.find("contact_type", t);
-            return <Pill key={t} tone="neutral">{v ? v.label : t}</Pill>;
+            const variant = t === "user" ? "accent" : t === "customer" ? "success" : t === "vendor" ? "warning" : t === "lead" ? "info" : "neutral";
+            return <Badge key={t} variant={variant}>{v ? v.label : t}</Badge>;
           }) : <span className="text-muted">—</span>}
         </div>
       ),
     },
     { key: "phone", header: "Phone", hide: "lg", cell: (c) => c.phone ?? <span className="text-muted">—</span> },
-    { key: "status", header: "Status", hide: "md", cell: (c) => <Pill tone={c.status === "active" ? "success" : "neutral"}>{c.status}</Pill> },
+    { key: "status", header: "Status", hide: "md", cell: (c) => <Badge variant={c.status === "active" ? "success" : "neutral"}>{c.status}</Badge> },
   ];
 
   return (
