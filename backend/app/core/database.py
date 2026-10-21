@@ -24,6 +24,13 @@ def _build_engine():
 engine = _build_engine()
 SessionFactory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
+# Attach the live/test mode hook so every connection reads from the chosen copy.
+try:
+    from app.core import appmode
+    appmode.install(engine)
+except Exception:  # noqa: BLE001 - don't break startup if app_mode isn't migrated yet
+    pass
+
 
 async def get_session() -> AsyncIterator[AsyncSession]:
     async with SessionFactory() as session:
