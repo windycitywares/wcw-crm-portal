@@ -86,6 +86,8 @@ class AuthService:
         self.users.apply(user, data.model_dump(exclude_unset=True, exclude_none=True))
         await self.audit.record("user.update_profile", actor=user, entity_type="user", entity_id=user.id,
                                 changes=diff(before, snapshot(user, ("full_name", "role", "is_active", "title", "phone", "timezone", "email"))))
+        from app.modules.contacts.service import ContactService
+        await ContactService(self.session).sync_user(user, actor=user)
         await self.session.commit()
         return me_out(user)
 
@@ -190,6 +192,8 @@ class UserService:
         ))
         await self.audit.record("user.create", actor=actor, entity_type="user", entity_id=user.id,
                                 changes=diff({}, snapshot(user, ("full_name", "role", "is_active", "title", "phone", "timezone", "email"))))
+        from app.modules.contacts.service import ContactService
+        await ContactService(self.session).sync_user(user, actor=actor)
         await self.session.commit()
         await self.session.refresh(user)
         return UserOut.model_validate(user)
@@ -212,6 +216,8 @@ class UserService:
         self.users.apply(user, changes)
         await self.audit.record("user.update", actor=actor, entity_type="user", entity_id=user.id,
                                 changes=diff(before, snapshot(user, ("full_name", "role", "is_active", "title", "phone", "timezone", "email"))))
+        from app.modules.contacts.service import ContactService
+        await ContactService(self.session).sync_user(user, actor=actor)
         await self.session.commit()
         await self.session.refresh(user)
         return UserOut.model_validate(user)
