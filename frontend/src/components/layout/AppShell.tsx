@@ -19,7 +19,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav aria-label="CRM" className="flex-1 overflow-y-auto px-3 py-2">
       {NAV.map((group, gi) => {
-        const items = group.items.filter((i) => !i.permission || can(i.permission));
+        const items = group.items.filter((i) => !i.hidden && (!i.permission || can(i.permission)));
         if (items.length === 0) return null;
         return (
           <div key={group.label ?? gi} className={gi > 0 ? "mt-5" : undefined}>
@@ -144,6 +144,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       <p className="mt-1 text-xs text-muted">{ROLE_LABEL[user.role]} access</p>
                     </div>
                     <div className="border-t border-line pt-1">
+                      <Link href="/settings" onClick={close} className="flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm hover:bg-sand">
+                        <Icon name="sliders" className="size-4 text-muted" />
+                        Settings
+                      </Link>
                       <Link href="/account" onClick={close} className="flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm hover:bg-sand">
                         <Icon name="customers" className="size-4 text-muted" />
                         Your account

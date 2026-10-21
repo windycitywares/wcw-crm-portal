@@ -6,6 +6,8 @@ export interface NavItem {
   icon: IconName;
   /** Hidden unless the user has this permission (the API enforces it again). */
   permission?: string;
+  /** Only shown in the settings page's left panel, not in the main sidebar. */
+  hidden?: boolean;
 }
 export interface NavGroup {
   label?: string;
@@ -35,19 +37,19 @@ export const NAV: NavGroup[] = [
   {
     label: "Administration",
     items: [
-      { href: "/settings/users", label: "Users", icon: "users", permission: "users:manage" },
-      { href: "/settings/types", label: "Types", icon: "sliders", permission: "lookups:manage" },
-      { href: "/settings/tags", label: "Tags", icon: "tag", permission: "lookups:manage" },
-      { href: "/settings/pipelines", label: "Pipelines", icon: "funnel", permission: "lookups:manage" },
-      { href: "/settings/custom-fields", label: "Custom fields", icon: "edit", permission: "lookups:manage" },
-      { href: "/settings/email", label: "Email", icon: "mail", permission: "settings:manage" },
-      { href: "/settings/email-accounts", label: "Email accounts", icon: "mail", permission: "inbox:manage" },
-      { href: "/settings/business-hours", label: "Business hours", icon: "clock", permission: "settings:manage" },
-      { href: "/settings/sla-policies", label: "SLA policies", icon: "alert", permission: "lookups:manage" },
-      { href: "/settings/canned-responses", label: "Canned responses", icon: "copy", permission: "lookups:manage" },
-      { href: "/settings/integrations", label: "Integrations", icon: "globe", permission: "settings:manage" },
-      { href: "/settings/deployments", label: "Deployments", icon: "download", permission: "settings:manage" },
-      { href: "/settings/audit", label: "Audit log", icon: "shield", permission: "audit:view" },
+      { href: "/settings/users", label: "Users", icon: "users", permission: "users:manage", hidden: true },
+      { href: "/settings/types", label: "Types", icon: "sliders", permission: "lookups:manage", hidden: true },
+      { href: "/settings/tags", label: "Tags", icon: "tag", permission: "lookups:manage", hidden: true },
+      { href: "/settings/pipelines", label: "Pipelines", icon: "funnel", permission: "lookups:manage", hidden: true },
+      { href: "/settings/custom-fields", label: "Custom fields", icon: "edit", permission: "lookups:manage", hidden: true },
+      { href: "/settings/email", label: "Email", icon: "mail", permission: "settings:manage", hidden: true },
+      { href: "/settings/email-accounts", label: "Email accounts", icon: "mail", permission: "inbox:manage", hidden: true },
+      { href: "/settings/business-hours", label: "Business hours", icon: "clock", permission: "settings:manage", hidden: true },
+      { href: "/settings/sla-policies", label: "SLA policies", icon: "alert", permission: "lookups:manage", hidden: true },
+      { href: "/settings/canned-responses", label: "Canned responses", icon: "copy", permission: "lookups:manage", hidden: true },
+      { href: "/settings/integrations", label: "Integrations", icon: "globe", permission: "settings:manage", hidden: true },
+      { href: "/settings/deployments", label: "Deployments", icon: "download", permission: "settings:manage", hidden: true },
+      { href: "/settings/audit", label: "Audit log", icon: "shield", permission: "audit:view", hidden: true },
     ],
   },
 ];
