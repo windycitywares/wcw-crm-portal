@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -31,9 +31,14 @@ export function Popover({
   onOpenChange?: (open: boolean) => void;
 }) {
   const ref = useRef<HTMLDetailsElement>(null);
+  const controlled = openProp !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = controlled ? openProp : internalOpen;
+
   const close = () => {
     if (ref.current) ref.current.open = false;
-    onOpenChange?.(false);
+    if (controlled) onOpenChange?.(false);
+    else setInternalOpen(false);
   };
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -51,14 +56,24 @@ export function Popover({
       document.removeEventListener("click", onClick);
       document.removeEventListener("keydown", onKey);
     };
-  }, []);
+  }, [controlled, onOpenChange]);
+
+  // Sync controlled prop to the details element
+  useEffect(() => {
+    if (controlled && ref.current) {
+      ref.current.open = openProp ?? false;
+    }
+  }, [controlled, openProp]);
+
   return (
     <details
       ref={ref}
       className={cn("relative", className)}
-      open={openProp}
+      open={isOpen}
       onToggle={(e) => {
-        onOpenChange?.(e.currentTarget.open);
+        const open = e.currentTarget.open;
+        if (controlled) onOpenChange?.(open);
+        else setInternalOpen(open);
       }}>
       <summary
         className={cn(
@@ -68,7 +83,7 @@ export function Popover({
         {trigger}
         {label && <span className="sr-only">{label}</span>}
       </summary>
-      {openProp && (
+      {isOpen && (
         <div
           className={cn(
             "absolute top-full z-50 mt-1.5 min-w-56 rounded-[var(--radius-card)] border border-line bg-surface p-1.5 shadow-[0_16px_40px_-16px_rgb(0_0_0/0.4)]",
