@@ -67,11 +67,22 @@ export interface SupplierListRow {
   contacts: { name: string; email: string | null; is_primary: boolean }[];
 }
 
+export interface TrendPoint {
+  date: string;
+  count: number;
+  value: number;
+}
+
+export interface TrendReport {
+  points: TrendPoint[];
+}
+
 export const reportsApi = {
   overview: (campaignDays = 30) => apiFetch<ReportsOverview>(`/reports/overview${qs({ campaign_days: campaignDays })}`),
   customers: () => apiFetch<CustomerReport>("/reports/customers"),
   tickets: () => apiFetch<TicketReport>("/reports/tickets"),
   suppliers: () => apiFetch<SupplierReport>("/reports/suppliers"),
+  trend: (days = 30) => apiFetch<TrendReport>(`/reports/trend${qs({ days })}`),
   supplierList: (page = 1, pageSize = 25) =>
     apiFetch<Page<SupplierListRow>>(`/suppliers${qs({ page, page_size: pageSize })}`),
 };

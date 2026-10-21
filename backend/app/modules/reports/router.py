@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from app.core.permissions import Permission
 from app.modules.users.deps import CurrentUser, SessionDep, require
 
-from .schemas import CustomerReport, ReportsOverview, SupplierReport, TicketReport
+from .schemas import CustomerReport, ReportsOverview, SupplierReport, TicketReport, TrendReport
 from .service import ReportsService
 
 router = APIRouter(prefix="/reports", tags=["reports"],
@@ -19,6 +19,15 @@ async def reports_overview(
     campaign_days: Annotated[int, Query(ge=1, le=365)] = 30,
 ) -> ReportsOverview:
     return await ReportsService(session).overview(user, campaign_days=campaign_days)
+
+
+@router.get("/trend", response_model=TrendReport)
+async def reports_trend(
+    session: SessionDep,
+    user: CurrentUser,
+    days: Annotated[int, Query(ge=7, le=90)] = 30,
+) -> TrendReport:
+    return await ReportsService(session).trend(days)
 
 
 @router.get("/customers", response_model=CustomerReport)

@@ -10,6 +10,16 @@ class ReportBucket(BaseModel):
     count: int
 
 
+class TrendPoint(BaseModel):
+    date: str  # ISO date
+    count: int
+    value: str | int | float | None = None
+
+
+class TrendReport(BaseModel):
+    points: list[TrendPoint]
+
+
 class CustomerReport(BaseModel):
     total: int
     by_type: list[ReportBucket]

@@ -7,8 +7,18 @@ import { Icon } from "@/components/ui/Icon";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
+import { TrendChart } from "@/components/ui/TrendChart";
 import { useAuth } from "@/lib/auth";
-import { reportsApi, type CustomerReport, type ReportBucket, type ReportsOverview, type SupplierListRow, type SupplierReport, type TicketReport } from "@/modules/reports/api";
+import {
+  reportsApi,
+  type CustomerReport,
+  type ReportBucket,
+  type ReportsOverview,
+  type SupplierListRow,
+  type SupplierReport,
+  type TicketReport,
+  type TrendReport,
+} from "@/modules/reports/api";
 
 const windows = [7, 30, 90] as const;
 
@@ -110,6 +120,7 @@ export default function ReportsPage() {
   const [suppliers, setSuppliers] = useState<SupplierReport | null>(null);
   const [supplierRows, setSupplierRows] = useState<{ items: SupplierListRow[]; total: number; page: number; page_size: number } | null>(null);
   const [supplierPage, setSupplierPage] = useState(1);
+  const [trend, setTrend] = useState<TrendReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -123,12 +134,14 @@ export default function ReportsPage() {
       reportsApi.customers(),
       reportsApi.tickets(),
       reportsApi.suppliers(),
-    ]).then(([overviewData, customerData, ticketData, supplierData]) => {
+      reportsApi.trend(campaignDays),
+    ]).then(([overviewData, customerData, ticketData, supplierData, trendData]) => {
       if (!active) return;
       setOverview(overviewData);
       setCustomers(customerData);
       setTickets(ticketData);
       setSuppliers(supplierData);
+      setTrend(trendData);
     }).catch((err: unknown) => {
       if (active) setError(err instanceof Error ? err.message : "Couldn't load reports");
     }).finally(() => {
@@ -172,13 +185,7 @@ export default function ReportsPage() {
         description="Sales, service, campaign, customer, and supplier activity."
         actions={
           <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 text-sm text-muted">
-              Campaign window
-              <select value={campaignDays} onChange={(e) => setCampaignDays(Number(e.target.value))} className="h-9 rounded border border-line bg-surface px-2 text-sm text-ink">
-                {windows.map((days) => <option key={days} value={days}>{days} days</option>)}
-              </select>
-            </label>
-            <Button size="sm" variant="secondary" disabled={!overview || !customers || !tickets || !suppliers} onClick={() => overview && customers && tickets && suppliers && downloadCsv(overview, customers, tickets, suppliers)}>
+            <Button size="sm" variant="secondary" disabled={!overview || !customers || !tickets || !suppliers || !trend} onClick={() => overview && customers && tickets && suppliers && downloadCsv(overview, customers, tickets, suppliers)}>
               <Icon name="download" className="size-4" /> Export CSV
             </Button>
           </div>
@@ -188,8 +195,27 @@ export default function ReportsPage() {
       {error && <div role="alert" className="mb-4 rounded border border-danger/50 bg-danger/8 px-3 py-2 text-sm text-danger">{error}</div>}
       {loading && !overview && <p className="mb-4 text-sm text-muted">Loading reports…</p>}
 
-      {overview && customers && tickets && suppliers && <>
-        <div className="mb-6 grid gap-4 border-y border-line py-3 sm:grid-cols-2 xl:grid-cols-4">
+      {overview && customers && tickets && suppliers && trend && (
+        <>
+          <Panel className="mb-6">
+            <PanelHeader title="Orders trend" description={`Orders placed over the last ${trend.points.length} days.`} />
+            <PanelBody>
+              <div className="flex items-center gap-3 mb-4">
+                <label className="flex items-center gap-2 text-sm text-muted font-medium">
+                  Window
+                  <select value={campaignDays} onChange={(e) => setCampaignDays(Number(e.target.value))} className="h-9 rounded border border-line bg-surface px-2 text-sm text-ink">
+                    {windows.map((days) => <option key={days} value={days}>{days} days</option>)}
+                  </select>
+                </label>
+                <span className="mx-1 h-4 w-px bg-line" />
+                <span className="text-sm font-medium text-ink">{trend.points.reduce((sum, p) => sum + p.count, 0).toLocaleString()} orders placed</span>
+                <span className="text-xs text-muted">· ${trend.points.reduce((sum, p) => sum + Number(p.value || 0), 0).toLocaleString()} total</span>
+              </div>
+              <TrendChart points={trend.points} height={140} showValue />
+            </PanelBody>
+          </Panel>
+
+          <div className="mb-6 grid gap-4 border-y border-line py-3 sm:grid-cols-2 xl:grid-cols-4">
           <Metric label="Open pipeline value" value={formatMoney(overview.sales.open_value)} hint={`${overview.sales.open_count} open deals · raw amounts`} />
           <Metric label="Weighted forecast" value={formatMoney(overview.sales.weighted_value)} hint="Raw amounts, no FX conversion" />
           <Metric label="Open tickets" value={overview.tickets.open} hint={`${overview.tickets.overdue} overdue · ${overview.tickets.unassigned} unassigned`} />
@@ -275,7 +301,7 @@ export default function ReportsPage() {
             </PanelBody>
           </Panel>}
         </div>
-      </>}
+      </>)}
     </>
   );
 }
