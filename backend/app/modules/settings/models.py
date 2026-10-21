@@ -7,6 +7,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.shared.models import Base
 
+from .appmode_models import AppMode  # noqa: F401 - registered for Alembic autogenerate
+
 
 class AppSetting(Base):
     """One settings group (e.g. "email") as JSON. Secret fields inside are encrypted."""
