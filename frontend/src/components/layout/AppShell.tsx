@@ -49,7 +49,7 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
         return (
           <div key={group.label ?? gi} className={gi > 0 ? "mt-6 mb-2" : "mb-4"}>
             {!collapsed && group.label && (
-              <p className="px-2 pb-1 text-[0.7rem] font-semibold tracking-wider text-night-muted/70 uppercase">
+              <p className="px-2 pb-1 text-[0.7rem] font-semibold tracking-wider text-night-muted uppercase">
                 {group.label}
               </p>
             )}
@@ -66,12 +66,12 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
                       className={cn(
                         "flex items-center gap-3 rounded-[var(--radius-control)] px-2.5 py-2 text-sm font-medium transition-colors focus-visible:outline-offset-0",
                         collapsed ? "px-2 justify-center" : "",
-                        active ? "bg-accent-soft text-accent-strong" : "text-night-muted/80 hover:bg-night/20 hover:text-night",
+                        active ? "bg-accent-soft text-accent-strong" : "text-night-muted hover:bg-night/20 hover:text-white",
                       )}>
                       {active && !collapsed && (
                         <span aria-hidden="true" className="absolute inset-y-1 left-0 w-[2px] rounded-r-full bg-accent" />
                       )}
-                      <Icon name={item.icon} className={cn("size-5 shrink-0", active ? "text-accent-strong" : "text-night-muted/70")} />
+                      <Icon name={item.icon} className={cn("size-5 shrink-0", active ? "text-accent-strong" : "text-night-muted")} />
                       {!collapsed && <span className="font-medium">{item.label}</span>}
                     </Link>
                   </li>
@@ -91,7 +91,7 @@ function Brand({ collapsed }: { collapsed: boolean }) {
       <div className="grid size-6 place-items-center rounded-full bg-accent text-on-accent">
         <Icon name="dashboard" className="size-4" />
       </div>
-      {!collapsed && <span className="font-semibold text-ink tracking-wide">WCW CRM</span>}
+      {!collapsed && <span className="font-semibold text-white tracking-wide">WCW CRM</span>}
     </Link>
   );
 }
@@ -131,7 +131,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => setCollapsed((c) => !c)}
-              className="ml-1 mr-1 grid size-9 place-items-center rounded-[var(--radius-control)] hover:bg-night/30 text-night-muted/70"
+              className="ml-1 mr-1 grid size-9 place-items-center rounded-[var(--radius-control)] hover:bg-night/30 text-night-muted"
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
               <Icon name={collapsed ? "chevronRight" : "chevronLeft"} className="size-4" />
             </button>
@@ -178,7 +178,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={() => setNotificationsOpen((o) => !o)}
-                className="relative grid size-10 place-items-center rounded-[var(--radius-control)] text-night-muted hover:bg-night/10 hover:text-night"
+                className="relative grid size-10 place-items-center rounded-[var(--radius-control)] text-muted hover:bg-sand hover:text-ink"
                 title="Notifications">
                 <Icon name="bell" className="size-5" />
                 <span className="absolute right-1 top-1 grid size-2.5 place-items-center rounded-full bg-danger text-[0.55rem] font-bold text-on-accent shadow-sm">
@@ -223,7 +223,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={toggle}
-                className="grid size-10 place-items-center rounded-[var(--radius-control)] text-night-muted hover:bg-night/10 hover:text-night"
+                className="grid size-10 place-items-center rounded-[var(--radius-control)] text-muted hover:bg-sand hover:text-ink"
                 title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}>
                 <Icon name={theme === "light" ? "moon" : "sun"} className="size-5" />
                 <span className="sr-only">{theme === "light" ? "Dark mode" : "Light mode"}</span>
