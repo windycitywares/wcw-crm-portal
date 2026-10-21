@@ -154,6 +154,8 @@ class CustomerService:
         await self.audit.record("customer.create", actor=actor, entity_type=ENTITY, entity_id=customer.id,
                                 changes=diff({}, snapshot(customer, TRACKED)))
         await self.timeline.record(ENTITY, customer.id, "customer.created", "Customer added", actor=actor)
+        from app.modules.contacts.service import ContactService
+        await ContactService(self.session).sync_customer(customer, actor=actor)
         if commit:
             await self.session.commit()
         return await self.get(customer.id)
@@ -180,6 +182,8 @@ class CustomerService:
             what = ", ".join(LABELS.get(k, k.replace("_", " ")) for k in changes)
             await self.timeline.record(ENTITY, customer.id, "customer.updated", f"Changed {what}", actor=actor,
                                        data={"fields": list(changes)})
+        from app.modules.contacts.service import ContactService
+        await ContactService(self.session).sync_customer(customer, actor=actor)
         await self.session.commit()
         return await self.get(customer.id)
 
@@ -191,6 +195,8 @@ class CustomerService:
         await self.audit.record("customer.delete", actor=actor, entity_type=ENTITY, entity_id=customer.id,
                                 changes={"name": customer.display_name})
         await self.timeline.record(ENTITY, customer.id, "customer.deleted", "Customer deleted", actor=actor)
+        from app.modules.contacts.service import ContactService
+        await ContactService(self.session).forget_customer(customer.id)
         await self.session.commit()
 
     async def restore(self, customer_id: int, actor) -> CustomerOut:
@@ -204,6 +210,8 @@ class CustomerService:
         await self.repo.restore(customer)
         await self.audit.record("customer.restore", actor=actor, entity_type=ENTITY, entity_id=customer.id)
         await self.timeline.record(ENTITY, customer.id, "customer.restored", "Customer restored", actor=actor)
+        from app.modules.contacts.service import ContactService
+        await ContactService(self.session).sync_customer(customer, actor=actor)
         await self.session.commit()
         return await self.get(customer.id)
 
@@ -246,6 +254,8 @@ class CustomerService:
             await self.audit.record("customer.create", entity_type=ENTITY, entity_id=customer.id,
                                     changes=diff({}, snapshot(customer, TRACKED)))
             await self.timeline.record(ENTITY, customer.id, "customer.created", f"Customer added from {how}")
+            from app.modules.contacts.service import ContactService
+            await ContactService(self.session).sync_customer(customer)
             return customer.id
         if first and not (customer.first_name or customer.last_name):
             before = snapshot(customer, TRACKED)
@@ -254,6 +264,8 @@ class CustomerService:
                                     changes=diff(before, snapshot(customer, TRACKED)))
             await self.timeline.record(ENTITY, customer.id, "customer.updated",
                                        "Name filled in from the email they wrote from")
+        from app.modules.contacts.service import ContactService
+        await ContactService(self.session).sync_customer(customer)
         return customer.id
 
     async def sync_from_shop(self, *, email: str | None, shop_user_id: int | None = None, full_name: str | None = None,
@@ -279,6 +291,8 @@ class CustomerService:
             await self.audit.record("customer.create", entity_type=ENTITY, entity_id=customer.id,
                                     changes=diff({}, snapshot(customer, TRACKED)))
             await self.timeline.record(ENTITY, customer.id, "customer.created", "Customer added from the shop")
+            from app.modules.contacts.service import ContactService
+            await ContactService(self.session).sync_customer(customer)
             return customer.id
 
         before = snapshot(customer, TRACKED)
@@ -311,6 +325,8 @@ class CustomerService:
             what = ", ".join(LABELS.get(k, k.replace("_", " ")) for k in changes)
             await self.timeline.record(ENTITY, customer.id, "customer.updated", f"Shop updated {what}",
                                        data={"fields": list(changes)})
+        from app.modules.contacts.service import ContactService
+        await ContactService(self.session).sync_customer(customer)
         return customer.id
 
     async def mark_consent(self, customer_id: int, consent: bool, how: str) -> None:
@@ -391,6 +407,9 @@ class CustomerService:
                                 changes={"merged_into": keep.id})
         await self.timeline.record(ENTITY, keep.id, "customer.merged", f"Merged with duplicate #{other.id} {other_name}",
                                    actor=actor, data={"merged_id": other.id})
+        from app.modules.contacts.service import ContactService
+        await ContactService(self.session).forget_customer(other.id)
+        await ContactService(self.session).sync_customer(keep, actor=actor)
         await self.session.commit()
         return await self.get(keep.id)
 
@@ -407,6 +426,8 @@ class CustomerService:
             await self.audit.record("customer.create", actor=actor, entity_type=ENTITY, entity_id=customer.id,
                                     changes=diff({}, snapshot(customer, TRACKED)))
             await self.timeline.record(ENTITY, customer.id, "customer.created", "Customer imported", actor=actor)
+            from app.modules.contacts.service import ContactService
+            await ContactService(self.session).sync_customer(customer, actor=actor)
             return "created", customer.id
         if not update_existing:
             return "skipped", existing.id

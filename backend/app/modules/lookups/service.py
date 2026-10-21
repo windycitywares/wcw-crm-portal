@@ -108,6 +108,16 @@ class LookupService:
         for kind in KINDS.values():
             existing = {v.key for v in await self.repo.for_kind(kind.key)}
             if existing:
+                # System types on contacts must stay present and active even after edits.
+                if kind.key == "contact_type":
+                    for key in ("user", "customer"):
+                        row = next((v for v in await self.repo.for_kind(kind.key) if v.key == key), None)
+                        if row is None:
+                            self.session.add(LookupValue(kind=kind.key, key=key, label=key.title(),
+                                                       sort_order=0, created_by=None, updated_by=None))
+                            added += 1
+                        elif not row.is_active:
+                            row.is_active = True
                 continue  # the admin owns this list now
             for position, label in enumerate(kind.seed):
                 self.session.add(LookupValue(kind=kind.key, key=slugify(label), label=label, sort_order=position))

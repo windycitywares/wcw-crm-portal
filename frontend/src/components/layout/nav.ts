@@ -32,6 +32,7 @@ export const NAV: NavGroup[] = [
       { href: "/suppliers", label: "Suppliers", icon: "briefcase", permission: "suppliers:view" },
       { href: "/reports", label: "Reports", icon: "chart", permission: "reports:view" },
       { href: "/customers", label: "Customers", icon: "customers", permission: "customers:view" },
+      { href: "/contacts", label: "Contacts", icon: "customers", permission: "customers:view" },
     ],
   },
   {
