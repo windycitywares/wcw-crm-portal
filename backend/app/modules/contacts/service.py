@@ -118,6 +118,7 @@ class ContactService:
         await self.repo.add(contact)
         await self.audit.record("contact.create", actor=actor, entity_type=ENTITY, entity_id=contact.id,
                                 changes=diff({}, snapshot(contact, TRACKED)))
+        await self._ensure_customer(contact, actor)
         await self.session.commit()
         await self.session.refresh(contact)
         return ContactOut.model_validate(contact)
@@ -137,6 +138,7 @@ class ContactService:
         if changes:
             await self.audit.record("contact.update", actor=actor, entity_type=ENTITY, entity_id=contact.id,
                                     changes=changes)
+        await self._ensure_customer(contact, actor)
         await self.session.commit()
         await self.session.refresh(contact)
         return ContactOut.model_validate(contact)
@@ -150,7 +152,33 @@ class ContactService:
                                 changes={"name": contact.display_name})
         await self.session.commit()
 
-    # ---- mirrors --------------------------------------------------------
+    async def _ensure_customer(self, contact: Contact, actor) -> None:
+        """A contact labelled 'customer' must have a customer record, so it shows in the Customers tab.
+
+        Creates one when missing (the customer service mirrors it back to this contact). Staff edits win:
+        an existing customer is never overwritten by the contact's values.
+        """
+        if "customer" not in (contact.types or []) or contact.customer_id is not None:
+            return
+        from app.modules.customers.schemas import CustomerCreate
+        from app.modules.customers.service import CustomerService
+
+        if not any((contact.first_name, contact.last_name, contact.company, contact.email, contact.phone)):
+            return
+        try:
+            await CustomerService(self.session).create(CustomerCreate(
+                first_name=contact.first_name or None,
+                last_name=contact.last_name or None,
+                company=contact.company,
+                email=contact.email,
+                phone=contact.phone,
+                address=contact.address,
+                owner_id=contact.owner_id,
+                status=contact.status if contact.status in ("active", "inactive", "blocked") else None,
+            ), actor, commit=False)
+        except Exception:  # noqa: BLE001 - don't fail the contact save because a customer couldn't be made
+            pass
+        await self.session.flush()
     # Called by the users and customers services (and the shop sync). They flush but do not commit: the
     # caller commits once the whole change is applied, so a contact never outlives a failed write.
 
