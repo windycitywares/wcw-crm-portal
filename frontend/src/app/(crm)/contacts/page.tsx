@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
@@ -31,6 +32,8 @@ export default function ContactsPage() {
   const [ready, setReady] = useState(false);
   const [editing, setEditing] = useState<Contact | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   const load = useCallback(async (f: ContactFilters) => {
     setLoading(true);
@@ -56,6 +59,25 @@ export default function ContactsPage() {
   }, [search, ready, filters.q]);
 
   const update = (patch: Partial<ContactFilters>) => setFilters((f) => ({ ...f, ...patch, page: 1 }));
+
+  const handleDelete = useCallback((c: Contact) => {
+    setDeleteTarget({ id: c.id, name: c.display_name });
+  }, []);
+
+  const handleDeleteConfirmed = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeletingId(deleteTarget.id);
+    try {
+      await contactsApi.delete(deleteTarget.id);
+      toast.push({ title: "Contact deleted", description: `${deleteTarget.name} was removed.` });
+      void load(filters);
+    } catch (e) {
+      toast.push({ tone: "danger", title: "Couldn't delete", description: e instanceof Error ? e.message : undefined });
+    } finally {
+      setDeletingId(null);
+      setDeleteTarget(null);
+    }
+  }, [deleteTarget, load, toast]);
 
   const typeOptions = lookups.options("contact_type");
 
@@ -125,7 +147,16 @@ export default function ContactsPage() {
         </div>
       </Panel>
       {error && <p className="mb-3 text-sm text-danger">{error}</p>}
-      <DataTable columns={columns} rows={data?.items ?? null} rowKey={(c) => c.id} caption="Contacts" loading={loading} empty="No contacts match these filters." />
+      <DataTable
+        columns={columns}
+        rows={data?.items ?? null}
+        rowKey={(c) => c.id}
+        caption="Contacts"
+        loading={loading}
+        onEdit={(c) => { setEditing(c); setShowForm(true); }}
+        onDelete={handleDelete}
+        empty="No contacts match these filters."
+      />
       {data && data.total > PAGE_SIZE && (
         <Pagination page={data.page} pageSize={data.page_size} total={data.total}
           onPage={(p) => setFilters((f) => ({ ...f, page: p }))} />
@@ -136,6 +167,14 @@ export default function ContactsPage() {
         typeOptions={typeOptions}
         onClose={() => { setShowForm(false); setEditing(null); }}
         onSaved={() => { setShowForm(false); setEditing(null); void load(filters); }}
+      />
+
+      <ConfirmationDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete contact"
+        message={`Delete "${deleteTarget?.name}"? This can't be undone.`}
+        onConfirm={handleDeleteConfirmed}
       />
     </div>
   );
