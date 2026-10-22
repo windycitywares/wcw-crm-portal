@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, model_validator
 
-DEFAULT_SHOP_API = "https://api.windycitywares.com/api/v1"
+DEFAULT_SHOP_API = "https://shop-api.windycitywares.com/api/v1"
 
 
 class ShopSettings(BaseModel):
