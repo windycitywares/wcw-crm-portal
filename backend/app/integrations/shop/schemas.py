@@ -14,7 +14,7 @@ class _Loose(BaseModel):
 
 
 class Envelope(_Loose):
-    id: str = Field(min_length=8, max_length=64)
+    id: str = Field(min_length=1, max_length=64)  # the shop numbers events "shop-<outbox id>": "shop-5" is a real id
     type: str = Field(min_length=3, max_length=60)
     occurred_at: datetime | None = None
     data: dict[str, Any]
