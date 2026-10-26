@@ -15,25 +15,32 @@ import { Avatar } from "@/components/ui/Avatar";
 import { ToastProvider } from "@/components/ui/Toast";
 import { TestModeBanner } from "@/components/ui/TestModeBanner";
 import { NAV, isActive, titleFor } from "./nav";
+import { applyTheme, readTheme, saveTheme, type Theme } from "@/lib/theme";
 
+/** Light/dark, shared with windycitywares.com and the shop through the wcw-theme cookie (lib/theme.ts). */
 function useTheme() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    const stored = localStorage.getItem("wcw.theme") as "light" | "dark" | null;
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initial = stored ?? (prefersDark ? "dark" : "light");
+    const initial = readTheme();
     setTheme(initial);
-    if (initial === "dark") document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
+    applyTheme(initial);
+    // Switched on the shop or the main site in another tab: follow it when this tab is shown again.
+    const onShow = () => {
+      if (document.visibilityState !== "visible") return;
+      const saved = readTheme();
+      setTheme(saved);
+      applyTheme(saved);
+    };
+    document.addEventListener("visibilitychange", onShow);
+    return () => document.removeEventListener("visibilitychange", onShow);
   }, []);
 
   const toggle = useCallback(() => {
-    const next = theme === "light" ? "dark" : "light";
+    const next: Theme = theme === "light" ? "dark" : "light";
     setTheme(next);
-    localStorage.setItem("wcw.theme", next);
-    if (next === "dark") document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
+    saveTheme(next);
+    applyTheme(next);
   }, [theme]);
 
   return { theme, toggle };

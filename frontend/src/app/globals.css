@@ -20,6 +20,7 @@
   --color-success: #2f6b4a;
   --color-danger: #a12a1e;
   --color-on-accent: #ffffff;
+  --color-on-danger: #ffffff; /* text on danger buttons */
   --color-warning: #7a5000;
   --color-gold: #c9902f;
 
@@ -46,23 +47,40 @@
   color-scheme: light;
 }
 
+/*
+ * Night mode: the shop's night palette ("midnight" — wcw-shop-portal globals.css), so the CRM, the shop and
+ * windycitywares.com look the same at night. The choice itself is shared through the wcw-theme cookie (lib/theme.ts).
+ */
 .dark {
-  --color-canvas: #0f172a;
-  --color-surface: #1e293b;
-  --color-sand: #334155;
-  --color-line: #475569;
-  --color-ink: #f8fafc;
-  --color-muted: #94a3b8;
-  --color-accent: #60a5fa;
-  --color-accent-strong: #93c5fd;
-  --color-accent-soft: #1e3a8a;
-  --color-night: #020617;
-  --color-night-muted: #94a3b8;
-  --color-success: #4ade80;
-  --color-danger: #f87171;
-  --color-on-accent: #ffffff;
-  --color-warning: #fbbf24;
-  --color-gold: #c9902f;
+  --color-canvas: #0f151c;
+  --color-surface: #17202a;
+  --color-sand: #1f2a35;
+  --color-line: #2c3a47;
+  --color-ink: #e8edf1;
+  --color-muted: #a3b0bb;
+  --color-accent: #e3ad4f;
+  --color-accent-strong: #f0c06a;
+  --color-accent-soft: #2b2619;
+  --color-on-accent: #10161d;
+  --color-on-danger: #10161d; /* the night red is light: dark text, 7.9:1 */
+  --color-night: #0a0e13;
+  --color-night-muted: #9aa7b2;
+  --color-success: #7fd1a1;
+  --color-danger: #ff9585;
+  --color-warning: #f0b95a;
+  --color-gold: #e3ad4f;
+  --logo-emblem: #ffffff;
+  --logo-letters: #1c2f45;
+  --logo-word: #ffffff;
+  --logo-word-gold: #e3ad4f;
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-4: #c98500;
+  --viz-5: #d55181;
+  --viz-6: #008300;
+  --viz-7: #9085e9;
+  --viz-8: #e66767;
   color-scheme: dark;
 }
 
