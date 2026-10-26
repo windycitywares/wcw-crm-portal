@@ -11,7 +11,7 @@ const variants: Record<Variant, string> = {
   primary: "bg-accent text-on-accent hover:bg-accent-strong",
   secondary: "border border-ink/25 bg-transparent text-ink hover:border-ink hover:bg-surface",
   ghost: "text-ink hover:bg-sand",
-  danger: "bg-danger text-white hover:opacity-90",
+  danger: "bg-danger text-on-danger hover:opacity-90",
 };
 const sizes: Record<Size, string> = {
   sm: "h-9 px-4 text-sm",
