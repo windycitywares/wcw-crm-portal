@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { applyTheme, readTheme, saveTheme, type Theme } from "@/lib/theme";
 import { ROLE_LABEL } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { NAV, isActive, titleFor } from "./nav";
+import { NAV, SETTINGS_NAV, inSettings, isActive, titleFor, type NavGroup } from "./nav";
 
 /*
  * The signed-in frame, built like the shop admin (wcw-shop-portal components/admin/AdminShell.tsx) so the team
@@ -50,12 +50,12 @@ function useTheme() {
   return { theme, toggle };
 }
 
-function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collapsed: boolean }) {
+function NavGroups({ groups, onNavigate, collapsed }: { groups: NavGroup[]; onNavigate?: () => void; collapsed: boolean }) {
   const { can } = useAuth();
   const pathname = usePathname();
   return (
-    <nav aria-label="CRM" className={cn("flex-1 overflow-y-auto pb-6 pt-2", collapsed ? "px-2" : "px-4")}>
-      {NAV.map((group, gi) => {
+    <>
+      {groups.map((group, gi) => {
         const items = group.items.filter((i) => !i.hidden && (!i.permission || can(i.permission)));
         if (items.length === 0) return null;
         return (
@@ -93,6 +93,35 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
           </div>
         );
       })}
+    </>
+  );
+}
+
+/** The main menu; in Settings it becomes a way back plus the settings sections (as in the shop admin). */
+function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collapsed: boolean }) {
+  const pathname = usePathname();
+  const settings = inSettings(pathname);
+  return (
+    <nav aria-label={settings ? "Settings" : "CRM"} className={cn("flex-1 overflow-y-auto pb-6 pt-2", collapsed ? "px-2" : "px-4")}>
+      {settings ? (
+        <>
+          <Link
+            href="/dashboard"
+            onClick={onNavigate}
+            title={collapsed ? "Back to dashboard" : undefined}
+            className={cn(
+              "font-admin mb-4 flex items-center gap-2 rounded-[var(--radius-control)] border border-line py-2 text-sm font-semibold text-ink hover:border-accent hover:text-accent",
+              collapsed ? "justify-center px-2" : "px-3",
+            )}
+          >
+            <Icon name="chevronLeft" className="size-4 shrink-0" />
+            {collapsed ? <span className="sr-only">Back to dashboard</span> : "Back to dashboard"}
+          </Link>
+          <NavGroups groups={[{ items: [{ href: "/settings", label: "All settings", icon: "dashboard" }] }, ...SETTINGS_NAV]} onNavigate={onNavigate} collapsed={collapsed} />
+        </>
+      ) : (
+        <NavGroups groups={NAV} onNavigate={onNavigate} collapsed={collapsed} />
+      )}
     </nav>
   );
 }
