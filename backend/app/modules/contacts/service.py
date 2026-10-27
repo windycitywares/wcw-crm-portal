@@ -272,7 +272,8 @@ class ContactService:
 
         Signing up finds the person by email (a customer or anyone else already here) or adds a new contact typed
         "subscriber"; leaving keeps them and marks `unsubscribed_at`. An unknown address that only leaves is not
-        added. Flushes, doesn't commit.
+        added. `at` is when it happened on the shop; an earlier sign-up date replaces the one stored. Flushes, doesn't
+        commit.
         """
         from app.shared.time import utcnow
 
@@ -295,6 +296,8 @@ class ContactService:
         if subscribed:
             if contact.subscribed_at is None or contact.unsubscribed_at is not None:
                 contact.subscribed_at = when
+            elif at is not None and at < contact.subscribed_at:
+                contact.subscribed_at = at  # the shop knows the real sign-up date (an import stamped "now")
             contact.unsubscribed_at = None
             contact.subscribe_source = source or contact.subscribe_source
         elif contact.unsubscribed_at is None:

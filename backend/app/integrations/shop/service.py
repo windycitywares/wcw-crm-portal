@@ -190,7 +190,7 @@ class ShopEventService:
         """A newsletter sign-up is a contact typed "subscriber" (not a customer: subscribing isn't buying).
         If they are already a customer, their marketing consent is recorded there too, for campaigns."""
         data = NewsletterData.model_validate(payload)
-        await ContactService(self.session).sync_subscriber(data.email, subscribed=True, source=data.source)
+        await ContactService(self.session).sync_subscriber(data.email, subscribed=True, source=data.source, at=data.at)
         customer_id = await self.customers.find_by_email(data.email)
         if customer_id is not None:
             how = f"shop newsletter, {data.source}" if data.source else "shop newsletter"
@@ -199,7 +199,7 @@ class ShopEventService:
 
     async def _unsubscribed(self, payload: dict[str, Any]) -> int | None:
         data = NewsletterData.model_validate(payload)
-        await ContactService(self.session).sync_subscriber(data.email, subscribed=False)
+        await ContactService(self.session).sync_subscriber(data.email, subscribed=False, at=data.at)
         customer_id = await self.customers.find_by_email(data.email)
         if customer_id is not None:
             await self.customers.mark_consent(customer_id, False, "shop newsletter")
