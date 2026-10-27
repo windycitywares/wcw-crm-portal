@@ -31,6 +31,9 @@ export interface Contact {
   owner_id: number | null;
   user_id: number | null;
   customer_id: number | null;
+  subscribed_at: string | null;
+  unsubscribed_at: string | null;
+  subscribe_source: string | null;
   created_at: string;
   updated_at: string;
   created_by: number | null;
@@ -57,6 +60,7 @@ export interface ContactFilters {
   type?: string;
   status?: string;
   owner?: "me" | "any";
+  subscription?: "" | "subscribed" | "unsubscribed";
   sort?: string;
   page?: number;
   page_size?: number;

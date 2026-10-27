@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Field, Input } from "@/components/ui/Field";
+import { LiveUpdatesBar } from "@/components/ui/LiveUpdatesBar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Panel } from "@/components/ui/Panel";
@@ -79,6 +80,7 @@ export default function InboxPage() {
   return (
     <>
       <PageHeader title="Inbox" description={describe} />
+      <LiveUpdatesBar types={["ticket"]} noun="conversation" onRefresh={() => void load()} />
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <Segmented label="Channel" options={channels} value={filters.channel ?? ""} onChange={(channel) => update({ channel: channel || undefined })} />
