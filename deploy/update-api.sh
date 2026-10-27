@@ -34,6 +34,25 @@ echo "→ Running tests"
 python -m unittest discover -q tests
 echo "→ Database migrations"
 alembic upgrade head
+# The Test mode copy (Settings → Test mode) gets the same changes, or the app would read columns it doesn't have.
+# Until it catches up the app simply stays on live data (core/appmode.py), so a failure here never blocks a deploy.
+if python - <<'PY'
+import asyncio, sys
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+from app.core.config import get_settings
+async def main():
+    engine = create_async_engine(get_settings().database_url)
+    async with engine.connect() as conn:
+        found = (await conn.execute(text("SELECT 1 FROM pg_namespace WHERE nspname = 'wcw_test'"))).first()
+    await engine.dispose()
+    sys.exit(0 if found else 1)
+asyncio.run(main())
+PY
+then
+  echo "→ Database migrations (test copy)"
+  MIGRATE_SCHEMA=wcw_test alembic upgrade head || echo "⚠ the test copy couldn't be migrated: refresh it in Settings → Test mode (the app stays on live data meanwhile)"
+fi
 echo "→ Seed (first admin, default types — never changes existing data)"
 python -m app.seed
 echo "→ Restarting the app"
