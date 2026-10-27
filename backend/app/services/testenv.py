@@ -138,14 +138,16 @@ class TestEnvironment:
                     JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = :s AND c.relkind = 'r'
                 """), {"s": SCHEMA})).scalar_one()
         chosen = row.get("mode", appmode.LIVE)
+        out_of_date = bool(exists and test_version != live_version)
         return {
             "mode": chosen,
-            "effective": appmode.TEST if chosen == appmode.TEST and exists else appmode.LIVE,
+            # Same rule as core/appmode.py: a copy behind the live migrations isn't used, so the app is on live data.
+            "effective": appmode.TEST if chosen == appmode.TEST and exists and not out_of_date else appmode.LIVE,
             "test_exists": exists,
             "test_synced_at": row.get("test_synced_at"),
             "test_mail_to": row.get("test_mail_to"),
             "test_size_bytes": size,
-            "out_of_date": bool(exists and test_version != live_version),
+            "out_of_date": out_of_date,
             "changed_at": row.get("changed_at"),
             "changed_by_email": row.get("changed_by_email"),
         }
