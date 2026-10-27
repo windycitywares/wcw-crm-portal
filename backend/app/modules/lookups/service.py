@@ -110,7 +110,7 @@ class LookupService:
             if existing:
                 # System types on contacts must stay present and active even after edits.
                 if kind.key == "contact_type":
-                    for key in ("user", "customer"):
+                    for key in ("user", "customer", "subscriber"):
                         row = next((v for v in await self.repo.for_kind(kind.key) if v.key == key), None)
                         if row is None:
                             self.session.add(LookupValue(kind=kind.key, key=key, label=key.title(),

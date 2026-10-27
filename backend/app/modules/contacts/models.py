@@ -13,7 +13,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import BigInteger, ForeignKey, Index, String, Text, text
+from datetime import datetime
+
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -47,6 +49,12 @@ class Contact(IdMixin, TimestampMixin, AuthorMixin, OwnedMixin, SoftDeleteMixin,
     status: Mapped[str] = mapped_column(String(10), default="active", server_default="active", index=True)
     # Where we met them: manual, shop, import, user, customer.
     source: Mapped[str] = mapped_column(String(40), default="manual", server_default="manual")
+
+    # Newsletter: a contact typed "subscriber" signed up (on the shop) at `subscribed_at`; leaving keeps the row
+    # and the type, with `unsubscribed_at` set, so nobody is ever re-added by mistake.
+    subscribed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    unsubscribed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    subscribe_source: Mapped[str | None] = mapped_column(String(40))  # site, checkout, account …
 
     user_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"))
     customer_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("customers.id", ondelete="SET NULL"))

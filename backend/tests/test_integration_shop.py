@@ -121,18 +121,39 @@ class ShopWebhookTests(unittest.TestCase):
         self.assertIn(f"Order WCW-{base} paid — $50.00", titles)
         self.assertIn(f"Order WCW-{base + 1} refunded", titles)
 
+    def contact(self, email):
+        res = self.w.client.get(f"{API}/contacts", headers=self.admin_h, params={"q": email}).json()["items"]
+        return next((c for c in res if c["email"] == email), None)
+
     def test_newsletter(self):
         email = self.w.email("news")
         self.send("newsletter.unsubscribed", {"email": email})  # unknown address: nothing created
-        self.assertIsNone(self.find(email))
+        self.assertIsNone(self.contact(email))
         self.send("newsletter.subscribed", {"email": email, "source": "site"})
-        c = self.customer(self.find(email))
-        self.assertTrue(c["marketing_consent"])
-        self.assertEqual(c["consent_source"], "shop newsletter, site")
+        # a subscriber is a contact, not a customer
+        self.assertIsNone(self.find(email))
+        c = self.contact(email)
+        self.assertEqual((c["types"], c["source"], c["subscribe_source"]), (["subscriber"], "shop", "site"))
+        self.assertIsNotNone(c["subscribed_at"])
+        self.assertIsNone(c["unsubscribed_at"])
+        listed = self.w.client.get(f"{API}/contacts", headers=self.admin_h,
+                                   params={"subscription": "subscribed", "q": email}).json()["items"]
+        self.assertEqual([x["id"] for x in listed], [c["id"]])
         self.send("newsletter.unsubscribed", {"email": email})
-        c = self.customer(c["id"])
-        self.assertFalse(c["marketing_consent"])
+        c = self.contact(email)
         self.assertIsNotNone(c["unsubscribed_at"])
+        self.assertIn("subscriber", c["types"])
+
+        # an existing customer who subscribes keeps one directory row and gets marketing consent
+        buyer = self.w.email("news-buyer")
+        made = self.w.client.post(f"{API}/customers", headers=self.admin_h, json={"first_name": "Bea", "email": buyer}).json()
+        self.send("newsletter.subscribed", {"email": buyer, "source": "checkout"})
+        cust = self.customer(made["id"])
+        self.assertTrue(cust["marketing_consent"])
+        self.assertEqual(cust["consent_source"], "shop newsletter, checkout")
+        row = self.contact(buyer)
+        self.assertEqual(sorted(row["types"]), ["customer", "subscriber"])
+        self.assertEqual(row["customer_id"], made["id"])
 
     def test_contact_message_opens_a_ticket(self):
         email = self.w.email("asker")
@@ -272,8 +293,8 @@ class ShopBackfillTests(unittest.TestCase):
         self.assertEqual([o["number"] for o in orders], [f"OLD-{base}-2", f"OLD-{base}-1"])
         timeline = self.w.client.get(f"{API}/entities/customer/{cid}/timeline", headers=self.admin_h).json()["items"]
         self.assertFalse(any(a["kind"] == "shop.order" for a in timeline))  # history isn't replayed as news
-        self.assertIsNotNone(self.w.client.get(f"{API}/customers/check-email", headers=self.admin_h,
-                                               params={"email": news}).json()["customer_id"])
+        listed = self.w.client.get(f"{API}/contacts", headers=self.admin_h, params={"q": news}).json()["items"]
+        self.assertEqual([c["types"] for c in listed if c["email"] == news], [["subscriber"]])
 
         # running it again changes nothing
         self.w.client.post(f"{API}/integrations/shop/backfill", headers=self.admin_h)
