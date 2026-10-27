@@ -137,10 +137,10 @@ def on_checkout(dbapi_connection) -> None:
     if time.monotonic() - _loaded_at > CACHE_SECONDS:
         try:
             row = dbapi_connection.run_async(lambda conn: conn.fetchrow(_STATE_SQL))
-            current = True
+            up_to_date = True
             if row is not None and row["mode"] == TEST and row["test_exists"]:
-                current = _copy_is_current(dbapi_connection)
-            remember(_row_to_state(row, current))
+                up_to_date = _copy_is_current(dbapi_connection)
+            remember(_row_to_state(row, up_to_date))
         except Exception:  # app_mode not migrated yet, or a hiccup: stay on (or fall back to) live data
             log.debug("app_mode not readable; using live data", exc_info=True)
             remember(ModeState())
