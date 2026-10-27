@@ -54,10 +54,22 @@ class Contact(IdMixin, TimestampMixin, AuthorMixin, OwnedMixin, SoftDeleteMixin,
     # and the type, with `unsubscribed_at` set, so nobody is ever re-added by mistake.
     subscribed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     unsubscribed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    subscribe_source: Mapped[str | None] = mapped_column(String(40))  # site, checkout, account …
+    subscribe_source: Mapped[str | None] = mapped_column(String(40))  # site, checkout, account, manual, import …
+    # Paused: kept on the list but left out of campaigns until resumed (the shop's "pause" too).
+    paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    language: Mapped[str | None] = mapped_column(String(10))  # "en": what the shop knew them as
 
     user_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"))
     customer_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("customers.id", ondelete="SET NULL"))
+
+    @property
+    def subscription_status(self) -> str | None:
+        """subscribed | paused | unsubscribed, or None for someone who was never on the list."""
+        if self.unsubscribed_at is not None:
+            return "unsubscribed"
+        if self.subscribed_at is None:
+            return None
+        return "paused" if self.paused_at is not None else "subscribed"
 
     @property
     def full_name(self) -> str:

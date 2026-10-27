@@ -8,10 +8,14 @@ from app.modules.users.deps import CurrentUser, SessionDep, require
 from app.modules.users.models import User
 
 from .repository import SORTS
+from .subscribers import router as subscribers_router
 from .schemas import ContactCreate, ContactOut, ContactPage, ContactUpdate
 from .service import ContactService
 
 router = APIRouter(prefix="/contacts", tags=["contacts"], dependencies=[Depends(require(Permission.CUSTOMERS_VIEW))])
+# The newsletter list, a view of these contacts: /contacts/subscribers. Declared first so "subscribers" is never
+# read as a contact id.
+router.include_router(subscribers_router)
 Sort = Literal[tuple(SORTS)]  # type: ignore[valid-type]
 
 
