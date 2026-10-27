@@ -46,11 +46,14 @@ class ModeState:
     test_synced_at: datetime | None = None
     # Staff who may sign in on the copy. In the CRM all staff may (they're the testers).
     login_emails: tuple[str, ...] = ()
+    # The copy is on the same migration as the live data. A copy left behind by a deploy (new columns the code now
+    # reads) would break every request, sign-in included, so the app stays on live data until it catches up.
+    test_current: bool = True
 
     @property
     def effective(self) -> str:
-        """Test only works when the copy exists; otherwise the app stays on live data."""
-        return TEST if self.chosen == TEST and self.test_exists else LIVE
+        """Test only works when the copy exists and is up to date; otherwise the app stays on live data."""
+        return TEST if self.chosen == TEST and self.test_exists and self.test_current else LIVE
 
     @property
     def is_test(self) -> bool:
@@ -98,10 +101,29 @@ def forget() -> None:
     _loaded_at = 0.0
 
 
-def _row_to_state(row) -> ModeState:
+_VERSIONS_SQL = f"""
+SELECT (SELECT string_agg(version_num, ',' ORDER BY version_num) FROM {TEST_SCHEMA}.alembic_version) AS test,
+       (SELECT string_agg(version_num, ',' ORDER BY version_num) FROM public.alembic_version) AS live
+"""
+
+
+def _copy_is_current(dbapi_connection) -> bool:
+    try:
+        row = dbapi_connection.run_async(lambda conn: conn.fetchrow(_VERSIONS_SQL))
+    except Exception:  # no version table in the copy: treat it as behind
+        log.warning("test copy has no migration version; staying on live data")
+        return False
+    current = row is not None and row["test"] == row["live"]
+    if not current:
+        log.warning("test copy is on migration %s, live is on %s; staying on live data", row["test"], row["live"])
+    return current
+
+
+def _row_to_state(row, test_current: bool = True) -> ModeState:
     if row is None:
         return ModeState()
     return ModeState(
+        test_current=test_current,
         chosen=row["mode"],
         test_exists=bool(row["test_exists"]),
         test_mail_to=row["test_mail_to"],
@@ -115,7 +137,10 @@ def on_checkout(dbapi_connection) -> None:
     if time.monotonic() - _loaded_at > CACHE_SECONDS:
         try:
             row = dbapi_connection.run_async(lambda conn: conn.fetchrow(_STATE_SQL))
-            remember(_row_to_state(row))
+            up_to_date = True
+            if row is not None and row["mode"] == TEST and row["test_exists"]:
+                up_to_date = _copy_is_current(dbapi_connection)
+            remember(_row_to_state(row, up_to_date))
         except Exception:  # app_mode not migrated yet, or a hiccup: stay on (or fall back to) live data
             log.debug("app_mode not readable; using live data", exc_info=True)
             remember(ModeState())
