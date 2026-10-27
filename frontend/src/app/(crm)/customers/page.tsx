@@ -5,6 +5,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Field, Input, Select } from "@/components/ui/Field";
+import { LiveUpdatesBar } from "@/components/ui/LiveUpdatesBar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Panel } from "@/components/ui/Panel";
@@ -203,6 +204,7 @@ export default function CustomersPage() {
           </>
         }
       />
+      <LiveUpdatesBar types={["customer"]} noun="customer" onRefresh={() => void load(filters)} />
 
       <Panel className="mb-4 p-4">
         <form role="search" onSubmit={(e) => e.preventDefault()} className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 lg:grid-cols-4">

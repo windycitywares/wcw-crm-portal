@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
+import { LiveUpdatesBar } from "@/components/ui/LiveUpdatesBar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Panel } from "@/components/ui/Panel";
@@ -94,6 +95,7 @@ export default function TicketsPage() {
           ) : undefined
         }
       />
+      <LiveUpdatesBar types={["ticket"]} noun="ticket" onRefresh={() => void load()} />
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <Segmented label="Whose tickets" options={VIEWS} value={filters.view ?? "all"} onChange={(view) => update({ view })} />

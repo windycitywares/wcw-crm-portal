@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
+import { LiveUpdatesBar } from "@/components/ui/LiveUpdatesBar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Panel } from "@/components/ui/Panel";
@@ -102,6 +103,7 @@ export default function TasksPage() {
           ) : undefined
         }
       />
+      <LiveUpdatesBar types={["task"]} noun="task" onRefresh={() => void load()} />
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <Segmented label="Whose tasks" options={VIEWS} value={filters.view ?? "mine"} onChange={(view) => update({ view })} />

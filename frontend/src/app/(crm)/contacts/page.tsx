@@ -6,6 +6,7 @@ import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
+import { LiveUpdatesBar } from "@/components/ui/LiveUpdatesBar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Panel } from "@/components/ui/Panel";
@@ -19,7 +20,7 @@ import { contactsApi, type Contact, type ContactFilters, type ContactInput, type
 import { useLookups } from "@/modules/settings/useLookups";
 
 const PAGE_SIZE = 25;
-const BLANK: ContactFilters = { q: "", type: "", status: "", owner: "any", sort: "-updated", page: 1 };
+const BLANK: ContactFilters = { q: "", type: "", status: "", owner: "any", subscription: "", sort: "-updated", page: 1 };
 
 export default function ContactsPage() {
   const { can } = useAuth();
@@ -45,6 +46,17 @@ export default function ContactsPage() {
       setError(e instanceof Error ? e.message : "Couldn't load contacts");
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  // Links from the bell and the top-bar search: /contacts?q=… (and ?subscription=subscribed).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("q");
+    const sub = params.get("subscription");
+    if (q || sub) {
+      if (q) setSearch(q);
+      setFilters((f) => ({ ...f, q: q ?? f.q, subscription: sub === "subscribed" || sub === "unsubscribed" ? sub : f.subscription, page: 1 }));
     }
   }, []);
 
@@ -99,6 +111,15 @@ export default function ContactsPage() {
           {c.email && <div className="truncate text-xs text-muted">{c.email}</div>}
           {c.user_id && <div className="mt-0.5 text-xs text-muted"><Badge variant="neutral">Staff user</Badge></div>}
           {c.customer_id && <div className="mt-0.5 text-xs text-muted"><Badge variant="accent">Customer</Badge></div>}
+          {c.subscribed_at && (
+            <div className="mt-0.5 text-xs text-muted">
+              {c.unsubscribed_at ? (
+                <Badge variant="neutral">Unsubscribed {new Date(c.unsubscribed_at).toLocaleDateString()}</Badge>
+              ) : (
+                <Badge variant="info">Newsletter since {new Date(c.subscribed_at).toLocaleDateString()}</Badge>
+              )}
+            </div>
+          )}
         </div>
       ),
     },
@@ -110,7 +131,7 @@ export default function ContactsPage() {
         <div className="flex flex-wrap gap-1">
           {c.types.length ? c.types.map((t) => {
             const v = lookups.find("contact_type", t);
-            const variant = t === "user" ? "accent" : t === "customer" ? "success" : t === "vendor" ? "warning" : t === "lead" ? "info" : "neutral";
+            const variant = t === "user" ? "accent" : t === "customer" ? "success" : t === "vendor" ? "warning" : t === "lead" || t === "subscriber" ? "info" : "neutral";
             return <Badge key={t} variant={variant}>{v ? v.label : t}</Badge>;
           }) : <span className="text-muted">—</span>}
         </div>
@@ -123,6 +144,7 @@ export default function ContactsPage() {
   return (
     <div>
       <PageHeader title="Contacts" description="Every person the business deals with — staff, customers, vendors, leads. A person who is both staff and a customer is one row with both types." />
+      <LiveUpdatesBar types={["contact"]} noun="contact" onRefresh={() => void load(filters)} />
       <Panel className="mb-4">
         <div className="flex flex-wrap items-end gap-3 p-4">
           <Field label="Search" className="min-w-0 flex-1">
@@ -143,6 +165,15 @@ export default function ContactsPage() {
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
                 <option value="blocked">Blocked</option>
+              </Select>
+            )}
+          </Field>
+          <Field label="Newsletter">
+            {(p) => (
+              <Select {...p} value={filters.subscription ?? ""} onChange={(e) => update({ subscription: e.target.value as ContactFilters["subscription"] })}>
+                <option value="">Anyone</option>
+                <option value="subscribed">Subscribed</option>
+                <option value="unsubscribed">Unsubscribed</option>
               </Select>
             )}
           </Field>

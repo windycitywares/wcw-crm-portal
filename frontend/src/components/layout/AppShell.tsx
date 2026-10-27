@@ -10,9 +10,11 @@ import { Popover } from "@/components/ui/Popover";
 import { TestModeBanner } from "@/components/ui/TestModeBanner";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
+import { LiveProvider } from "@/lib/live";
 import { applyTheme, readTheme, saveTheme, type Theme } from "@/lib/theme";
 import { ROLE_LABEL } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "./NotificationBell";
 import { NAV, SETTINGS_NAV, inSettings, isActive, titleFor, type NavGroup } from "./nav";
 
 /*
@@ -187,6 +189,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <ToastProvider>
+      <LiveProvider>
       <a href="#main" className="skip-link">
         Skip to content
       </a>
@@ -267,6 +270,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </form>
 
             <div className="ml-auto flex items-center gap-2">
+              <NotificationBell />
               <button
                 type="button"
                 onClick={toggle}
@@ -328,6 +332,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+      </LiveProvider>
     </ToastProvider>
   );
 }

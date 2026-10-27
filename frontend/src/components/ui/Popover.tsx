@@ -37,8 +37,8 @@ export function Popover({
 
   const close = () => {
     if (ref.current) ref.current.open = false;
-    if (controlled) onOpenChange?.(false);
-    else setInternalOpen(false);
+    if (!controlled) setInternalOpen(false);
+    onOpenChange?.(false);
   };
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -72,8 +72,8 @@ export function Popover({
       open={isOpen}
       onToggle={(e) => {
         const open = e.currentTarget.open;
-        if (controlled) onOpenChange?.(open);
-        else setInternalOpen(open);
+        if (!controlled) setInternalOpen(open);
+        onOpenChange?.(open); // also when uncontrolled: e.g. the bell marks its items read when opened
       }}>
       <summary
         className={cn(
