@@ -88,16 +88,17 @@ class SubscriberTests(unittest.TestCase):
         self.assertEqual(self.act(sid, "pause").status_code, 404)  # no longer a subscriber
 
     def test_tabs_counts_search_and_source(self):
-        a, b, c = self.add(), self.add(), self.add()
+        a, b, c = (self.add(email=self.w.email("tabs")) for _ in range(3))
+        term = f"tabs-{self.w.sfx}"
         self.act(b["id"], "pause")
         self.act(c["id"], "unsubscribe")
-        everyone = self.listing(q=f"-{self.w.sfx}-")
+        everyone = self.listing(q=term)
         self.assertEqual(everyone["counts"], {"subscribed": 1, "paused": 1, "unsubscribed": 1, "all": 3})
-        self.assertEqual([i["id"] for i in self.listing(q=f"-{self.w.sfx}-", status="paused")["items"]], [b["id"]])
-        self.assertEqual([i["id"] for i in self.listing(q=f"-{self.w.sfx}-", status="unsubscribed")["items"]], [c["id"]])
+        self.assertEqual([i["id"] for i in self.listing(q=term, status="paused")["items"]], [b["id"]])
+        self.assertEqual([i["id"] for i in self.listing(q=term, status="unsubscribed")["items"]], [c["id"]])
         self.assertIn("manual", everyone["sources"])
-        self.assertEqual(len(self.listing(q=f"-{self.w.sfx}-", source="manual")["items"]), 3)
-        self.assertEqual(self.listing(q=f"-{self.w.sfx}-", source="checkout")["items"], [])
+        self.assertEqual(len(self.listing(q=term, source="manual")["items"]), 3)
+        self.assertEqual(self.listing(q=term, source="checkout")["items"], [])
         self.assertTrue(a["id"])
 
     def test_existing_contact_is_added_once_and_shop_signups_appear(self):
