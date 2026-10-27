@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
+from urllib.parse import quote
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -75,7 +76,7 @@ def present(row: dict[str, Any]) -> dict[str, Any]:
     t, ref, title, detail, extra, state = row["type"], row["ref"], row["title"], row["detail"], row["extra"], row["state"]
     if t == "subscriber":
         where = {"site": "the website form", "checkout": "checkout", "account": "their account"}.get(detail or "", detail or "the shop")
-        return {"title": "New newsletter subscriber", "detail": f"{title} · from {where}", "href": f"/contacts?q={title}", "tone": "info"}
+        return {"title": "New newsletter subscriber", "detail": f"{title} · from {where}", "href": f"/subscribers?q={quote(title)}", "tone": "info"}
     if t == "ticket":
         return {"title": f"New ticket {title}", "detail": f"{detail} · via {CHANNELS.get(extra or '', extra or 'the CRM')}",
                 "href": f"/tickets/{ref}", "tone": "accent" if state == "new" else "neutral"}

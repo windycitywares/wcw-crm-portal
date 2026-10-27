@@ -44,7 +44,10 @@ export const NAV: NavGroup[] = [
   },
   {
     label: "Marketing",
-    items: [{ href: "/campaigns", label: "Campaigns", icon: "mail", permission: "campaigns:view" }],
+    items: [
+      { href: "/subscribers", label: "Subscribers", icon: "heart", permission: "customers:view" },
+      { href: "/campaigns", label: "Campaigns", icon: "mail", permission: "campaigns:view" },
+    ],
   },
   {
     label: "Purchasing",
