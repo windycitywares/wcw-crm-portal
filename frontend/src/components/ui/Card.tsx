@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /** Elevated container with optional header and footer. Use instead of Panel for most pages. */
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("rounded-[var(--radius-card)] border border-line bg-surface shadow-sm", className)} {...props} />
+    <div className={cn("rounded-[var(--radius-card)] bg-surface shadow-[var(--shadow-card)]", className)} {...props} />
   );
 }
 

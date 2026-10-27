@@ -1,46 +1,57 @@
 "use client";
 
+import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Icon } from "./Icon";
+import { Icon, type IconName } from "./Icon";
 
-/** Metric card: headline number, label, optional trend and icon. No link wrapper - pages wrap as needed. */
+/**
+ * A headline number (the shop admin's metric card): label, value, one line of context and an icon in a soft
+ * circle. With `href` the whole card links to the page behind the number.
+ */
 export function StatCard({
   title,
   value,
   subtitle,
   icon,
-  trend,
+  tone = "neutral",
+  href,
+  loading = false,
 }: {
   title: string;
   value: React.ReactNode;
-  subtitle?: string;
-  icon?: string;
-  trend?: { label: string; delta: number; up: boolean };
+  subtitle?: React.ReactNode;
+  icon?: IconName;
+  /** Colours the subtitle: "danger" for something that needs attention. */
+  tone?: "neutral" | "danger" | "success";
+  href?: string;
+  loading?: boolean;
 }) {
-  return (
-    <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-sm hover:shadow-md transition-all hover:border-accent/40 cursor-pointer">
-      <div className="flex items-start justify-between">
-        <div className="min-w-0">
-          <p className="text-xs text-muted font-medium">{title}</p>
-          <div className="mt-1">
-            <span className="text-[1.5rem] font-semibold text-ink tabular-nums">{value}</span>
-          </div>
-          {subtitle && <p className="mt-1 text-xs text-muted">{subtitle}</p>}
-        </div>
-        {icon && (
-          <div className="ml-3 grid size-8 place-items-center rounded-full bg-accent-soft">
-            <Icon name={icon as any} className="size-5 text-accent-strong" />
-          </div>
+  const body = (
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <p className="font-admin text-sm font-semibold text-muted">{title}</p>
+        {loading ? (
+          <div className="skeleton mt-2 h-8 w-24" aria-hidden="true" />
+        ) : (
+          <p className="num mt-1 text-[1.75rem] font-bold leading-tight text-ink">{value}</p>
+        )}
+        {subtitle && !loading && (
+          <p className={cn("mt-1 text-xs", tone === "danger" ? "font-medium text-danger" : tone === "success" ? "text-success" : "text-muted")}>{subtitle}</p>
         )}
       </div>
-      {trend && (
-        <div className="mt-3 flex items-center gap-1.5 text-xs font-medium">
-          <span className={trend.up ? "text-[#1d6b38]" : "text-[#a12a1e]"}>
-            {trend.delta !== undefined && <span className="size-1.5 rounded-full" style={{ background: trend.up ? "#1d6b38" : "#a12a1e" }} />}
-            {trend.label}
-          </span>
-        </div>
+      {icon && (
+        <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
+          <Icon name={icon} className="size-5" />
+        </span>
       )}
     </div>
+  );
+  const frame = "block rounded-[var(--radius-card)] bg-surface p-5 shadow-[var(--shadow-card)]";
+  return href ? (
+    <Link href={href} className={cn(frame, "transition-shadow hover:shadow-[var(--shadow-raised)] focus-visible:outline-offset-2")}>
+      {body}
+    </Link>
+  ) : (
+    <div className={frame}>{body}</div>
   );
 }

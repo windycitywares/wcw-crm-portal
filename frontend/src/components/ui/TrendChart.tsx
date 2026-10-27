@@ -39,8 +39,8 @@ export function TrendChart({ points, height = 120, showValue = false }: { points
         <svg width={width} height={height + padding.top + padding.bottom} className="w-full h-auto block" role="img" aria-label="Orders trend">
           <defs>
             <linearGradient id="trend-gradient" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#2563eb" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
+              <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
             </linearGradient>
           </defs>
           {/* Area fill */}
@@ -53,7 +53,7 @@ export function TrendChart({ points, height = 120, showValue = false }: { points
           {hasData && (
             <path
               d={series.map((s, i) => (i === 0 ? `M${s.x},${s.y}` : `L${s.x},${s.y}`)).join(" ")}
-              fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           )}
           {/* Points + hover */}
           {series.map((s, i) => {
@@ -65,8 +65,8 @@ export function TrendChart({ points, height = 120, showValue = false }: { points
                 cx={s.x}
                 cy={s.y}
                 r={isHover ? 5 : 3}
-                fill={isHover ? "#2563eb" : "#ffffff"}
-                stroke="#2563eb"
+                fill={isHover ? "var(--color-accent)" : "var(--color-surface)"}
+                stroke="var(--color-accent)"
                 strokeWidth={2}
                 onMouseEnter={() => setHover(i)}
                 onMouseLeave={() => setHover(null)}
@@ -76,13 +76,13 @@ export function TrendChart({ points, height = 120, showValue = false }: { points
           })}
           {/* X axis labels */}
           {points.map((p, i) => (
-            <text key={i} x={series[i]?.x ?? padding.left} y={baselineY + 20} textAnchor="middle" fontSize="11" fill="#6b7280">
+            <text key={i} x={series[i]?.x ?? padding.left} y={baselineY + 20} textAnchor="middle" fontSize="11" fill="var(--color-muted)">
               {new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
             </text>
           ))}
           {/* Y axis labels */}
-          <text x={padding.left - 8} y={padding.top} textAnchor="end" fontSize="11" fill="#6b7280">{maxCount.toLocaleString()}</text>
-          <text x={padding.left - 8} y={baselineY} textAnchor="end" fontSize="11" fill="#6b7280">0</text>
+          <text x={padding.left - 8} y={padding.top} textAnchor="end" fontSize="11" fill="var(--color-muted)">{maxCount.toLocaleString()}</text>
+          <text x={padding.left - 8} y={baselineY} textAnchor="end" fontSize="11" fill="var(--color-muted)">0</text>
         </svg>
         {/* Tooltip */}
         {hover !== null && hasData && series[hover] && (

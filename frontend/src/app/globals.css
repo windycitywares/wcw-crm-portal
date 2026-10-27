@@ -1,33 +1,37 @@
 @import "tailwindcss";
 
 /*
- * Theme tokens — same palette as the shop's admin ("gallery at dusk"), so staff moving between the
- * shop admin and the CRM feel at home. Every text/background pair meets WCAG AA. No hex values in
+ * Theme tokens — the shop admin's palette (wcw-shop-portal globals.css → .admin-root): a soft grey-blue ground,
+ * white cards with a soft shadow, an indigo primary, Quicksand headings over Open Sans text. Staff move between the
+ * shop admin and the CRM all day, so both look the same. Every text pair is ≥ 4.5:1 (WCAG AA). No hex values in
  * components: use these tokens (bg-surface, text-muted, border-line, bg-accent …).
  */
 @theme {
-  --color-canvas: #f2f3ef;
+  --color-canvas: #f4f5fa;
   --color-surface: #ffffff;
-  --color-sand: #e6e9e3;
-  --color-line: #d4d9d2;
-  --color-ink: #1d2730;
-  --color-muted: #55616a; /* 5.6:1 on canvas */
-  --color-accent: #2f5468;
-  --color-accent-strong: #213e4d;
-  --color-accent-soft: #e0e8eb;
-  --color-night: #17232b; /* sidebar */
-  --color-night-muted: #a9b6bd; /* text on night — 7.4:1 */
-  --color-success: #2f6b4a;
-  --color-danger: #a12a1e;
+  --color-sand: #eceef6; /* hovers, quiet fills, the current menu item */
+  --color-line: #e1e4ee;
+  --color-ink: #464855; /* 8.3:1 on canvas */
+  --color-muted: #626679; /* 5.2:1 on canvas */
+  --color-accent: #5159d6; /* 5.6:1 on white, and white on it */
+  --color-accent-strong: #3f46b8;
+  --color-accent-soft: #eceefe;
+  --color-night: #2a2e3f;
+  --color-night-muted: #b9bdd0; /* 7.2:1 on night */
+  --color-success: #116848; /* ≥ 4.5:1 also on its own 12% tint (badges) */
+  --color-danger: #b8213a;
   --color-on-accent: #ffffff;
-  --color-on-danger: #ffffff; /* text on danger buttons */
-  --color-warning: #7a5000;
+  --color-on-danger: #ffffff;
+  --color-warning: #844300;
   --color-gold: #c9902f;
 
-  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-admin-body), ui-sans-serif, system-ui, sans-serif;
+  --font-admin-heading: var(--font-admin-display), var(--font-admin-body), ui-sans-serif, system-ui, sans-serif;
 
-  --radius-card: 4px;
-  --radius-control: 6px;
+  --radius-card: 6px;
+  --radius-control: 4px;
+  --shadow-card: 0 2px 18px 1px rgb(49 53 72 / 0.1);
+  --shadow-raised: 0 10px 30px 1px rgb(49 53 72 / 0.14);
 }
 
 :root {
@@ -52,23 +56,25 @@
  * windycitywares.com look the same at night. The choice itself is shared through the wcw-theme cookie (lib/theme.ts).
  */
 .dark {
-  --color-canvas: #0f151c;
-  --color-surface: #17202a;
-  --color-sand: #1f2a35;
-  --color-line: #2c3a47;
-  --color-ink: #e8edf1;
-  --color-muted: #a3b0bb;
-  --color-accent: #e3ad4f;
-  --color-accent-strong: #f0c06a;
-  --color-accent-soft: #2b2619;
-  --color-on-accent: #10161d;
-  --color-on-danger: #10161d; /* the night red is light: dark text, 7.9:1 */
-  --color-night: #0a0e13;
-  --color-night-muted: #9aa7b2;
-  --color-success: #7fd1a1;
-  --color-danger: #ff9585;
-  --color-warning: #f0b95a;
+  --color-canvas: #171a26;
+  --color-surface: #212536;
+  --color-sand: #2b3045;
+  --color-line: #343a52;
+  --color-ink: #e6e8f2;
+  --color-muted: #a3a9c2; /* 6.5:1 on surface */
+  --color-accent: #9aa0f5; /* 6.3:1 on surface */
+  --color-accent-strong: #b8bcfa;
+  --color-accent-soft: #2c3058;
+  --color-on-accent: #10131f;
+  --color-on-danger: #10131f;
+  --color-night: #11131c;
+  --color-night-muted: #a3a9c2;
+  --color-success: #6fd6a8;
+  --color-danger: #ff8a98;
+  --color-warning: #f2b45a;
   --color-gold: #e3ad4f;
+  --shadow-card: 0 2px 18px 1px rgb(0 0 0 / 0.35);
+  --shadow-raised: 0 10px 30px 1px rgb(0 0 0 / 0.45);
   --logo-emblem: #ffffff;
   --logo-letters: #1c2f45;
   --logo-word: #ffffff;
@@ -92,15 +98,16 @@
     background: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     line-height: 1.5;
   }
   h1,
   h2,
   h3,
   h4 {
+    font-family: var(--font-admin-heading);
     font-weight: 600;
-    letter-spacing: -0.012em;
+    letter-spacing: 0;
     line-height: 1.25;
     text-wrap: balance;
   }
@@ -137,6 +144,10 @@
   }
   .skip-link:focus {
     top: 1rem;
+  }
+  /* Quicksand: headings, the menu and the brand (as in the shop admin) */
+  .font-admin {
+    font-family: var(--font-admin-heading);
   }
   .num {
     font-variant-numeric: tabular-nums;

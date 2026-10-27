@@ -26,6 +26,9 @@ const STORE_KEY = "crm.customers.filters";
 const BLANK: CustomerFilters = { q: "", type: "", status: "", owner: "any", tag_id: "", has_orders: "", deleted: false, sort: "-updated", page: 1 };
 
 function loadFilters(): CustomerFilters {
+  // The top bar's search (/customers?q=…) starts a fresh search.
+  const q = new URLSearchParams(window.location.search).get("q");
+  if (q) return { ...BLANK, q };
   try {
     const saved = JSON.parse(sessionStorage.getItem(STORE_KEY) ?? "null") as CustomerFilters | null;
     return saved ? { ...BLANK, ...saved } : BLANK;

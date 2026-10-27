@@ -3,19 +3,23 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
-import { useAuth } from "@/lib/auth";
-import { ROLE_LABEL } from "@/lib/types";
-import { cn, initials } from "@/lib/utils";
-import { Icon } from "@/components/ui/Icon";
-import { Logo } from "@/components/ui/Logo";
-import { Popover } from "@/components/ui/Popover";
-import { Badge } from "@/components/ui/Badge";
+import { useCallback, useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
-import { ToastProvider } from "@/components/ui/Toast";
+import { Icon } from "@/components/ui/Icon";
+import { Popover } from "@/components/ui/Popover";
 import { TestModeBanner } from "@/components/ui/TestModeBanner";
-import { NAV, isActive, titleFor } from "./nav";
+import { ToastProvider } from "@/components/ui/Toast";
+import { useAuth } from "@/lib/auth";
 import { applyTheme, readTheme, saveTheme, type Theme } from "@/lib/theme";
+import { ROLE_LABEL } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { NAV, isActive, titleFor } from "./nav";
+
+/*
+ * The signed-in frame, built like the shop admin (wcw-shop-portal components/admin/AdminShell.tsx) so the team
+ * moves between the two without noticing: a white sidebar with a soft shadow, small uppercase section headings,
+ * the current page tinted with an accent bar and accent icon, a white top bar, a soft grey-blue work area.
+ */
 
 /** Light/dark, shared with windycitywares.com and the shop through the wcw-theme cookie (lib/theme.ts). */
 function useTheme() {
@@ -50,17 +54,18 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
   const { can } = useAuth();
   const pathname = usePathname();
   return (
-    <nav aria-label="CRM" className={cn("flex-1 overflow-y-auto px-2 py-3", collapsed ? "px-1" : "px-3")}>
+    <nav aria-label="CRM" className={cn("flex-1 overflow-y-auto pb-6 pt-2", collapsed ? "px-2" : "px-4")}>
       {NAV.map((group, gi) => {
         const items = group.items.filter((i) => !i.hidden && (!i.permission || can(i.permission)));
         if (items.length === 0) return null;
         return (
-          <div key={group.label ?? gi} className={gi > 0 ? "mt-6 mb-2" : "mb-4"}>
-            {!collapsed && group.label && (
-              <p className="px-2 pb-1 text-[0.7rem] font-semibold tracking-wider text-night-muted uppercase">
-                {group.label}
-              </p>
-            )}
+          <div key={group.label ?? gi} className={gi > 0 ? "mt-4" : ""}>
+            {group.label &&
+              (collapsed ? (
+                <hr className="mx-2 mb-2 border-line" />
+              ) : (
+                <p className="font-admin px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-muted">{group.label}</p>
+              ))}
             <ul className="space-y-0.5">
               {items.map((item) => {
                 const active = isActive(pathname, item.href);
@@ -72,15 +77,14 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
                       aria-current={active ? "page" : undefined}
                       title={collapsed ? item.label : undefined}
                       className={cn(
-                        "flex items-center gap-3 rounded-[var(--radius-control)] px-2.5 py-2 text-sm font-medium transition-colors focus-visible:outline-offset-0",
-                        collapsed ? "px-2 justify-center" : "",
-                        active ? "bg-accent-soft text-accent-strong" : "text-night-muted hover:bg-night/20 hover:text-white",
-                      )}>
-                      {active && !collapsed && (
-                        <span aria-hidden="true" className="absolute inset-y-1 left-0 w-[2px] rounded-r-full bg-accent" />
+                        "font-admin group relative flex items-center gap-3 rounded-[var(--radius-control)] py-2 text-[0.95rem] transition-[color,background-color,transform] duration-150 focus-visible:outline-offset-0",
+                        collapsed ? "justify-center px-2" : "px-3",
+                        active ? "bg-sand font-bold text-ink" : "text-ink hover:bg-sand/60 hover:text-accent motion-safe:hover:translate-x-0.5",
                       )}
-                      <Icon name={item.icon} className={cn("size-5 shrink-0", active ? "text-accent-strong" : "text-night-muted")} />
-                      {!collapsed && <span className="font-medium">{item.label}</span>}
+                    >
+                      {active && <span aria-hidden="true" className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-accent" />}
+                      <Icon name={item.icon} className={cn("size-[1.15rem] shrink-0", active ? "text-accent" : "text-muted group-hover:text-accent")} />
+                      {collapsed ? <span className="sr-only">{item.label}</span> : <span>{item.label}</span>}
                     </Link>
                   </li>
                 );
@@ -93,15 +97,23 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
   );
 }
 
-function Brand({ collapsed }: { collapsed: boolean }) {
+function Brand() {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2.5 rounded-[var(--radius-control)] px-2 py-2 mb-4" aria-label="CRM home">
-      <div className="grid size-6 place-items-center rounded-full bg-accent text-on-accent">
-        <Icon name="dashboard" className="size-4" />
-      </div>
-      {!collapsed && <span className="font-semibold text-white tracking-wide">WCW CRM</span>}
+    <Link href="/dashboard" className="flex min-w-0 items-center gap-3 rounded-[var(--radius-control)] px-1 py-1" aria-label="WCW CRM home">
+      <span aria-hidden="true" className="font-admin grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-base font-bold text-on-accent shadow-[var(--shadow-card)]">
+        W
+      </span>
+      <span className="font-admin truncate text-lg font-semibold text-ink">WCW CRM</span>
     </Link>
   );
+}
+
+/** One box for everything: an email or a name finds the customer, a ticket number (T-123 or #123) opens the queue. */
+function searchTarget(raw: string): string | null {
+  const q = raw.trim();
+  if (!q) return null;
+  if (/^(t-?|#)\d+$/i.test(q)) return `/tickets?q=${encodeURIComponent(q.replace(/^#/, ""))}`;
+  return `/customers?q=${encodeURIComponent(q)}`;
 }
 
 /** Signed-in frame: collapsible sidebar, top bar, account menu. Redirects to /login when signed out. */
@@ -112,11 +124,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
   const [drawer, setDrawer] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
   }, [loading, user, router, pathname]);
+
+  // Remember a collapsed sidebar for next time (a per-browser convenience only).
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem("crm.sidebar") === "collapsed");
+    } catch {
+      /* private mode */
+    }
+  }, []);
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem("crm.sidebar", c ? "open" : "collapsed");
+      } catch {
+        /* private mode */
+      }
+      return !c;
+    });
 
   useEffect(() => setDrawer(false), [pathname]);
   useEffect(() => {
@@ -132,42 +161,46 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <a href="#main" className="skip-link">
         Skip to content
       </a>
-      <TestModeBanner label="Test mode" text="Test mode: you're working on a copy of the CRM's data. Nothing here changes the live data.">
-        {" "}
-        <Link href="/settings/environment" className="underline underline-offset-4">
-          Test mode settings
-        </Link>
-      </TestModeBanner>
-      <div className="min-h-dvh lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
-        <aside className={cn("sticky top-0 hidden h-dvh flex-col bg-night text-night-muted lg:flex", collapsed ? "w-[4.5rem]" : "w-[15rem]")}>
-          <div className="px-2 pb-3 pt-5">
-            <Brand collapsed={collapsed} />
+      <div className={cn("min-h-dvh lg:grid", collapsed ? "lg:grid-cols-[4.5rem_minmax(0,1fr)]" : "lg:grid-cols-[16rem_minmax(0,1fr)]")}>
+        {/* Sidebar: a white menu with a soft shadow; the current page has a tint, an accent bar and an accent icon */}
+        <aside className="sticky top-0 z-20 hidden h-dvh flex-col bg-surface shadow-[var(--shadow-card)] lg:flex">
+          <div className={cn("flex h-16 shrink-0 items-center gap-2", collapsed ? "flex-col justify-center px-2" : "justify-between pl-4 pr-3")}>
+            {!collapsed && <Brand />}
             <button
               type="button"
-              onClick={() => setCollapsed((c) => !c)}
-              className="ml-1 mr-1 grid size-9 place-items-center rounded-[var(--radius-control)] hover:bg-night/30 text-night-muted"
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
-              <Icon name={collapsed ? "chevronRight" : "chevronLeft"} className="size-4" />
+              onClick={toggleCollapsed}
+              aria-expanded={!collapsed}
+              className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] text-muted hover:bg-sand hover:text-accent"
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <Icon name="menu" className="size-5" />
+              <span className="sr-only">{collapsed ? "Expand sidebar" : "Collapse sidebar"}</span>
             </button>
           </div>
           <SidebarNav onNavigate={() => setDrawer(false)} collapsed={collapsed} />
         </aside>
 
         <div className="flex min-w-0 flex-col">
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-canvas/90 backdrop-blur px-4 sm:px-6 lg:px-8">
+          <TestModeBanner label="Test mode" text="Test mode: you're working on a copy of the CRM's data. Nothing here changes the live data.">
+            {" "}
+            <Link href="/settings/environment" className="underline underline-offset-4">
+              Test mode settings
+            </Link>
+          </TestModeBanner>
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-2 bg-surface px-4 shadow-[var(--shadow-card)] sm:px-6 lg:px-8">
             <Dialog.Root open={drawer} onOpenChange={setDrawer}>
               <Dialog.Trigger className="-ml-1 grid size-10 place-items-center rounded-[var(--radius-control)] hover:bg-sand lg:hidden">
                 <Icon name="menu" className="size-5" />
                 <span className="sr-only">Open menu</span>
               </Dialog.Trigger>
               <Dialog.Portal>
-                <Dialog.Overlay className="fixed inset-0 z-50 bg-night/60 lg:hidden" />
-                <Dialog.Content className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-night text-night-muted shadow-xl lg:hidden">
+                <Dialog.Overlay className="fixed inset-0 z-50 bg-night/50 lg:hidden" />
+                <Dialog.Content className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-surface shadow-[var(--shadow-raised)] lg:hidden">
                   <Dialog.Title className="sr-only">Menu</Dialog.Title>
                   <Dialog.Description className="sr-only">Go to a section of the CRM.</Dialog.Description>
-                  <div className="flex items-center justify-between px-3 pb-3 pt-5">
-                    <Brand collapsed={false} />
-                    <Dialog.Close className="mr-1 grid size-9 place-items-center rounded-full text-night-muted hover:bg-white/10 hover:text-white">
+                  <div className="flex h-16 items-center justify-between pl-4 pr-3">
+                    <Brand />
+                    <Dialog.Close className="grid size-9 place-items-center rounded-full text-muted hover:bg-sand hover:text-ink">
                       <Icon name="close" className="size-5" />
                       <span className="sr-only">Close menu</span>
                     </Dialog.Close>
@@ -177,86 +210,59 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Dialog.Portal>
             </Dialog.Root>
 
-            <div className="ml-3 hidden sm:flex flex-1 max-w-[28rem]">
-              <div className="relative">
-                <Icon name="search" className="absolute left-2.5 top-2.5 size-4 text-muted" />
+            <form
+              role="search"
+              className="ml-2 hidden max-w-[26rem] flex-1 sm:flex"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const target = searchTarget(String(new FormData(e.currentTarget).get("q") || ""));
+                if (!target) return;
+                // Already on that page: reload so it reads the new search; otherwise a normal client-side move.
+                if (pathname === target.split("?")[0]) window.location.assign(target);
+                else router.push(target);
+              }}
+            >
+              <label htmlFor="crm-search" className="sr-only">
+                Search the CRM
+              </label>
+              <div className="relative w-full">
+                <Icon name="search" className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
                 <input
+                  id="crm-search"
+                  name="q"
                   type="search"
-                  placeholder="Search orders, customers, contacts…"
-                  className="pl-9 pr-3 py-1.5 rounded-[var(--radius-control)] border border-line bg-surface text-sm text-ink focus:border-accent focus:outline-none w-full"
+                  placeholder="Customer name or email, ticket T-123…"
+                  className="w-full rounded-full border border-line bg-canvas py-2 pl-10 pr-4 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
                 />
               </div>
-            </div>
+            </form>
 
             <div className="ml-auto flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setNotificationsOpen((o) => !o)}
-                className="relative grid size-10 place-items-center rounded-[var(--radius-control)] text-muted hover:bg-sand hover:text-ink"
-                title="Notifications">
-                <Icon name="bell" className="size-5" />
-                <span className="absolute right-1 top-1 grid size-2.5 place-items-center rounded-full bg-danger text-[0.55rem] font-bold text-on-accent shadow-sm">
-                  <span className="leading-none">9+</span>
-                </span>
-              </button>
-              <Popover
-                label="Notifications"
-                open={notificationsOpen}
-                onOpenChange={setNotificationsOpen}
-                trigger={<span className="sr-only">Notifications</span>}
-                panelClassName="w-72 p-0"
-                align="right">
-                {() => (
-                  <div className="border-t border-line">
-                    <div className="px-3 py-2">
-                      <p className="text-xs font-semibold text-ink">Notifications</p>
-                      <p className="mt-0.5 text-xs text-muted">9 new this week</p>
-                    </div>
-                    <div className="divide-y divide-line">
-                      <a href="/inbox" className="block px-3 py-2.5 text-sm hover:bg-sand">
-                        <div className="flex items-center justify-between">
-                          <span>New order #1042 delivered</span>
-                          <span className="text-[0.65rem] text-muted">2h ago</span>
-                        </div>
-                      </a>
-                      <a href="/customers" className="block px-3 py-2.5 text-sm hover:bg-sand">
-                        <div className="flex items-center justify-between">
-                          <span>Customer signed up</span>
-                          <span className="text-[0.65rem] text-muted">5h ago</span>
-                        </div>
-                      </a>
-                    </div>
-                    <div className="px-3 py-2">
-                      <a href="/inbox" className="block w-full text-left text-xs text-accent-strong hover:underline">
-                        View all notifications
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </Popover>
-              <button
-                type="button"
                 onClick={toggle}
-                className="grid size-10 place-items-center rounded-[var(--radius-control)] text-muted hover:bg-sand hover:text-ink"
-                title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}>
+                className="grid size-10 place-items-center rounded-full text-muted hover:bg-sand hover:text-ink"
+                title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+              >
                 <Icon name={theme === "light" ? "moon" : "sun"} className="size-5" />
-                <span className="sr-only">{theme === "light" ? "Dark mode" : "Light mode"}</span>
+                <span className="sr-only">{theme === "light" ? "Switch to dark mode" : "Switch to light mode"}</span>
               </button>
               <Popover
                 label="Account menu"
                 trigger={
                   <div className="flex items-center gap-2">
-                    <Avatar name={user.full_name ?? user.email} src={undefined} status="online" size="sm" />
-                    <span className="hidden sm:inline truncate max-w-[14rem] text-sm font-medium text-ink">{user.full_name}</span>
+                    <Avatar name={user.full_name ?? user.email} status="online" size="sm" />
+                    <span className="hidden max-w-[14rem] truncate text-sm font-medium text-ink sm:inline">{user.full_name || user.email}</span>
                     <Icon name="chevronDown" className="size-4 text-muted" />
                   </div>
                 }
-                triggerClassName="border-transparent bg-transparent hover:bg-night/10"
-                panelClassName="w-64">
+                triggerClassName="border-transparent bg-transparent hover:bg-sand"
+                panelClassName="w-64"
+              >
                 {(close) => (
                   <div>
                     <div className="px-3 py-2">
-                      <p className="truncate text-sm font-medium text-ink">{user.full_name}</p>
+                      <p className="truncate text-sm font-medium text-ink">{user.full_name || "Signed in"}</p>
                       <p className="truncate text-xs text-muted">{user.email}</p>
                       <p className="mt-1 text-xs text-muted">{ROLE_LABEL[user.role]} access</p>
                     </div>
@@ -266,7 +272,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         Settings
                       </Link>
                       <Link href="/account" onClick={close} className="flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm hover:bg-sand">
-                        <Icon name="users" className="size-4 text-muted" />
+                        <Icon name="customers" className="size-4 text-muted" />
                         Your account
                       </Link>
                       <button
@@ -276,7 +282,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           logout();
                           router.push("/login");
                         }}
-                        className="flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-left text-sm hover:bg-sand">
+                        className="flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-left text-sm hover:bg-sand"
+                      >
                         <Icon name="logout" className="size-4 text-muted" />
                         Sign out
                       </button>
