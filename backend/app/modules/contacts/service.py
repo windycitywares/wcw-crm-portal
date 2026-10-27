@@ -267,7 +267,8 @@ class ContactService:
             await self.session.flush()
 
     async def sync_subscriber(self, email: str, *, subscribed: bool, source: str | None = None,
-                              at=None) -> Contact | None:
+                              at=None, language: str | None = None, origin: str = "shop",
+                              actor=None) -> Contact | None:
         """The shop's newsletter list, mirrored into the directory (called by the shop integration).
 
         Signing up finds the person by email (a customer or anyone else already here) or adds a new contact typed
@@ -285,26 +286,30 @@ class ContactService:
         if contact is None:
             if not subscribed:
                 return None
-            contact = Contact(email=email, types=_with_type([], TYPE_SUBSCRIBER), source="shop",
-                              subscribed_at=when, subscribe_source=source)
+            contact = Contact(email=email, types=_with_type([], TYPE_SUBSCRIBER), source=origin,
+                              subscribed_at=when, subscribe_source=source, language=language,
+                              created_by=getattr(actor, "id", None), updated_by=getattr(actor, "id", None))
             await self.repo.add(contact)
-            await self.audit.record("contact.create", entity_type=ENTITY, entity_id=contact.id,
-                                    changes={"email": [None, email], "types": [None, [TYPE_SUBSCRIBER]], "via": "shop newsletter"})
+            await self.audit.record("contact.create", actor=actor, entity_type=ENTITY, entity_id=contact.id,
+                                    changes={"email": [None, email], "types": [None, [TYPE_SUBSCRIBER]],
+                                             "via": f"{origin} newsletter"})
             return contact
         before = (contact.subscribed_at, contact.unsubscribed_at)
         contact.types = _with_type(contact.types, TYPE_SUBSCRIBER)
         if subscribed:
             if contact.subscribed_at is None or contact.unsubscribed_at is not None:
                 contact.subscribed_at = when
+                contact.paused_at = None
             elif at is not None and at < contact.subscribed_at:
                 contact.subscribed_at = at  # the shop knows the real sign-up date (an import stamped "now")
             contact.unsubscribed_at = None
             contact.subscribe_source = source or contact.subscribe_source
+            contact.language = language or contact.language
         elif contact.unsubscribed_at is None:
             contact.unsubscribed_at = when
         await self.session.flush()
         if before != (contact.subscribed_at, contact.unsubscribed_at):
-            await self.audit.record("contact.update", entity_type=ENTITY, entity_id=contact.id,
+            await self.audit.record("contact.update", actor=actor, entity_type=ENTITY, entity_id=contact.id,
                                     changes={"newsletter": ["unsubscribed" if subscribed else "subscribed",
-                                                         "subscribed" if subscribed else "unsubscribed"], "via": "shop"})
+                                                         "subscribed" if subscribed else "unsubscribed"], "via": origin})
         return contact

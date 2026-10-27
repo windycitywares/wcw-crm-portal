@@ -67,7 +67,37 @@ class ContactRepository(BaseRepository[Contact]):
         if owner_id is not None:
             stmt = stmt.where(Contact.owner_id == owner_id)
         if subscription == "subscribed":
-            stmt = stmt.where(Contact.subscribed_at.is_not(None), Contact.unsubscribed_at.is_(None))
+            stmt = stmt.where(Contact.subscribed_at.is_not(None), Contact.unsubscribed_at.is_(None),
+                              Contact.paused_at.is_(None))
         elif subscription == "unsubscribed":
             stmt = stmt.where(Contact.unsubscribed_at.is_not(None))
         return stmt.order_by(*SORTS.get(sort, SORTS["-updated"]), Contact.id.desc())
+
+    # ---- subscribers: the contacts typed "subscriber" -------------------------------------------------
+    def subscribers(self, *, q: str | None = None, source: str | None = None, status: str | None = None,
+                    sort: str = "-joined") -> Select[tuple[Contact]]:
+        """Everyone on the newsletter list, with the same search as the directory."""
+        stmt = self.search(q=q, type="subscriber", sort="-updated")
+        if source:
+            stmt = stmt.where(Contact.subscribe_source == source)
+        if status == "subscribed":
+            stmt = stmt.where(Contact.unsubscribed_at.is_(None), Contact.paused_at.is_(None))
+        elif status == "paused":
+            stmt = stmt.where(Contact.unsubscribed_at.is_(None), Contact.paused_at.is_not(None))
+        elif status == "unsubscribed":
+            stmt = stmt.where(Contact.unsubscribed_at.is_not(None))
+        order = {"-joined": (Contact.subscribed_at.desc().nulls_last(),), "joined": (Contact.subscribed_at.asc().nulls_last(),),
+                 "email": (func.lower(Contact.email),)}.get(sort, (Contact.subscribed_at.desc().nulls_last(),))
+        return stmt.order_by(None).order_by(*order, Contact.id.desc())
+
+    async def subscriber_counts(self, *, q: str | None = None, source: str | None = None) -> dict[str, int]:
+        out = {}
+        for key in ("subscribed", "paused", "unsubscribed"):
+            out[key] = await self.count(self.subscribers(q=q, source=source, status=key))
+        out["all"] = await self.count(self.subscribers(q=q, source=source))
+        return out
+
+    async def subscriber_sources(self) -> list[str]:
+        stmt = (select(Contact.subscribe_source).where(Contact.deleted_at.is_(None), Contact.types.contains(["subscriber"]),
+                                                       Contact.subscribe_source.is_not(None)).distinct())
+        return sorted(str(v) for v in (await self.session.execute(stmt)).scalars())

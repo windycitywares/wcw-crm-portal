@@ -79,6 +79,9 @@ class ContactOut(BaseModel):
     subscribed_at: datetime | None = None
     unsubscribed_at: datetime | None = None
     subscribe_source: str | None = None
+    paused_at: datetime | None = None
+    language: str | None = None
+    subscription_status: str | None = None
     created_at: datetime
     updated_at: datetime
     created_by: int | None

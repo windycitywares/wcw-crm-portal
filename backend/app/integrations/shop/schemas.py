@@ -64,6 +64,7 @@ class NewsletterData(_Loose):
     source: str | None = Field(default=None, max_length=20)
     # When it happened on the shop (signed up, or left). Older shops don't send it: then "now".
     at: datetime | None = None
+    language: str | None = Field(default=None, max_length=10)
 
 
 class ContactData(_Loose):
