@@ -22,6 +22,7 @@ class User(IdMixin, TimestampMixin, Base):
     timezone: Mapped[str] = mapped_column(String(64), default="America/Chicago", server_default="America/Chicago")
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notifications_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # the bell: read up to here
 
 
 class PasswordResetToken(IdMixin, Base):

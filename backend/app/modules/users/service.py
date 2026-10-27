@@ -174,6 +174,12 @@ class UserService:
     async def directory(self) -> list[DirectoryEntry]:
         return [DirectoryEntry.model_validate(u) for u in await self.users.directory()]
 
+    async def mark_notifications_seen(self, user_id: int) -> None:
+        """The bell was opened: everything up to now counts as read for this person."""
+        user = await self._get(user_id)
+        user.notifications_seen_at = utcnow()
+        await self.session.commit()
+
     async def contacts(self) -> list[tuple[int, str, str]]:
         """(id, full name, email) of every user — server-side only (e.g. owner columns in imports/exports)."""
         return [(u.id, u.full_name, u.email) for u in await self.users.directory()]
