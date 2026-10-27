@@ -24,6 +24,7 @@ from app.core.exceptions import NotFoundError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.integrations import signing
 from app.modules.activity.service import TimelineService, preview
+from app.modules.contacts.service import ContactService
 from app.modules.customers.service import CustomerService
 from app.modules.lookups.service import LookupService
 from app.modules.settings.service import SettingsService
@@ -185,15 +186,20 @@ class ShopEventService:
         handler = self.handlers.get(event_type)
         return await handler(data) if handler else None
 
-    async def _subscribed(self, payload: dict[str, Any]) -> int:
+    async def _subscribed(self, payload: dict[str, Any]) -> int | None:
+        """A newsletter sign-up is a contact typed "subscriber" (not a customer: subscribing isn't buying).
+        If they are already a customer, their marketing consent is recorded there too, for campaigns."""
         data = NewsletterData.model_validate(payload)
-        customer_id = await self.customers.sync_from_shop(email=data.email)
-        how = f"shop newsletter, {data.source}" if data.source else "shop newsletter"
-        await self.customers.mark_consent(customer_id, True, how)
+        await ContactService(self.session).sync_subscriber(data.email, subscribed=True, source=data.source)
+        customer_id = await self.customers.find_by_email(data.email)
+        if customer_id is not None:
+            how = f"shop newsletter, {data.source}" if data.source else "shop newsletter"
+            await self.customers.mark_consent(customer_id, True, how)
         return customer_id
 
     async def _unsubscribed(self, payload: dict[str, Any]) -> int | None:
         data = NewsletterData.model_validate(payload)
+        await ContactService(self.session).sync_subscriber(data.email, subscribed=False)
         customer_id = await self.customers.find_by_email(data.email)
         if customer_id is not None:
             await self.customers.mark_consent(customer_id, False, "shop newsletter")

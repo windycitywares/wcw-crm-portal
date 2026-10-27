@@ -76,6 +76,9 @@ class ContactOut(BaseModel):
     owner_id: int | None
     user_id: int | None
     customer_id: int | None
+    subscribed_at: datetime | None = None
+    unsubscribed_at: datetime | None = None
+    subscribe_source: str | None = None
     created_at: datetime
     updated_at: datetime
     created_by: int | None

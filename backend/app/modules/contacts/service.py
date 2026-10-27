@@ -31,6 +31,7 @@ TRACKED = ("first_name", "last_name", "company", "title", "email", "phone", "typ
 LABELS = {"first_name": "first name", "last_name": "last name", "types": "types", "owner_id": "owner"}
 TYPE_USER = "user"
 TYPE_CUSTOMER = "customer"
+TYPE_SUBSCRIBER = "subscriber"
 DEFAULT_TYPE = "other"
 
 
@@ -51,9 +52,11 @@ class ContactService:
 
     # ---- reads ----------------------------------------------------------
     async def list(self, params: PageParams, *, q: str | None = None, type: str | None = None,
-                   status: str | None = None, owner_id: int | None = None, sort: str = "-updated") -> ContactPage:
+                   status: str | None = None, owner_id: int | None = None, subscription: str | None = None,
+                   sort: str = "-updated") -> ContactPage:
         rows, total = await self.repo.paginate(
-            self.repo.search(q=q, type=type, status=status, owner_id=owner_id, sort=sort), params)
+            self.repo.search(q=q, type=type, status=status, owner_id=owner_id, subscription=subscription, sort=sort),
+            params)
         return ContactPage(items=[ContactOut.model_validate(c) for c in rows], total=total, page=params.page,
                            page_size=params.page_size)
 
@@ -262,3 +265,43 @@ class ContactService:
         if contact is not None:
             contact.types = _without_type(contact.types, TYPE_CUSTOMER)
             await self.session.flush()
+
+    async def sync_subscriber(self, email: str, *, subscribed: bool, source: str | None = None,
+                              at=None) -> Contact | None:
+        """The shop's newsletter list, mirrored into the directory (called by the shop integration).
+
+        Signing up finds the person by email (a customer or anyone else already here) or adds a new contact typed
+        "subscriber"; leaving keeps them and marks `unsubscribed_at`. An unknown address that only leaves is not
+        added. Flushes, doesn't commit.
+        """
+        from app.shared.time import utcnow
+
+        email = (email or "").strip().lower()
+        if not email:
+            return None
+        when = at or utcnow()
+        contact = await self.repo.by_email(email)
+        if contact is None:
+            if not subscribed:
+                return None
+            contact = Contact(email=email, types=_with_type([], TYPE_SUBSCRIBER), source="shop",
+                              subscribed_at=when, subscribe_source=source)
+            await self.repo.add(contact)
+            await self.audit.record("contact.create", entity_type=ENTITY, entity_id=contact.id,
+                                    changes={"email": [None, email], "types": [None, [TYPE_SUBSCRIBER]], "via": "shop newsletter"})
+            return contact
+        before = (contact.subscribed_at, contact.unsubscribed_at)
+        contact.types = _with_type(contact.types, TYPE_SUBSCRIBER)
+        if subscribed:
+            if contact.subscribed_at is None or contact.unsubscribed_at is not None:
+                contact.subscribed_at = when
+            contact.unsubscribed_at = None
+            contact.subscribe_source = source or contact.subscribe_source
+        elif contact.unsubscribed_at is None:
+            contact.unsubscribed_at = when
+        await self.session.flush()
+        if before != (contact.subscribed_at, contact.unsubscribed_at):
+            await self.audit.record("contact.update", entity_type=ENTITY, entity_id=contact.id,
+                                    changes={"newsletter": ["unsubscribed" if subscribed else "subscribed",
+                                                         "subscribed" if subscribed else "unsubscribed"], "via": "shop"})
+        return contact

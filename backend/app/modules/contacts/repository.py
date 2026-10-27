@@ -44,7 +44,8 @@ class ContactRepository(BaseRepository[Contact]):
         return (await self.session.execute(stmt)).scalars().first()
 
     def search(self, *, q: str | None = None, type: str | None = None, status: str | None = None,
-               owner_id: int | None = None, sort: str = "-updated") -> Select[tuple[Contact]]:
+               owner_id: int | None = None, subscription: str | None = None,
+               sort: str = "-updated") -> Select[tuple[Contact]]:
         stmt = self.query()
         if q:
             words = [w for w in q.strip().lower().split() if w][:5]
@@ -65,4 +66,8 @@ class ContactRepository(BaseRepository[Contact]):
             stmt = stmt.where(Contact.status == status)
         if owner_id is not None:
             stmt = stmt.where(Contact.owner_id == owner_id)
+        if subscription == "subscribed":
+            stmt = stmt.where(Contact.subscribed_at.is_not(None), Contact.unsubscribed_at.is_(None))
+        elif subscription == "unsubscribed":
+            stmt = stmt.where(Contact.unsubscribed_at.is_not(None))
         return stmt.order_by(*SORTS.get(sort, SORTS["-updated"]), Contact.id.desc())
