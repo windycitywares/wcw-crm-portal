@@ -21,19 +21,38 @@ export interface NavGroup {
 export const NAV: NavGroup[] = [
   { items: [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" }] },
   {
-    label: "Work",
+    label: "Support",
     items: [
-      { href: "/tasks", label: "Tasks", icon: "tasks", permission: "tasks:view" },
-      { href: "/tickets", label: "Tickets", icon: "ticket", permission: "tickets:view" },
       { href: "/inbox", label: "Inbox", icon: "inbox", permission: "tickets:view" },
-      { href: "/leads", label: "Leads", icon: "inbox", permission: "sales:view" },
-      { href: "/sales", label: "Sales", icon: "briefcase", permission: "sales:view" },
-      { href: "/campaigns", label: "Campaigns", icon: "mail", permission: "campaigns:view" },
-      { href: "/suppliers", label: "Suppliers", icon: "briefcase", permission: "suppliers:view" },
-      { href: "/reports", label: "Reports", icon: "chart", permission: "reports:view" },
-      { href: "/customers", label: "Customers", icon: "customers", permission: "customers:view" },
-      { href: "/contacts", label: "Contacts", icon: "customers", permission: "customers:view" },
+      { href: "/tickets", label: "Tickets", icon: "ticket", permission: "tickets:view" },
+      { href: "/tasks", label: "Tasks", icon: "tasks", permission: "tasks:view" },
     ],
+  },
+  {
+    label: "Customers",
+    items: [
+      { href: "/customers", label: "Customers", icon: "customers", permission: "customers:view" },
+      { href: "/contacts", label: "Contacts", icon: "users", permission: "customers:view" },
+    ],
+  },
+  {
+    label: "Sales",
+    items: [
+      { href: "/leads", label: "Leads", icon: "funnel", permission: "sales:view" },
+      { href: "/sales", label: "Deals", icon: "briefcase", permission: "sales:view" },
+    ],
+  },
+  {
+    label: "Marketing",
+    items: [{ href: "/campaigns", label: "Campaigns", icon: "mail", permission: "campaigns:view" }],
+  },
+  {
+    label: "Purchasing",
+    items: [{ href: "/suppliers", label: "Suppliers", icon: "truck", permission: "suppliers:view" }],
+  },
+  {
+    label: "Analytics",
+    items: [{ href: "/reports", label: "Reports", icon: "chart", permission: "reports:view" }],
   },
   {
     label: "Administration",
