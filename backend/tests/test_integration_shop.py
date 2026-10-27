@@ -144,6 +144,15 @@ class ShopWebhookTests(unittest.TestCase):
         self.assertIsNotNone(c["unsubscribed_at"])
         self.assertIn("subscriber", c["types"])
 
+        # the shop's own date is kept; a later re-send with the real (earlier) date corrects an import stamped "now"
+        dated = self.w.email("news-dated")
+        self.send("newsletter.subscribed", {"email": dated, "source": "site", "at": "2026-03-04T05:06:07+00:00"})
+        self.assertTrue(self.contact(dated)["subscribed_at"].startswith("2026-03-04T05:06:07"))
+        stamped = self.w.email("news-stamped")
+        self.send("newsletter.subscribed", {"email": stamped, "source": "site"})
+        self.send("newsletter.subscribed", {"email": stamped, "source": "site", "at": "2026-01-02T00:00:00+00:00"})
+        self.assertTrue(self.contact(stamped)["subscribed_at"].startswith("2026-01-02"))
+
         # an existing customer who subscribes keeps one directory row and gets marketing consent
         buyer = self.w.email("news-buyer")
         made = self.w.client.post(f"{API}/customers", headers=self.admin_h, json={"first_name": "Bea", "email": buyer}).json()
