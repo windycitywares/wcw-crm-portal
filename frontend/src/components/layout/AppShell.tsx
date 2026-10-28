@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon } from "@/components/ui/Icon";
+import { Logo, LogoMark } from "@/components/ui/Logo";
 import { Popover } from "@/components/ui/Popover";
 import { TestModeBanner } from "@/components/ui/TestModeBanner";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -128,13 +129,11 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
   );
 }
 
-function Brand() {
+/** The WindyCityWares logo (the same artwork as the shop and the website). `compact` is the emblem alone, for the narrow sidebar. */
+function Brand({ compact = false, className = "h-[22px] w-auto" }: { compact?: boolean; className?: string }) {
   return (
-    <Link href="/dashboard" className="flex min-w-0 items-center gap-3 rounded-[var(--radius-control)] px-1 py-1" aria-label="WCW CRM home">
-      <span aria-hidden="true" className="font-admin grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-base font-bold text-on-accent shadow-[var(--shadow-card)]">
-        W
-      </span>
-      <span className="font-admin truncate text-lg font-semibold text-ink">WCW CRM</span>
+    <Link href="/dashboard" className="flex min-w-0 items-center rounded-[var(--radius-control)] px-1 py-1" aria-label="WindyCityWares CRM home">
+      {compact ? <LogoMark className="size-9" /> : <Logo className={className} />}
     </Link>
   );
 }
@@ -197,7 +196,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Sidebar: a white menu with a soft shadow; the current page has a tint, an accent bar and an accent icon */}
         <aside className="sticky top-0 z-20 hidden h-dvh flex-col bg-surface shadow-[var(--shadow-card)] lg:flex">
           <div className={cn("flex h-16 shrink-0 items-center gap-2", collapsed ? "flex-col justify-center px-2" : "justify-between pl-4 pr-3")}>
-            {!collapsed && <Brand />}
+            <Brand compact={collapsed} />
             <button
               type="button"
               onClick={toggleCollapsed}
@@ -231,7 +230,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Dialog.Title className="sr-only">Menu</Dialog.Title>
                   <Dialog.Description className="sr-only">Go to a section of the CRM.</Dialog.Description>
                   <div className="flex h-16 items-center justify-between pl-4 pr-3">
-                    <Brand />
+                    <Brand className="h-6 w-auto" />
                     <Dialog.Close className="grid size-9 place-items-center rounded-full text-muted hover:bg-sand hover:text-ink">
                       <Icon name="close" className="size-5" />
                       <span className="sr-only">Close menu</span>

@@ -1,4 +1,5 @@
 // WindyCityWares logo: outlined Figtree ExtraBold glyphs, same artwork as /public/brand/*.svg.
+// The wordmark is set 1.6x larger than the emblem's original proportions (Oct 2026): keep the three copies in step.
 // Brand: navy #1c2f45, gold #e0a845 (text gold #c9902f). Full kit in /public/brand.
 
 const WCW_LETTERS = "M212.0 0 8.0 -700H172.0L298.0 -248L418.0 -700H578.0L700.0 -256L825.0 -700H989.0L784.0 0H616.0L498.0 -450L379.0 0ZM1628.8 0 1424.8 -700H1588.8L1714.8 -248L1834.8 -700H1994.8L2116.8 -256L2241.8 -700H2405.8L2200.8 0H2032.8L1914.8 -450L1795.8 0Z";
@@ -37,10 +38,10 @@ export function LogoMark({ className, tone, title }: { className?: string; tone?
 export function Logo({ className, tone = "default", title }: { className?: string; tone?: Tone; title?: string }) {
   const reverse = tone === "reverse";
   return (
-    <svg viewBox="0 0 348.2 64" className={className} role={title ? "img" : undefined} aria-label={title}
+    <svg viewBox="0 0 511.0 64" className={className} role={title ? "img" : undefined} aria-label={title}
       aria-hidden={title ? undefined : true} focusable="false">
       <EmblemShapes tone={tone} />
-      <g transform="translate(78.4 44.3) scale(0.035200)">
+      <g transform="translate(80.2 51.7) scale(0.056320)">
         <path fill={reverse ? "#ffffff" : "var(--logo-word)"} d={WORD_A} />
         <path fill={reverse ? "#e0a845" : "var(--logo-word-gold)"} d={WORD_B} />
       </g>
