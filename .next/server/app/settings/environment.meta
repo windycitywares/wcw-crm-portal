@@ -1,0 +1,44 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/settings/layout,_N_T_/(crm)/settings/environment/layout,_N_T_/(crm)/settings/environment/page,_N_T_/settings/environment"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/settings/environment/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 96,
+                "slots": {
+                  "children": {
+                    "hints": 160,
+                    "slots": null
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/e4b9fc113ef3246014ef2054c71d5c245441b627d35774395051b7a2542a2d8e/$/settings/environment",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/settings/environment/page"
+    },
+    "isFallback": false
+  }
+}

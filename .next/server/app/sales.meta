@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/sales/layout,_N_T_/(crm)/sales/page,_N_T_/sales"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/sales/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/227790b5e313ccfa4f094d2d1f755da37e93e6f41b671f99b2c2f364b1aebeed/$/sales",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/sales/page"
+    },
+    "isFallback": false
+  }
+}

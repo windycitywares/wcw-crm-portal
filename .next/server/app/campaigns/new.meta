@@ -1,0 +1,44 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/campaigns/layout,_N_T_/(crm)/campaigns/new/layout,_N_T_/(crm)/campaigns/new/page,_N_T_/campaigns/new"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/campaigns/new/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 96,
+                "slots": {
+                  "children": {
+                    "hints": 160,
+                    "slots": null
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/e341a159545d25c78ca6b666c02e9b15fb32b95068f7e0cbbd28060a6fc28e98/$/campaigns/new",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/campaigns/new/page"
+    },
+    "isFallback": false
+  }
+}

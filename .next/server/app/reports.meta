@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/reports/layout,_N_T_/(crm)/reports/page,_N_T_/reports"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/reports/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/70d92280d7959bd70f8ea8619cfc4207e565524ed253bd081f82d77af8ef25ac/$/reports",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/reports/page"
+    },
+    "isFallback": false
+  }
+}

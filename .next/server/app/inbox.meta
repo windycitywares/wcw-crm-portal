@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/inbox/layout,_N_T_/(crm)/inbox/page,_N_T_/inbox"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/inbox/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/bb0003d3bd928419f4dd3bcd1bcd47e582e00a2a435c92572e5f5548d5cacd96/$/inbox",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/inbox/page"
+    },
+    "isFallback": false
+  }
+}

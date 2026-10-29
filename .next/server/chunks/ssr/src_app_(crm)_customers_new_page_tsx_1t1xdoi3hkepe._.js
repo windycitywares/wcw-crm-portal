@@ -1,0 +1,3 @@
+module.exports=[35579,a=>{"use strict";var b=a.i(87924),c=a.i(50944),d=a.i(25771),e=a.i(18604),f=a.i(45612);a.s(["default",0,function(){let a=(0,c.useRouter)(),g=(0,e.d)();return(0,b.jsxs)(b.Fragment,{children:[(0,b.jsx)(d.f,{title:"Add customer",back:{href:"/customers",label:"Customers"}}),(0,b.jsx)("div",{className:"max-w-3xl",children:(0,b.jsx)(f.f,{customer:null,onSaved:b=>{g.push({title:"Customer added",description:b.display_name}),a.push(`/customers/${b.id}`)}})})]})}])}];
+
+//# sourceMappingURL=src_app_%28crm%29_customers_new_page_tsx_1t1xdoi3hkepe._.js.map

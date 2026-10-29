@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/contacts/layout,_N_T_/(crm)/contacts/page,_N_T_/contacts"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/contacts/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/1bfbc14271a1026deb6d61227ec48d418e5ac175e3afed12d62f1a2d5c087364/$/contacts",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/contacts/page"
+    },
+    "isFallback": false
+  }
+}

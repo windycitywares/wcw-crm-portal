@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/suppliers/layout,_N_T_/(crm)/suppliers/page,_N_T_/suppliers"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/suppliers/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/1771ec7ddb3eadb1f80d906eda6f8c0999bd1e0ecdc9bce8ec0a1cd4e85d222f/$/suppliers",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/suppliers/page"
+    },
+    "isFallback": false
+  }
+}

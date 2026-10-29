@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/subscribers/layout,_N_T_/(crm)/subscribers/page,_N_T_/subscribers"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/subscribers/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/dc30a2a93be0cbbb5f9696b59b8a20d6ce24615f6db762841c693cb6b1478232/$/subscribers",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/subscribers/page"
+    },
+    "isFallback": false
+  }
+}

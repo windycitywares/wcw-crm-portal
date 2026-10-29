@@ -1,0 +1,39 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/customers/layout,_N_T_/(crm)/customers/page,_N_T_/customers"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/customers/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/dbd84533ec37336f45dd866e11e60bee3e7935ab1ddd43a43c95b3d2ebe6124f/$/customers",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/customers/page"
+    },
+    "isFallback": false
+  }
+}

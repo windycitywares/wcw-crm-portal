@@ -1,0 +1,44 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/campaigns/layout,_N_T_/(crm)/campaigns/suppressions/layout,_N_T_/(crm)/campaigns/suppressions/page,_N_T_/campaigns/suppressions"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/campaigns/suppressions/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 96,
+                "slots": {
+                  "children": {
+                    "hints": 160,
+                    "slots": null
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/815d8798d067b7b80950162d69981044d49b124a1f1899dc7c0cb8c0961af88c/$/campaigns/suppressions",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/campaigns/suppressions/page"
+    },
+    "isFallback": false
+  }
+}

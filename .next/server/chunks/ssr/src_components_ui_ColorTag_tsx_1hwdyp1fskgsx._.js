@@ -1,0 +1,3 @@
+module.exports=[81222,a=>{"use strict";var b=a.i(87924),c=a.i(64767);let d=["neutral","accent","success","warning","danger","info"],e={neutral:"Grey",accent:"Blue",success:"Green",warning:"Amber",danger:"Red",info:"Sky"},f=[{value:"",label:"No colour"},...d.map(a=>({value:a,label:e[a]}))];a.s(["E",0,f,"X",0,function({color:a,children:e,className:f}){return!a||d.includes(a)?(0,b.jsx)(c.f,{tone:a||"neutral",className:f,children:e}):(0,b.jsxs)("span",{className:`inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-0.5 text-xs font-medium ${f??""}`,children:[(0,b.jsx)("span",{"aria-hidden":"true",className:"size-1.5 rounded-full",style:{background:a}}),e]})}])}];
+
+//# sourceMappingURL=src_components_ui_ColorTag_tsx_1hwdyp1fskgsx._.js.map

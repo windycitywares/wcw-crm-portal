@@ -1,0 +1,44 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/suppliers/layout,_N_T_/(crm)/suppliers/new/layout,_N_T_/(crm)/suppliers/new/page,_N_T_/suppliers/new"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGNybSk/suppliers/new/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 96,
+                "slots": {
+                  "children": {
+                    "hints": 160,
+                    "slots": null
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/8b95e81ec3aee257738cda4366043e34ac32ceadc3b0d50c5dee51dceca77646/$/suppliers/new",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/suppliers/new/page"
+    },
+    "isFallback": false
+  }
+}
