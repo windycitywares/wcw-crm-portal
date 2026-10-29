@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
+import { IconButton } from "@/components/ui/IconButton";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
@@ -24,6 +26,7 @@ export default function CampaignTemplatesPage() {
   const [mergeFields, setMergeFields] = useState<MergeField[]>([]);
   const [previewCustomers, setPreviewCustomers] = useState<Customer[]>([]);
   const [editing, setEditing] = useState<Template | null>(null);
+  const [deleting, setDeleting] = useState<TemplateSummary | null>(null);
   const [form, setForm] = useState<typeof EMPTY>(EMPTY);
   const [previewCustomerId, setPreviewCustomerId] = useState<number | null>(null);
   const [preview, setPreview] = useState<RenderedTemplate | null>(null);
@@ -169,7 +172,7 @@ export default function CampaignTemplatesPage() {
   };
 
   const remove = async (id: number) => {
-    if (!canEdit || !confirm("Delete this email template?")) return;
+    if (!canEdit) return;
     try {
       await campaignsApi.templates.remove(id);
       if (editing?.id === id) resetForm();
@@ -244,9 +247,7 @@ export default function CampaignTemplatesPage() {
                   <div className="flex shrink-0 items-center gap-2">
                     <span className="text-xs text-muted">v{template.version}</span>
                     {canEdit && (
-                      <Button variant="secondary" size="sm" onClick={() => void remove(template.id)}>
-                        Delete
-                      </Button>
+                      <IconButton icon="trash" tone="danger" label={`Delete ${template.name}`} onClick={() => setDeleting(template)} />
                     )}
                   </div>
                 </div>
@@ -336,6 +337,17 @@ export default function CampaignTemplatesPage() {
           {testMessage && <p role="status" className="mt-3 text-sm text-success">{testMessage}</p>}
         </PanelBody>
       </Panel>
+      <ConfirmationDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        title="Delete this template?"
+        message={`"${deleting?.name ?? ""}" is removed. Campaigns already sent keep what they sent.`}
+        confirmLabel="Delete template"
+        onConfirm={async () => {
+          if (deleting) await remove(deleting.id);
+          setDeleting(null);
+        }}
+      />
     </>
   );
 }

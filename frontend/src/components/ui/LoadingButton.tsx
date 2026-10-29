@@ -19,20 +19,6 @@ export function LoadingButton({ loading, label, disabled, size = "md", className
   );
 }
 
-/** Icon-only button (toolbar / table action). */
-export function IconButton({ variant = "ghost", size = "sm", title, className, ...props }: {
-  variant?: "ghost" | "primary" | "secondary" | "danger";
-  size?: "sm" | "md";
-  title?: string;
-  className?: string;
-} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button type="button" title={title} className={cn(buttonClass(variant, size, className),
-      variant === "danger" && "bg-transparent text-danger hover:bg-danger/10", size === "sm" && "p-1.5", size === "md" && "p-2")}
-      {...props} />
-  );
-}
-
 function buttonClass(variant = "primary", size = "md", className?: string) {
   const base = "inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] font-medium tracking-[0.01em] transition-colors disabled:pointer-events-none disabled:opacity-50 whitespace-nowrap";
   const variants: Record<string, string> = {
