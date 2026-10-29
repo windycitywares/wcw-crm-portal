@@ -8,6 +8,8 @@ export interface NavItem {
   permission?: string;
   /** Kept out of the sidebar (reachable from elsewhere). */
   hidden?: boolean;
+  /** Shown indented under the item above it. */
+  child?: boolean;
 }
 export interface NavGroup {
   label?: string;
@@ -47,6 +49,9 @@ export const NAV: NavGroup[] = [
     items: [
       { href: "/subscribers", label: "Subscribers", icon: "heart", permission: "customers:view" },
       { href: "/campaigns", label: "Campaigns", icon: "mail", permission: "campaigns:view" },
+      { href: "/campaigns/templates", label: "Templates", icon: "edit", permission: "campaigns:view", child: true },
+      { href: "/campaigns/lists", label: "Audiences", icon: "users", permission: "campaigns:view", child: true },
+      { href: "/campaigns/suppressions", label: "Suppressions", icon: "shield", permission: "campaigns:view", child: true },
     ],
   },
   {
@@ -124,8 +129,16 @@ export function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** The one entry that owns this page: the longest match, so /campaigns/templates lights Templates and not Campaigns. */
+export function activeHref(pathname: string, groups: NavGroup[] = [...SETTINGS_NAV, ...NAV]): string | undefined {
+  let best: string | undefined;
+  for (const group of groups) for (const item of group.items) if (isActive(pathname, item.href) && (!best || item.href.length > best.length)) best = item.href;
+  return best;
+}
+
 export function titleFor(pathname: string) {
   if (EXTRA_TITLES[pathname]) return EXTRA_TITLES[pathname];
-  for (const group of [...SETTINGS_NAV, ...NAV]) for (const item of group.items) if (isActive(pathname, item.href)) return item.label;
+  const href = activeHref(pathname);
+  for (const group of [...SETTINGS_NAV, ...NAV]) for (const item of group.items) if (item.href === href) return item.label;
   return "CRM";
 }

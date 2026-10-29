@@ -16,7 +16,7 @@ import { applyTheme, readTheme, saveTheme, type Theme } from "@/lib/theme";
 import { ROLE_LABEL } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./NotificationBell";
-import { NAV, SETTINGS_NAV, inSettings, isActive, titleFor, type NavGroup } from "./nav";
+import { NAV, SETTINGS_NAV, activeHref, inSettings, titleFor, type NavGroup } from "./nav";
 
 /*
  * The signed-in frame, built like the shop admin (wcw-shop-portal components/admin/AdminShell.tsx) so the team
@@ -56,6 +56,7 @@ function useTheme() {
 function NavGroups({ groups, onNavigate, collapsed }: { groups: NavGroup[]; onNavigate?: () => void; collapsed: boolean }) {
   const { can } = useAuth();
   const pathname = usePathname();
+  const current = activeHref(pathname, groups);
   return (
     <>
       {groups.map((group, gi) => {
@@ -71,7 +72,7 @@ function NavGroups({ groups, onNavigate, collapsed }: { groups: NavGroup[]; onNa
               ))}
             <ul className="space-y-0.5">
               {items.map((item) => {
-                const active = isActive(pathname, item.href);
+                const active = item.href === current;
                 return (
                   <li key={item.href}>
                     <Link
@@ -81,7 +82,7 @@ function NavGroups({ groups, onNavigate, collapsed }: { groups: NavGroup[]; onNa
                       title={collapsed ? item.label : undefined}
                       className={cn(
                         "font-admin group relative flex items-center gap-3 rounded-[var(--radius-control)] py-2 text-[0.95rem] transition-[color,background-color,transform] duration-150 focus-visible:outline-offset-0",
-                        collapsed ? "justify-center px-2" : "px-3",
+                        collapsed ? "justify-center px-2" : item.child ? "ml-4 px-3 text-[0.875rem]" : "px-3",
                         active ? "bg-sand font-bold text-ink" : "text-ink hover:bg-sand/60 hover:text-accent motion-safe:hover:translate-x-0.5",
                       )}
                     >
@@ -114,7 +115,7 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
             title={collapsed ? "Back to dashboard" : undefined}
             className={cn(
               "font-admin mb-4 flex items-center gap-2 rounded-[var(--radius-control)] border border-line py-2 text-sm font-semibold text-ink hover:border-accent hover:text-accent",
-              collapsed ? "justify-center px-2" : "px-3",
+              collapsed ? "justify-center px-2" : item.child ? "ml-4 px-3 text-[0.875rem]" : "px-3",
             )}
           >
             <Icon name="chevronLeft" className="size-4 shrink-0" />

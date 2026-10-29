@@ -110,20 +110,11 @@ export default function CampaignsPage() {
     <>
       <PageHeader
         title="Campaigns"
-        description="Email templates, target lists and campaign performance in one view."
+        description="Campaign performance in one view. Templates, audiences and suppressions are in the left panel."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <ButtonLink href="/campaigns/new" size="sm">
               New campaign
-            </ButtonLink>
-            <ButtonLink href="/campaigns/templates" size="sm" variant="secondary">
-              Templates
-            </ButtonLink>
-            <ButtonLink href="/campaigns/lists" size="sm" variant="secondary">
-              Audiences
-            </ButtonLink>
-            <ButtonLink href="/campaigns/suppressions" size="sm" variant="secondary">
-              Suppressions
             </ButtonLink>
           </div>
         }
