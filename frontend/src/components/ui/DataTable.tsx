@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Icon } from "./Icon";
-import { IconButton } from "./LoadingButton";
+import { IconButton } from "./IconButton";
 
 export interface Column<T> {
   key: string;
@@ -110,14 +110,10 @@ export function DataTable<T>({
                     <td key="actions" className="px-3 py-3 align-middle text-right" style={{ width: ACTIONS_WIDTH }}>
                       <div className="flex items-center justify-end gap-1.5">
                         {onEdit && (
-                          <IconButton variant="ghost" size="sm" title="Edit" onClick={() => onEdit(row)}>
-                            <Icon name="edit" className="size-4" />
-                          </IconButton>
+                          <IconButton icon="edit" label="Edit" onClick={() => onEdit(row)} />
                         )}
                         {onDelete && (
-                          <IconButton variant="danger" size="sm" title={deleteLabel} onClick={() => onDelete(row)}>
-                            <Icon name="trash" className="size-4" />
-                          </IconButton>
+                          <IconButton icon="trash" tone="danger" label={deleteLabel} onClick={() => onDelete(row)} />
                         )}
                       </div>
                     </td>

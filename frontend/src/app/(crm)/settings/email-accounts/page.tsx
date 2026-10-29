@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { IconButton, RowActions } from "@/components/ui/IconButton";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
@@ -91,14 +92,10 @@ export default function EmailAccountsPage() {
       header: "",
       align: "right",
       cell: (m) => (
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={() => void toggle(m)}>
-            {m.is_active ? "Pause" : "Read again"}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => setEditing(m)}>
-            Edit
-          </Button>
-        </div>
+        <RowActions>
+          <IconButton icon={m.is_active ? "pause" : "play"} label={m.is_active ? `Pause ${m.address}` : `Resume ${m.address}`} onClick={() => void toggle(m)} />
+          <IconButton icon="edit" label={`Edit ${m.address}`} onClick={() => setEditing(m)} />
+        </RowActions>
       ),
     },
   ];

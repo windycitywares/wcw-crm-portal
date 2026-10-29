@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { IconButton, RowActions } from "@/components/ui/IconButton";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { ConfirmDialog, Modal } from "@/components/ui/Modal";
@@ -172,14 +173,10 @@ export default function CannedResponsesPage() {
       header: "",
       align: "right",
       cell: (r) => (
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={() => void toggle(r)}>
-            {r.is_active ? "Pause" : "Activate"}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => setEditing(r)}>
-            Edit
-          </Button>
-        </div>
+        <RowActions>
+          <IconButton icon={r.is_active ? "pause" : "play"} label={r.is_active ? `Pause ${r.title}` : `Resume ${r.title}`} onClick={() => void toggle(r)} />
+          <IconButton icon="edit" label={`Edit ${r.title}`} onClick={() => setEditing(r)} />
+        </RowActions>
       ),
     },
   ];
