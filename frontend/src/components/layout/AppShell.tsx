@@ -115,7 +115,7 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
             title={collapsed ? "Back to dashboard" : undefined}
             className={cn(
               "font-admin mb-4 flex items-center gap-2 rounded-[var(--radius-control)] border border-line py-2 text-sm font-semibold text-ink hover:border-accent hover:text-accent",
-              collapsed ? "justify-center px-2" : item.child ? "ml-4 px-3 text-[0.875rem]" : "px-3",
+              collapsed ? "justify-center px-2" : "px-3",
             )}
           >
             <Icon name="chevronLeft" className="size-4 shrink-0" />
