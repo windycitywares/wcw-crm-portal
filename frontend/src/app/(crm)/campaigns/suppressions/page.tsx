@@ -137,7 +137,7 @@ export default function CampaignSuppressionsPage() {
                     {canEdit && <th className="px-4 py-3" aria-label="Actions" />}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line">
+                <tbody className="divide-y divide-line [&>tr:nth-child(even)]:bg-sand/40">
                   {data?.items.map((row) => (
                     <tr key={row.id}>
                       <td className="max-w-[280px] px-4 py-3">
