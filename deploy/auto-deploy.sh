@@ -8,6 +8,9 @@
 # 4. Tell the gate what happened (shown in Admin → Deployments), then run the background jobs.
 set -uo pipefail
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"   # cron's default PATH is minimal
+# GitHub being slow or down must never hold this script (and the lock) for long: while it waits, the background
+# jobs below (the mail outbox, the inbox poller, SLA checks, campaign sends) don't run.
+export GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=3"
 exec 9>"$HOME/.wcw-crm-deploy.lock"
 flock -n 9 || exit 0   # a previous run is still going
 
@@ -32,9 +35,10 @@ esac
 ok=1
 summary=""
 cd "$REPO" || exit 1
-if ! git fetch -q origin main; then
-  echo "$(ts) git fetch failed"
-  ok=0; summary="git fetch failed"
+github=1
+if ! timeout 120 git fetch -q origin main; then
+  echo "$(ts) git fetch failed (GitHub unreachable?) — nothing changed; the CRM keeps running the version it has"
+  ok=0; github=0; summary="git fetch failed"
 elif [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
   target="$(git log --oneline -1 origin/main)"
   echo "$(ts) API: updating to $target ($reason)"
@@ -48,7 +52,9 @@ elif [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
   fi
 fi
 
-web_out=$(bash "$REPO/deploy/update-web.sh" --if-changed 2>&1); web_rc=$?
+web_out=""; web_rc=0
+# GitHub didn't answer a moment ago: don't wait on it a second time.
+[ "$github" = 1 ] && { web_out=$(bash "$REPO/deploy/update-web.sh" --if-changed 2>&1); web_rc=$?; }
 [ -n "$web_out" ] && echo "$web_out"
 if [ "$web_rc" -ne 0 ]; then
   echo "$(ts) web update FAILED"

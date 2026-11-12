@@ -18,7 +18,7 @@ if [ ! -d "$CACHE/.git" ]; then
   git clone -q --depth 1 --branch web-build "$REPO" "$CACHE"
 fi
 cd "$CACHE"
-git fetch -q --depth 1 origin web-build
+timeout 180 git fetch -q --depth 1 origin web-build
 NEW=$(git rev-parse FETCH_HEAD)
 OLD=$(cat "$DEST/.deployed_build" 2>/dev/null || echo none)
 if [ "${1:-}" = "--if-changed" ] && [ "$NEW" = "$OLD" ]; then

@@ -21,7 +21,7 @@ rollback() {
 trap rollback ERR
 
 echo "→ Fetching $BRANCH"
-git fetch -q origin "$BRANCH"
+timeout 180 git fetch -q origin "$BRANCH"
 git checkout -q -B "$BRANCH" "origin/$BRANCH"
 git log --oneline -1
 
