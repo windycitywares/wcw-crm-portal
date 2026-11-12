@@ -22,6 +22,8 @@ class ShopClient(Protocol):
 
     async def products(self, q: str = "", limit: int = 20) -> dict[str, Any]: ...
 
+    async def opt_out(self, email: str, at: Any = None) -> dict[str, Any]: ...
+
 
 class HttpShopClient:
     def __init__(self, base_url: str, token: str):
@@ -50,6 +52,28 @@ class HttpShopClient:
             query["q"] = q.strip()
         return await asyncio.to_thread(
             self._get, f"{self.base_url}/integrations/crm/products?{urllib.parse.urlencode(query)}")
+
+
+    def _post(self, url: str, body: dict[str, Any]) -> dict[str, Any]:
+        data = json.dumps(body, default=str).encode()
+        req = urllib.request.Request(url, data=data, method="POST", headers={
+            "Authorization": f"Bearer {self.token}", "Content-Type": "application/json", "Accept": "application/json",
+            "User-Agent": "wcw-crm/shop-client"})
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as res:  # noqa: S310 - admin-configured URL
+                return json.loads(res.read())
+        except urllib.error.HTTPError as exc:
+            hint = {401: "the shop refused the API token", 404: "the shop doesn't take opt-outs yet (update the shop)"}
+            raise ShopApiError(f"HTTP {exc.code}: {hint.get(exc.code, exc.reason)}") from None
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+            raise ShopApiError(f"{type(exc).__name__}: {exc}") from None
+
+    async def opt_out(self, email: str, at: Any = None) -> dict[str, Any]:
+        """Tell the shop this address left the list (shop docs/CRM_SYNC.md → "Opt-outs from the CRM")."""
+        body: dict[str, Any] = {"email": email}
+        if at is not None:
+            body["at"] = at.isoformat() if hasattr(at, "isoformat") else str(at)
+        return await asyncio.to_thread(self._post, f"{self.base_url}/integrations/crm/newsletter/opt-out", body)
 
 
 _factory = None

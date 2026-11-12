@@ -29,6 +29,12 @@ async def _retry(session):
     return await ShopEventService(session).retry_due()
 
 
+async def _optouts(session):
+    from .optouts import ShopOptOutSync
+
+    return await ShopOptOutSync(session).run()
+
+
 async def _backfill(session):
     from .backfill import ShopBackfillService
 
@@ -36,4 +42,4 @@ async def _backfill(session):
 
 
 module = CrmModule(name="shop", router=router, models="app.integrations.shop.models",
-                   on_startup=(_register_settings, _subscribe), jobs=(("shop-events", _retry), ("shop-backfill", _backfill)))
+                   on_startup=(_register_settings, _subscribe), jobs=(("shop-events", _retry), ("shop-backfill", _backfill), ("shop-optouts", _optouts)))
