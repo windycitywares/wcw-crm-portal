@@ -2,10 +2,10 @@
 
 from fastapi import Request
 
+from app.core.client_ip import real_client_ip
+
 
 def client_ip(request: Request) -> str:
-    """The visitor's address. LiteSpeed puts the real client first in X-Forwarded-For."""
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()[:64]
-    return (request.client.host if request.client else "")[:64]
+    """The address the rate limits count a request under. A caller can't choose it: `X-Forwarded-For` is only
+    believed from this machine or a private network (see app/core/client_ip.py)."""
+    return real_client_ip(request)
