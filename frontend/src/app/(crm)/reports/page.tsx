@@ -289,7 +289,7 @@ export default function ReportsPage() {
                   <thead className="border-b border-line bg-canvas text-xs uppercase text-muted"><tr>
                     <th className="px-4 py-3 font-medium">Supplier</th><th className="px-4 py-3 font-medium">Type</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Lead time</th><th className="px-4 py-3 font-medium">Rating</th>
                   </tr></thead>
-                  <tbody className="divide-y divide-line">
+                  <tbody className="divide-y divide-line [&>tr:nth-child(even)]:bg-sand/40">
                     {supplierRows?.items.map((supplier) => <tr key={supplier.id}>
                       <td className="px-4 py-3 font-medium">{supplier.name}</td><td className="px-4 py-3 text-muted">{supplier.supplier_type}</td><td className="px-4 py-3 text-muted">{supplier.status}</td><td className="px-4 py-3 text-muted">{supplier.lead_time_days == null ? "—" : `${supplier.lead_time_days} days`}</td><td className="px-4 py-3 text-muted">{supplier.rating == null ? "—" : `${supplier.rating} / 5`}</td>
                     </tr>)}

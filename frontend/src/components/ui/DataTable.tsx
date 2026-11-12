@@ -87,7 +87,7 @@ export function DataTable<T>({
             {hasActions && <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-right" style={{ width: ACTIONS_WIDTH }} />}
           </tr>
         </thead>
-        <tbody className={cn("divide-y divide-line transition-opacity duration-200", loading && "opacity-50")}>
+        <tbody className={cn("divide-y divide-line transition-opacity duration-200 [&>tr:nth-child(even)]:bg-sand/40", loading && "opacity-50")}>
           {rows === null
             ? Array.from({ length: 6 }, (_, i) => (
                 <tr key={i} aria-hidden="true">
@@ -100,7 +100,7 @@ export function DataTable<T>({
                 </tr>
               ))
             : rows.map((row, i) => (
-                <tr key={rowKey(row)} className={cn("hover:bg-canvas/70", rowClassName?.(row))}>
+                <tr key={rowKey(row)} className={cn("hover:bg-sand/80", rowClassName?.(row))}>
                   {columns.map((c) => (
                     <td key={c.key} className={cn("px-4 py-3 align-middle", ALIGN[c.align ?? "left"], c.hide && HIDE[c.hide], c.className)}>
                       {c.cell(row, i)}

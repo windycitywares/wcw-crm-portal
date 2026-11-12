@@ -46,7 +46,7 @@ function Summary({ r }: { r: ImportResult }) {
                 <th scope="col" className="py-2 font-medium">Problem</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="[&>tr:nth-child(even)]:bg-sand/40">
               {r.errors.map((e) => (
                 <tr key={e.row} className="border-b border-line/60">
                   <td className="py-1.5 pr-4 tabular-nums">{e.row}</td>
