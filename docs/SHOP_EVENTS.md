@@ -100,3 +100,14 @@ CRM → Integrations → *Import existing shop data* pages through the shop's re
 customers first, then orders, then newsletter consent. The `shop-backfill` job does a few hundred records a minute
 and applies each one with the same rules as the events above (no timeline lines for old orders). Running it again
 changes nothing that is already right.
+
+## The other way: opt-outs back to the shop
+
+The events above only run shop → CRM. So that someone who leaves the list in the CRM also stops getting the shop's
+own mail (cart reminders, the welcome offer), the `shop-optouts` job (`app/integrations/shop/optouts.py`) reads the
+audit log and calls the shop's `POST /integrations/crm/newsletter/opt-out` (shop docs/CRM_SYNC.md) with the
+Shop API token from Settings → Integrations. It sends: a suppression (an unsubscribe link, a bounce, staff adding
+one), staff unsubscribing or removing a subscriber, deleting a contact who was on the list, and staff turning a
+customer's marketing consent off. The shop's own changes are never sent back; its place in the log is kept in
+`app_settings["shop_optouts"]`, so an outage is retried from where it stopped; nothing is sent in Test mode.
+

@@ -224,9 +224,6 @@ class ShopWebhookTests(unittest.TestCase):
         self.assertEqual(short.status_code, 422)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class FakeShop:
     """Stands in for the shop's read API: pages of items by id."""
@@ -367,3 +364,88 @@ class ShopBackfillTests(unittest.TestCase):
         self.assertEqual(res.status_code, 422)  # a readable answer, not a 500 — the line can still be typed in
         self.assertIn("Can't reach the shop catalog", res.text)
         self.assertIn("read API is off", res.text)
+
+
+class OptOutShop(FakeShop):
+    def __init__(self):
+        super().__init__({})
+        self.opted_out: list[str] = []
+
+    async def opt_out(self, email, at=None):
+        self.opted_out.append(email)
+        return {"result": "unsubscribed"}
+
+
+@skip_unless_db
+class ShopOptOutTests(unittest.TestCase):
+    """Leaving the list in the CRM reaches the shop (shop docs/CRM_SYNC.md → "Opt-outs from the CRM")."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.w = World()
+        reset_limits()
+        cls.admin, cls.admin_h = cls.w.user_with_token("admin")
+
+    def tearDown(self):
+        from app.integrations.shop.client import set_shop_client_factory
+
+        set_shop_client_factory(None)
+
+    def drain(self, shop):
+        from app.integrations.shop.optouts import ShopOptOutSync
+
+        for _ in range(50):
+            if run(lambda s: ShopOptOutSync(s).run()) is None:
+                break
+
+    def add(self, tag):
+        email = self.w.email(tag)
+        r = self.w.client.post(f"{API}/contacts/subscribers", json={"email": email}, headers=self.admin_h)
+        self.assertEqual(r.status_code, 201, r.text)
+        return email, r.json()["id"]
+
+    def test_unsubscribe_remove_and_delete_reach_the_shop_once(self):
+        from app.integrations.shop.client import set_shop_client_factory
+
+        shop = OptOutShop()
+        set_shop_client_factory(lambda settings: shop)
+        self.drain(shop)  # whatever earlier tests left in the audit log
+        shop.opted_out.clear()
+
+        staying, _ = self.add("stays")
+        leaving, leaving_id = self.add("unsub")
+        removed, removed_id = self.add("removed")
+        deleted, deleted_id = self.add("deleted")
+        self.assertEqual(self.w.client.post(f"{API}/contacts/subscribers/{leaving_id}/unsubscribe", headers=self.admin_h).status_code, 200)
+        self.assertEqual(self.w.client.delete(f"{API}/contacts/subscribers/{removed_id}", headers=self.admin_h).status_code, 204)
+        self.assertEqual(self.w.client.delete(f"{API}/contacts/{deleted_id}", headers=self.admin_h).status_code, 204)
+        self.drain(shop)
+        self.assertEqual(sorted(shop.opted_out), sorted([leaving, removed, deleted]))
+        self.assertNotIn(staying, shop.opted_out)
+
+        shop.opted_out.clear()
+        self.drain(shop)  # its place is kept: nothing is sent twice
+        self.assertEqual(shop.opted_out, [])
+
+    def test_a_shop_outage_is_retried_from_the_same_place(self):
+        from app.integrations.shop.client import ShopApiError, set_shop_client_factory
+
+        class Down(OptOutShop):
+            async def opt_out(self, email, at=None):
+                raise ShopApiError("down")
+
+        shop = OptOutShop()
+        set_shop_client_factory(lambda settings: shop)
+        self.drain(shop)
+        email, contact_id = self.add("retry")
+        set_shop_client_factory(lambda settings: Down())
+        self.w.client.post(f"{API}/contacts/subscribers/{contact_id}/unsubscribe", headers=self.admin_h)
+        self.drain(shop)
+        set_shop_client_factory(lambda settings: shop)
+        shop.opted_out.clear()
+        self.drain(shop)
+        self.assertEqual(shop.opted_out, [email])
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -294,6 +294,8 @@ class ContactService:
                                     changes={"email": [None, email], "types": [None, [TYPE_SUBSCRIBER]],
                                              "via": f"{origin} newsletter"})
             return contact
+        if not subscribed and contact.subscribed_at is None and TYPE_SUBSCRIBER not in (contact.types or []):
+            return contact  # taken off the list here (or never on it): the shop's "left" adds nothing
         before = (contact.subscribed_at, contact.unsubscribed_at)
         contact.types = _with_type(contact.types, TYPE_SUBSCRIBER)
         if subscribed:
