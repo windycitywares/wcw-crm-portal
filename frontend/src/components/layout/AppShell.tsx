@@ -179,8 +179,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     });
 
   useEffect(() => setDrawer(false), [pathname]);
+  // Next re-applies the layout's default title after a page loads, so keep ours in place for this route.
   useEffect(() => {
-    document.title = `${titleFor(pathname)} | WCW CRM`;
+    const wanted = `${titleFor(pathname)} | WCW CRM`;
+    const apply = () => {
+      if (document.title !== wanted) document.title = wanted;
+    };
+    apply();
+    const node = document.querySelector("title");
+    if (!node) return;
+    const watch = new MutationObserver(apply);
+    watch.observe(node, { childList: true, characterData: true, subtree: true });
+    return () => watch.disconnect();
   }, [pathname]);
 
   if (!user) {
