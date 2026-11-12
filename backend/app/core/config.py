@@ -58,6 +58,9 @@ class Settings(BaseSettings):
 
     # The CRM web app (used for links in emails, e.g. password reset, and the unsubscribe page).
     site_url: str = "http://localhost:3000"
+    # Extra addresses allowed to say which visitor they act for (X-Forwarded-For), comma-separated. This machine's
+    # own addresses and private networks are always allowed; see app/core/client_ip.py.
+    trusted_proxies: str = ""
 
     # The CRM API as the outside world reaches it. Campaign tracking links — the open pixel and the click
     # redirect — are fetched by a mail client, not by the web app, so they have to point at the API itself.
