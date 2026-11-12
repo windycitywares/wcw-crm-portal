@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ButtonLink } from "@/components/ui/Button";
+import { IconLink } from "@/components/ui/IconButton";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
@@ -57,9 +58,7 @@ export default function CampaignsPage() {
           <button type="button" className="text-left font-medium text-ink hover:text-accent-strong hover:underline" onClick={() => void openReport(row)}>
             {row.name}
           </button>
-          <ButtonLink href={`/campaigns/${row.id}`} size="sm" variant="secondary">
-            View
-          </ButtonLink>
+          <IconLink icon="eye" label={`Open ${row.name}`} href={`/campaigns/${row.id}`} />
         </div>
       ),
     },

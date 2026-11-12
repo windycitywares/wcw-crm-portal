@@ -1,6 +1,8 @@
 import type { ComponentType, SVGProps } from "react";
 import {
   Activity,
+  PauseCircle,
+  PlayCircle,
   AlertTriangle,
   Archive,
   ArrowDown,
@@ -106,6 +108,8 @@ const ICONS = {
   clock: Clock,
   bell: Bell01,
   archive: Archive,
+  pause: PauseCircle,
+  play: PlayCircle,
   flask: Beaker01,
   key: Key01,
   inbox: Inbox01,

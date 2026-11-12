@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { IconButton, RowActions } from "@/components/ui/IconButton";
 import { ColorTag } from "@/components/ui/ColorTag";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Field, Input, Select } from "@/components/ui/Field";
@@ -208,14 +209,10 @@ export default function SlaPoliciesPage() {
       header: "",
       align: "right",
       cell: (p) => (
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={() => void toggle(p)}>
-            {p.is_active ? "Pause" : "Activate"}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => setEditing(p)}>
-            Edit
-          </Button>
-        </div>
+        <RowActions>
+          <IconButton icon={p.is_active ? "pause" : "play"} label={p.is_active ? `Pause ${p.name}` : `Resume ${p.name}`} onClick={() => void toggle(p)} />
+          <IconButton icon="edit" label={`Edit ${p.name}`} onClick={() => setEditing(p)} />
+        </RowActions>
       ),
     },
   ];
