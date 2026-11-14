@@ -111,3 +111,10 @@ one), staff unsubscribing or removing a subscriber, deleting a contact who was o
 customer's marketing consent off. The shop's own changes are never sent back; its place in the log is kept in
 `app_settings["shop_optouts"]`, so an outage is retried from where it stopped; nothing is sent in Test mode.
 
+
+## Test mode
+
+The shop's Test mode sends its events too, with an id that starts `shop-test-` (the signature covers it like the rest of
+the body). The CRM files them in **its own Test copy**, whatever it is switched to, and answers `{"status":"ignored"}`
+when it has no current Test copy (test data is disposable, so the shop does not retry). Live events (`shop-…`) always go to
+the live data, even while the CRM is in Test mode.

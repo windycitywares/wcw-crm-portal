@@ -18,8 +18,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from pydantic import ValidationError
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import appmode
 from app.core.exceptions import NotFoundError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.integrations import signing
@@ -44,6 +46,7 @@ log = logging.getLogger("wcw.crm.shop")
 MAX_BODY = 256 * 1024
 MAX_ATTEMPTS = 5
 KEEP_DAYS = 90
+TEST_PREFIX = "shop-test-"  # the shop's Test-mode events: filed in the CRM's Test copy, never in the live data
 STATUS_WORDS = {"paid": "paid", "processing": "being prepared", "shipped": "shipped", "delivered": "delivered",
                 "cancelled": "cancelled", "refunded": "refunded"}
 
@@ -80,29 +83,50 @@ class ShopEventService:
 
     # ---- webhook ---------------------------------------------------------
     async def receive(self, body: bytes, timestamp: str | None, signature: str | None) -> str:
-        """Verify, store and apply one webhook. Returns "accepted" or "duplicate"; raises WebhookRejected."""
+        """Verify, store and apply one webhook. Returns "accepted", "duplicate" or "ignored"; raises WebhookRejected.
+
+        The settings and the signature always come from the live data. A live event is filed in the live data and
+        a test event (id `shop-test-…`, signed like any other) in the Test copy, whatever the CRM is switched to,
+        so the shop's Test mode and the CRM's Test copy stay on the same side of the line.
+        """
         if len(body) > MAX_BODY:
             raise WebhookRejected(413, "Event too large")
-        cfg = await self.settings()
-        if not cfg.enabled or not cfg.webhook_secret:
-            raise WebhookRejected(503, "The shop connection is switched off in the CRM")
-        problem = signing.verify(cfg.webhook_secret, timestamp, signature, body)
-        if problem:
-            log.warning("shop webhook refused: %s", problem)
-            raise WebhookRejected(401, "Invalid signature")
-        try:
-            envelope = Envelope.model_validate(json.loads(body))
-        except (ValueError, ValidationError):
-            raise WebhookRejected(400, "Not a valid event") from None
+        with appmode.use(appmode.LIVE):
+            cfg = await self.settings()
+            if not cfg.enabled or not cfg.webhook_secret:
+                raise WebhookRejected(503, "The shop connection is switched off in the CRM")
+            problem = signing.verify(cfg.webhook_secret, timestamp, signature, body)
+            if problem:
+                log.warning("shop webhook refused: %s", problem)
+                raise WebhookRejected(401, "Invalid signature")
+            try:
+                envelope = Envelope.model_validate(json.loads(body))
+            except (ValueError, ValidationError):
+                raise WebhookRejected(400, "Not a valid event") from None
+            is_test = envelope.id.startswith(TEST_PREFIX)
+            ready = await self._test_copy_ready() if is_test else True
+            await self.session.rollback()  # let go of the connection: the next one is opened on the right copy
+        if not ready:
+            return "ignored"  # no (current) Test copy here: test data is disposable, so acknowledge and drop it
 
-        if await self.events.by_event_id(envelope.id):
-            return "duplicate"
-        event = ShopEvent(event_id=envelope.id, event_type=envelope.type, occurred_at=envelope.occurred_at,
-                          payload=envelope.data)
-        await self.events.add(event)
-        await self.session.commit()  # stored first: if applying fails, the job tries again
-        await self.apply(event)
+        with appmode.use(appmode.TEST if is_test else appmode.LIVE):
+            if await self.events.by_event_id(envelope.id):
+                return "duplicate"
+            event = ShopEvent(event_id=envelope.id, event_type=envelope.type, occurred_at=envelope.occurred_at,
+                              payload=envelope.data)
+            await self.events.add(event)
+            await self.session.commit()  # stored first: if applying fails, the job tries again
+            await self.apply(event)
         return "accepted"
+
+    async def _test_copy_ready(self) -> bool:
+        """The Test copy exists and is on the same migration as the live data (as the app's own switch requires)."""
+        exists = (await self.session.execute(
+            text(f"SELECT to_regclass('{appmode.TEST_SCHEMA}.alembic_version') IS NOT NULL"))).scalar()
+        if not exists:
+            return False
+        row = (await self.session.execute(text(appmode._VERSIONS_SQL))).mappings().first()
+        return row is not None and row["test"] == row["live"]
 
     # ---- applying ----------------------------------------------------------
     async def apply(self, event: ShopEvent) -> None:
