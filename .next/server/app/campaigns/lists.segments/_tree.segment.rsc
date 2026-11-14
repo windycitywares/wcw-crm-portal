@@ -1,0 +1,10 @@
+:HL["/_next/static/chunks/3kbbxath-f6xn.css","style"]
+:HL["/_next/static/media/2aec202ebfcf461b-s.p.261mkozpp7zc7.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["/_next/static/media/4a7551bcc3548e67-s.p.3jc5sq-923m_s.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["/_next/static/media/cf514f5d0007dafa-s.p.1wc2mf9hp9pav.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["/_next/static/media/fae90444fefcda8c-s.p.403cfnf7b-1vb.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+4:[["children",{"s":"__PAGE__","h":160}]]
+3:[["children",{"s":"lists","h":96,"c":"$Q4"}]]
+2:[["children",{"s":"campaigns","h":96,"c":"$Q3"}]]
+1:[["children",{"s":"(crm)","h":64,"c":"$Q2"}]]
+0:{"b":"Cp_RdD6uESxp17orSCmNY","t":{"t":{"s":"","h":16,"c":"$Q1"}}}

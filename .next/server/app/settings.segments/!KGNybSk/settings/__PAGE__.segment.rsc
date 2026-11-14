@@ -1,0 +1,36 @@
+2:"$Sreact.fragment"
+3:"/_next/static/chunks/0-8lnyidnl85h.js"
+4:"/_next/static/chunks/21y4ffi7rnp_j.js"
+5:"/_next/static/chunks/33d2-3wkokqjf.js"
+6:"/_next/static/chunks/1_d8gkx43rt_l.js"
+7:"/_next/static/chunks/3a7xu2jnf0dw6.js"
+8:I[10400,["$3","$4","$5","$6","$7"],"AppShell"]
+9:I[39756,["$3"],"default"]
+a:I[37457,["$3"],"default"]
+b:I[22016,["$3","$4","$5","$6","$7"],""]
+11:I[47257,["$3"],"ClientPageRoot"]
+12:"/_next/static/chunks/0zi6_va3ce4bm.js"
+13:I[15578,["$3","$4","$5","$6","$7","$12"],"default"]
+16:I[97367,["$3"],"OutletBoundary"]
+17:"$Sreact.suspense"
+1a:"ViewportBoundary"
+1b:I[97367,["$3"],"$1a"]
+1c:"MetadataBoundary"
+1d:I[97367,["$3"],"$1c"]
+1e:I[27201,["$3"],"IconMark"]
+d:X
+10:[["children",{"s":"__PAGE__","h":160,"d":{"r":["$","$2","c",{"children":[["$","$L11",null,{"Component":"$13","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@14","$@15"]}}],[["$","script","script-0",{"src":"/_next/static/chunks/0zi6_va3ce4bm.js","async":true}]],["$","$L16",null,{"children":["$","$17",null,{"name":"Next.MetadataOutlet","children":"$@18"}]}]]}],"p":"$@19","v":null,"s":"$d"}}]]
+e:[["children",{"s":"settings","h":96,"d":{"r":["$","$2","c",{"children":[null,["$","$L9",null,{"parallelRouterKey":"children","template":["$","$La",null,{}]}]]}],"p":"$@f","v":null,"s":"$d"},"c":"$Q10"}]]
+1:[["children",{"s":"(crm)","h":64,"d":{"r":["$","$2","c",{"children":[[["$","script","script-0",{"src":"/_next/static/chunks/21y4ffi7rnp_j.js","async":true}],["$","script","script-1",{"src":"/_next/static/chunks/33d2-3wkokqjf.js","async":true}],["$","script","script-2",{"src":"/_next/static/chunks/1_d8gkx43rt_l.js","async":true}],["$","script","script-3",{"src":"/_next/static/chunks/3a7xu2jnf0dw6.js","async":true}]],["$","$L8",null,{"children":["$","$L9",null,{"parallelRouterKey":"children","template":["$","$La",null,{}],"notFound":[["$","div",null,{"className":"px-4 py-28 text-center","children":[["$","p",null,{"className":"text-sm text-muted","children":"Page not found"}],["$","h1",null,{"className":"mx-auto mt-3 max-w-xl text-5xl","children":"We couldn’t find that page"}],["$","p",null,{"className":"mt-4 text-muted","children":"It may have moved, or the record is no longer available."}],["$","$Lb",null,{"href":"/dashboard","className":"inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] font-medium tracking-[0.01em] transition-colors disabled:pointer-events-none disabled:opacity-50 whitespace-nowrap bg-accent text-on-accent hover:bg-accent-strong h-11 px-6 text-sm mt-8","children":"Go to the dashboard"}]]}],[]]}]}]]}],"p":"$@c","v":null,"s":"$d"},"c":"$Qe"}]]
+0:{"t":{"t":{"s":"","h":16,"c":"$Q1"},"h":{"r":["$","$2","h",{"children":[null,["$","$L1b",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}],["$","meta","2",{"name":"theme-color","content":"#f4f5fa"}]]}],["$","$L1d",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$17",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Windy City Wares CRM"}],["$","meta","1",{"name":"description","content":"Internal CRM for the Windy City Wares team."}],["$","meta","2",{"name":"robots","content":"noindex, nofollow"}],["$","link","3",{"rel":"icon","href":"/favicon.ico?favicon.02nzuyazb7yof.ico","sizes":"48x48","type":"image/x-icon"}],["$","link","4",{"rel":"apple-touch-icon","href":"/apple-icon.png?apple-icon.3mrylfnvohbq_.png","sizes":"180x180","type":"image/png"}],["$","$L1e","5",{}]]}]}],null]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"p":"$@1f","v":null,"s":"$d"}},"a":"$@20","u":"$@21","b":"Cp_RdD6uESxp17orSCmNY"}
+14:{}
+15:"$10:0:1:d:r:props:children:0:props:serverProvidedParams:params"
+18:null
+21:true
+d:300
+d:C
+20:0
+f:"$undefined"
+c:"$undefined"
+1f:"$undefined"
+19:"$undefined"

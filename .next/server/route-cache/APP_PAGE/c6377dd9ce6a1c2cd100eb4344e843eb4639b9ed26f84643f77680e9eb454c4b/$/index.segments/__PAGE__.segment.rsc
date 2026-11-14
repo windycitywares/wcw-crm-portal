@@ -1,0 +1,20 @@
+2:"$Sreact.fragment"
+4:"/_next/static/chunks/0-8lnyidnl85h.js"
+5:I[97367,["$4"],"OutletBoundary"]
+6:"$Sreact.suspense"
+a:"ViewportBoundary"
+b:I[97367,["$4"],"$a"]
+c:"MetadataBoundary"
+d:I[97367,["$4"],"$c"]
+e:I[27201,["$4"],"IconMark"]
+9:X
+1:[["children",{"s":"__PAGE__","h":128,"d":{"r":["$","$2","c",{"children":["$L3",null,["$","$L5",null,{"children":["$","$6",null,{"name":"Next.MetadataOutlet","children":"$@7"}]}]]}],"p":"$@8","v":null,"s":"$9"}}]]
+0:{"t":{"t":{"s":"","h":16,"c":"$Q1"},"h":{"r":["$","$2","h",{"children":[null,["$","$Lb",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}],["$","meta","2",{"name":"theme-color","content":"#f4f5fa"}]]}],["$","$Ld",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$6",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Windy City Wares CRM"}],["$","meta","1",{"name":"description","content":"Internal CRM for the Windy City Wares team."}],["$","meta","2",{"name":"robots","content":"noindex, nofollow"}],["$","link","3",{"rel":"icon","href":"/favicon.ico?favicon.02nzuyazb7yof.ico","sizes":"48x48","type":"image/x-icon"}],["$","link","4",{"rel":"apple-touch-icon","href":"/apple-icon.png?apple-icon.3mrylfnvohbq_.png","sizes":"180x180","type":"image/png"}],["$","$Le","5",{}]]}]}],null]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"p":"$@f","v":null,"s":"$9"}},"a":"$@10","u":"$@11","b":"Cp_RdD6uESxp17orSCmNY"}
+3:E{"digest":"NEXT_REDIRECT;replace;/dashboard;307;"}
+7:null
+11:true
+9:300
+9:C
+10:0
+f:"$undefined"
+8:"$undefined"
