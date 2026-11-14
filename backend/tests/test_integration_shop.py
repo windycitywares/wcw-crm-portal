@@ -79,6 +79,17 @@ class ShopWebhookTests(unittest.TestCase):
         self.assertEqual((c["first_name"], c["email"], c["phone"]), ("Janet", new_email, "312-555-0100"))
         self.assertIn(email, c["alt_emails"])
 
+    def test_a_test_event_never_lands_in_the_live_data(self):
+        """The shop's Test-mode events (`shop-test-` ids) are for the Test copy: with none here they are dropped."""
+        email = self.w.email("tester")
+        res = self.send("customer.upserted", {"id": next(self.shop_ids), "email": email}, event_id=f"shop-test-{uuid.uuid4().hex}")
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json(), {"status": "ignored"})
+        self.assertIsNone(self.find(email))
+        # a signature is still required for them
+        bad = self.send("customer.upserted", {"id": 1, "email": email}, event_id="shop-test-1", secret="y" * 48)
+        self.assertEqual(bad.status_code, 401)
+
     def test_existing_customer_matched_by_email(self):
         email = self.w.email("known")
         made = self.w.client.post(f"{API}/customers", headers=self.sales_h, json={"first_name": "Kim", "email": email}).json()
