@@ -1,0 +1,3 @@
+module.exports=[45864,a=>{"use strict";var b=a.i(88780);a.s(["f",0,{list:a=>(0,b.i)(`/users${(0,b.v)({...a})}`),create:a=>(0,b.i)("/users",{method:"POST",body:JSON.stringify(a)}),update:(a,c)=>(0,b.i)(`/users/${a}`,{method:"PATCH",body:JSON.stringify(c)}),setPassword:(a,c)=>(0,b.i)(`/users/${a}/password`,{method:"POST",body:JSON.stringify({new_password:c})}),updateMe:a=>(0,b.i)("/auth/me",{method:"PATCH",body:JSON.stringify(a)}),audit:a=>(0,b.i)(`/audit${(0,b.v)({...a})}`)}])}];
+
+//# sourceMappingURL=src_modules_users_api_ts_0oor62_fcrq7l._.js.map
