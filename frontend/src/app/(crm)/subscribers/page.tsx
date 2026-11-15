@@ -47,6 +47,7 @@ export default function SubscribersPage() {
   const [exporting, setExporting] = useState(false);
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<Contact | null>(null);
+  const [erasing, setErasing] = useState<Contact | null>(null);
 
   const load = useCallback(async (f: SubscriberFilters) => {
     setLoading(true);
@@ -105,6 +106,19 @@ export default function SubscribersPage() {
       toast.push({ tone: "danger", title: "Couldn't remove", description: e instanceof Error ? e.message : undefined });
     } finally {
       setRemoving(null);
+    }
+  };
+
+  const erase = async () => {
+    if (!erasing) return;
+    try {
+      await subscribersApi.erase(erasing.id);
+      toast.push({ title: "Erased", description: "Their details are gone. Only the address stays, on the stop-mailing list." });
+      void load(filters);
+    } catch (e) {
+      toast.push({ tone: "danger", title: "Couldn't erase", description: e instanceof Error ? e.message : undefined });
+    } finally {
+      setErasing(null);
     }
   };
 
@@ -169,6 +183,7 @@ export default function SubscribersPage() {
               <Button size="sm" variant="secondary" disabled={disabled} aria-label={`Unsubscribe ${name}`} onClick={() => void act(c, "unsubscribe", "Subscriber unsubscribed")}>Unsubscribe</Button>
             )}
             <Button size="sm" variant="ghost" disabled={disabled} aria-label={`Remove ${name} from the list`} onClick={() => setRemoving(c)}>Remove</Button>
+            <Button size="sm" variant="ghost" disabled={disabled} aria-label={`Erase ${name}`} onClick={() => setErasing(c)}>Erase</Button>
           </div>
         );
       },
@@ -245,7 +260,7 @@ export default function SubscribersPage() {
         <Pagination page={data.page} pageSize={data.page_size} total={data.total} onPage={(p) => setFilters((f) => ({ ...f, page: p }))} />
       )}
       <p className="mt-4 max-w-3xl text-sm text-muted">
-        People can leave with the link in every email. Pause someone to leave them out of campaigns for a while without taking them off the
+        Unsubscribe stops the email and keeps the record; Erase is for a “forget me” request and cannot be undone. People can leave with the link in every email. Pause someone to leave them out of campaigns for a while without taking them off the
         list; resume whenever you like. Removing someone takes them off the list but keeps them in Contacts.
       </p>
 
@@ -257,6 +272,14 @@ export default function SubscribersPage() {
         message={`Take ${removing?.email ?? removing?.display_name ?? "this person"} off the newsletter list? They stay in Contacts.`}
         confirmLabel="Remove from list"
         onConfirm={remove}
+      />
+      <ConfirmationDialog
+        open={erasing !== null}
+        onClose={() => setErasing(null)}
+        title="Erase this person"
+        message={`Erase ${erasing?.email ?? erasing?.display_name ?? "this person"} for good? Their name and details are deleted here and in the shop's newsletter list. Only the address stays, on the stop-mailing list, so nobody can email them again. This can't be undone. Use it when someone asks to be forgotten; to just stop emailing them, unsubscribe them instead.`}
+        confirmLabel="Erase for good"
+        onConfirm={erase}
       />
     </div>
   );

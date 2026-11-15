@@ -118,3 +118,10 @@ The shop's Test mode sends its events too, with an id that starts `shop-test-` (
 the body). The CRM files them in **its own Test copy**, whatever it is switched to, and answers `{"status":"ignored"}`
 when it has no current Test copy (test data is disposable, so the shop does not retry). Live events (`shop-…`) always go to
 the live data, even while the CRM is in Test mode.
+
+## Erase
+
+Subscribers → **Erase** (`POST /contacts/subscribers/{id}/erase`) is for a "forget me" request: the contact's details are
+cleared and the contact deleted, the address goes on the suppression list (so no campaign can reach it), and the shop is
+told to erase its newsletter record too (`POST /integrations/crm/newsletter/erase`, live data only; in Test mode the
+shop gets the ordinary test opt-out instead). A person with an account or orders can't be erased here: unsubscribe them.

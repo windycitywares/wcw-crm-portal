@@ -22,7 +22,9 @@ class ShopClient(Protocol):
 
     async def products(self, q: str = "", limit: int = 20) -> dict[str, Any]: ...
 
-    async def opt_out(self, email: str, at: Any = None) -> dict[str, Any]: ...
+    async def opt_out(self, email: str, at: Any = None, *, test: bool = False) -> dict[str, Any]: ...
+
+    async def erase(self, email: str) -> dict[str, Any]: ...
 
 
 class HttpShopClient:
@@ -68,12 +70,18 @@ class HttpShopClient:
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
             raise ShopApiError(f"{type(exc).__name__}: {exc}") from None
 
-    async def opt_out(self, email: str, at: Any = None) -> dict[str, Any]:
-        """Tell the shop this address left the list (shop docs/CRM_SYNC.md → "Opt-outs from the CRM")."""
+    async def opt_out(self, email: str, at: Any = None, *, test: bool = False) -> dict[str, Any]:
+        """Tell the shop this address left the list (shop docs/CRM_SYNC.md → "Opt-outs from the CRM"). From Test mode
+        it goes to the shop's own test endpoint, which only ever touches the shop's Test copy."""
+        path = "newsletter/test-opt-out" if test else "newsletter/opt-out"
         body: dict[str, Any] = {"email": email}
         if at is not None:
             body["at"] = at.isoformat() if hasattr(at, "isoformat") else str(at)
-        return await asyncio.to_thread(self._post, f"{self.base_url}/integrations/crm/newsletter/opt-out", body)
+        return await asyncio.to_thread(self._post, f"{self.base_url}/integrations/crm/{path}", body)
+
+    async def erase(self, email: str) -> dict[str, Any]:
+        """Tell the shop to erase this address's newsletter record (shop docs/CRM_SYNC.md → "Erasing …")."""
+        return await asyncio.to_thread(self._post, f"{self.base_url}/integrations/crm/newsletter/erase", {"email": email})
 
 
 _factory = None

@@ -369,6 +369,10 @@ class CampaignService:
                                 changes={"email": email, "reason": reason, "source": source})
         return suppression
 
+    async def keep_off_the_list(self, email: str, note: str, actor) -> None:
+        """For other modules (erasing a subscriber): make sure this address is never mailed. The caller commits."""
+        await self._suppress(email, reason="manual", source="staff", note=note, actor=actor)
+
     async def release(self, suppression_id: int, actor) -> None:
         """Take an address off the list: it may be emailed again (staff decision, not a customer's)."""
         suppression = await self.suppressions.get(suppression_id)

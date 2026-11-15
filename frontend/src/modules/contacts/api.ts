@@ -110,5 +110,6 @@ export const subscribersApi = {
   act: (id: number, action: "pause" | "resume" | "unsubscribe" | "resubscribe") =>
     apiFetch<Contact>(`/contacts/subscribers/${id}/${action}`, { method: "POST" }),
   remove: (id: number) => apiFetch<void>(`/contacts/subscribers/${id}`, { method: "DELETE" }),
+  erase: (id: number) => apiFetch<void>(`/contacts/subscribers/${id}/erase`, { method: "POST" }),
   export: (f: SubscriberFilters) => apiDownload(`/contacts/subscribers/export.csv${qs(flat({ q: f.q, status: f.status, source: f.source }))}`, "subscribers.csv"),
 };

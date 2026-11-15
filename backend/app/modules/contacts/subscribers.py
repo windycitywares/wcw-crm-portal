@@ -146,6 +146,31 @@ class SubscriberService:
         contact.subscribe_source = None
         await self._done(contact, actor, "remove", before)
 
+    async def erase(self, contact_id: int, actor) -> None:
+        """Forget this person (they asked): their details go and the contact is deleted. All that stays is the address on
+        the stop-mailing list, so no campaign can ever reach them again. The shop is told to do the same."""
+        contact = await self._get(contact_id)
+        if contact.customer_id or contact.user_id:
+            raise ValidationFailedError(
+                "This person has an account or orders, so they can't be erased here. Unsubscribe them instead.")
+        email = (contact.email or "").strip().lower()
+        if not email:
+            raise ValidationFailedError("This subscriber has no address, so there is nothing to keep on the stop-mailing list")
+        from app.modules.campaigns.service import CampaignService
+
+        await CampaignService(self.session).keep_off_the_list(email, "Erased on request", actor)
+        contact.first_name = contact.last_name = ""
+        contact.company = contact.title = contact.phone = contact.notes = contact.address = None
+        contact.email, contact.alt_emails = None, []
+        contact.subscribed_at = contact.unsubscribed_at = contact.paused_at = contact.subscribe_source = None
+        contact.types = ["other"]
+        contact.updated_by = actor.id
+        await self.repo.soft_delete(contact)
+        # The address rides in the audit row so the shop-optouts job can pass the erase on; it is also what the stop list keeps.
+        await self.audit.record("contact.erase", actor=actor, entity_type=ENTITY, entity_id=contact.id,
+                                changes={"email": email})
+        await self.session.commit()
+
     async def export_csv(self, *, q=None, source=None, status=None) -> str:
         rows = await self.repo.list(self.repo.subscribers(q=q, source=source, status=status).limit(EXPORT_LIMIT))
         out = io.StringIO()
@@ -205,6 +230,11 @@ async def unsubscribe(session: SessionDep, actor: CurrentUser, _: Editor, contac
 @router.post("/{contact_id}/resubscribe", response_model=SubscriberOut)
 async def resubscribe(session: SessionDep, actor: CurrentUser, _: Editor, contact_id: int) -> SubscriberOut:
     return await SubscriberService(session).resubscribe(contact_id, actor)
+
+
+@router.post("/{contact_id}/erase", status_code=204)
+async def erase(session: SessionDep, actor: CurrentUser, _: Editor, contact_id: int) -> None:
+    await SubscriberService(session).erase(contact_id, actor)
 
 
 @router.delete("/{contact_id}", status_code=204)
