@@ -7,7 +7,8 @@ offer) kept going to them. This job tells the shop.
 It reads the audit log, which every one of those paths already writes and which is append-only and ordered, so no
 path has to remember to call anything and nothing is missed if the shop is down: the job keeps its place
 (`app_settings["shop_optouts"]`) and starts again from there next run. Changes the shop itself sent (`via: shop`)
-are not sent back. Nothing is sent while the CRM is in Test mode: test data must never unsubscribe a real person.
+are not sent back. In Test mode the same job runs over the Test copy's own audit log and cursor, and tells the shop's *test* endpoint, which
+records it on the shop's Test copy only (or ignores it): test data must never unsubscribe a real person.
 """
 
 from __future__ import annotations
@@ -67,8 +68,7 @@ class ShopOptOutSync:
         return row
 
     async def run(self) -> str | None:
-        if appmode.is_test():
-            return None
+        test = appmode.is_test()
         try:
             client = shop_client(await SettingsService(self.session).get_model("shop"))
         except ShopApiError:
@@ -92,7 +92,7 @@ class ShopOptOutSync:
             email = opt_out_email(row, contact)
             if email:
                 try:
-                    await client.opt_out(email, row.at)
+                    await client.opt_out(email, row.at, test=test)
                 except ShopApiError as exc:
                     cursor.value = {"after_id": last}
                     await self.session.commit()

@@ -382,7 +382,7 @@ class OptOutShop(FakeShop):
         super().__init__({})
         self.opted_out: list[str] = []
 
-    async def opt_out(self, email, at=None):
+    async def opt_out(self, email, at=None, *, test=False):
         self.opted_out.append(email)
         return {"result": "unsubscribed"}
 
@@ -442,7 +442,7 @@ class ShopOptOutTests(unittest.TestCase):
         from app.integrations.shop.client import ShopApiError, set_shop_client_factory
 
         class Down(OptOutShop):
-            async def opt_out(self, email, at=None):
+            async def opt_out(self, email, at=None, *, test=False):
                 raise ShopApiError("down")
 
         shop = OptOutShop()
