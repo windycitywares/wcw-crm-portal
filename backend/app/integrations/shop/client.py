@@ -24,6 +24,8 @@ class ShopClient(Protocol):
 
     async def opt_out(self, email: str, at: Any = None, *, test: bool = False) -> dict[str, Any]: ...
 
+    async def erase(self, email: str) -> dict[str, Any]: ...
+
 
 class HttpShopClient:
     def __init__(self, base_url: str, token: str):
@@ -76,6 +78,10 @@ class HttpShopClient:
         if at is not None:
             body["at"] = at.isoformat() if hasattr(at, "isoformat") else str(at)
         return await asyncio.to_thread(self._post, f"{self.base_url}/integrations/crm/{path}", body)
+
+    async def erase(self, email: str) -> dict[str, Any]:
+        """Tell the shop to erase this address's newsletter record (shop docs/CRM_SYNC.md → "Erasing …")."""
+        return await asyncio.to_thread(self._post, f"{self.base_url}/integrations/crm/newsletter/erase", {"email": email})
 
 
 _factory = None

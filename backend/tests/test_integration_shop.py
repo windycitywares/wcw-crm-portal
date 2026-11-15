@@ -386,6 +386,10 @@ class OptOutShop(FakeShop):
         self.opted_out.append(email)
         return {"result": "unsubscribed"}
 
+    async def erase(self, email):
+        self.erased = getattr(self, "erased", []) + [email]
+        return {"result": "erased"}
+
 
 @skip_unless_db
 class ShopOptOutTests(unittest.TestCase):
@@ -437,6 +441,22 @@ class ShopOptOutTests(unittest.TestCase):
         shop.opted_out.clear()
         self.drain(shop)  # its place is kept: nothing is sent twice
         self.assertEqual(shop.opted_out, [])
+
+    def test_erase_forgets_the_person_and_tells_the_shop(self):
+        from app.integrations.shop.client import set_shop_client_factory
+
+        shop = OptOutShop()
+        set_shop_client_factory(lambda settings: shop)
+        self.drain(shop)
+        email, contact_id = self.add("erased")
+        res = self.w.client.post(f"{API}/contacts/subscribers/{contact_id}/erase", headers=self.admin_h)
+        self.assertEqual(res.status_code, 204, res.text)
+        self.assertEqual(self.w.client.get(f"{API}/contacts/{contact_id}", headers=self.admin_h).status_code, 404)
+        sup = self.w.client.get(f"{API}/campaigns/suppressions", headers=self.admin_h, params={"q": email}).json()
+        self.assertEqual([i["email"] for i in sup["items"]], [email])  # the one thing that stays
+        self.drain(shop)
+        self.assertEqual(getattr(shop, "erased", []), [email])
+        self.assertIn(email, shop.opted_out)  # unsubscribed first, then erased
 
     def test_a_shop_outage_is_retried_from_the_same_place(self):
         from app.integrations.shop.client import ShopApiError, set_shop_client_factory

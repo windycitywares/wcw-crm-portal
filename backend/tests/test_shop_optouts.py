@@ -15,6 +15,9 @@ def contact(email="Ana@Example.com", subscribed=True, types=("subscriber",)):
 
 
 class OptOutRuleTests(unittest.TestCase):
+    def test_an_erase_names_the_address_from_the_audit_row(self):
+        self.assertEqual(opt_out_email(row("contact.erase", email="Gone@Example.com"), None), "gone@example.com")
+
     def test_suppressions_and_staff_unsubscribes_count(self):
         self.assertEqual(opt_out_email(row("suppression.create", email="X@Example.com"), None), "x@example.com")
         self.assertEqual(opt_out_email(row("contact.update", via="unsubscribe"), contact()), "ana@example.com")

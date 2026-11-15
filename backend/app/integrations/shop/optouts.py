@@ -33,14 +33,14 @@ BATCH = 100
 LEAVING_VIA = {"unsubscribe", "remove"}
 
 
-ACTIONS = ("suppression.create", "contact.update", "contact.delete", "customer.update")
+ACTIONS = ("suppression.create", "contact.update", "contact.delete", "customer.update", "contact.erase")
 
 
 def opt_out_email(row: AuditLog, contact: Contact | Customer | None) -> str | None:
     """Pure rule (unit-tested): the address an audit row says has left the list, or None. `contact` is the record
     the row is about (a contact, or a customer for customer rows)."""
     changes: dict[str, Any] = row.changes or {}
-    if row.action == "suppression.create":
+    if row.action in ("suppression.create", "contact.erase"):
         return (changes.get("email") or "").strip().lower() or None
     if row.action == "customer.update":
         # Staff turning a customer's marketing consent off on the customer screen.
@@ -92,7 +92,10 @@ class ShopOptOutSync:
             email = opt_out_email(row, contact)
             if email:
                 try:
-                    await client.opt_out(email, row.at, test=test)
+                    if row.action == "contact.erase" and not test:
+                        await client.erase(email)  # the shop keeps only a fingerprint of the address
+                    else:
+                        await client.opt_out(email, row.at, test=test)
                 except ShopApiError as exc:
                     cursor.value = {"after_id": last}
                     await self.session.commit()
