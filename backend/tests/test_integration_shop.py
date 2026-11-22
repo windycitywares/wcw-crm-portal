@@ -536,13 +536,16 @@ class ShopSupplierTests(unittest.TestCase):
             {"id": 1, "name": f"  only in shop {self.w.sfx} ", "crm_id": None, "is_active": True, "contact_name": "Olly",
              "email": "olly@example.com", "phone": None, "notes": None},
             {"id": 2, "name": here.upper(), "crm_id": None, "is_active": True, "contact_name": None, "email": None, "phone": None, "notes": None},
+            # a shop copy already linked, under a name the CRM changed since: never imported again
+            {"id": 3, "name": f"old name {self.w.sfx}", "crm_id": 999999, "is_active": True, "contact_name": None, "email": None, "phone": None, "notes": None},
         ])
         set_shop_client_factory(lambda settings: shop)
         self.drain()  # whatever earlier tests left (or the first full sync)
 
         r = self.w.client.post(f"{API}/integrations/shop/suppliers/import", headers=self.admin_h)
         self.assertEqual(r.status_code, 200, r.text)
-        self.assertEqual((r.json()["created"], r.json()["already_here"]), (1, 1))
+        self.assertEqual((r.json()["created"], r.json()["already_here"]), (1, 2))
+        self.assertEqual(self.w.client.get(f"{API}/suppliers", headers=self.admin_h, params={"q": f"old name {self.w.sfx}"}).json()["items"], [])
         found = self.w.client.get(f"{API}/suppliers", headers=self.admin_h, params={"q": f"only in shop {self.w.sfx}"}).json()["items"]
         self.assertEqual(len(found), 1)
         self.assertIn(found[0]["id"], [p["crm_id"] for p in shop.sent])  # sent back at once, so the shop links it

@@ -127,6 +127,11 @@ async def import_from_shop(session: AsyncSession, actor) -> dict[str, int]:
         name = " ".join((item.get("name") or "").split())
         if not name:
             continue
+        if item.get("crm_id"):
+            # Already a copy of a CRM supplier. Its name may be one the CRM changed a moment ago and hasn't sent yet:
+            # importing it again would make a duplicate.
+            matched += 1
+            continue
         exists = (await session.execute(select(Supplier.id).where(
             func.lower(Supplier.name) == name.lower(), Supplier.deleted_at.is_(None)))).first()
         if exists:
