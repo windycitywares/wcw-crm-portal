@@ -16,7 +16,8 @@ import { applyTheme, readTheme, saveTheme, type Theme } from "@/lib/theme";
 import { ROLE_LABEL } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./NotificationBell";
-import { NAV, SETTINGS_NAV, activeHref, inSettings, titleFor, type NavGroup } from "./nav";
+import { NAV, SETTINGS_NAV, activeHref, inSettings, titleFor, withChannels, type NavGroup } from "./nav";
+import { channelsApi } from "@/modules/channels/api";
 
 /*
  * The signed-in frame, built like the shop admin (wcw-shop-portal components/admin/AdminShell.tsx) so the team
@@ -105,6 +106,15 @@ function NavGroups({ groups, onNavigate, collapsed }: { groups: NavGroup[]; onNa
 function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collapsed: boolean }) {
   const pathname = usePathname();
   const settings = inSettings(pathname);
+  const { can } = useAuth();
+  const mayView = can("channels:view");
+  const [connected, setConnected] = useState<string[]>([]);
+  useEffect(() => {
+    if (!mayView) return;
+    let alive = true;
+    void channelsApi.cached().then((items) => alive && setConnected(items.filter((c) => c.connected).map((c) => c.key)));
+    return () => { alive = false; };
+  }, [mayView]);
   return (
     <nav aria-label={settings ? "Settings" : "CRM"} className={cn("flex-1 overflow-y-auto pb-6 pt-2", collapsed ? "px-2" : "px-4")}>
       {settings ? (
@@ -124,7 +134,7 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
           <NavGroups groups={[{ items: [{ href: "/settings", label: "All settings", icon: "dashboard" }] }, ...SETTINGS_NAV]} onNavigate={onNavigate} collapsed={collapsed} />
         </>
       ) : (
-        <NavGroups groups={NAV} onNavigate={onNavigate} collapsed={collapsed} />
+        <NavGroups groups={withChannels(NAV, connected)} onNavigate={onNavigate} collapsed={collapsed} />
       )}
     </nav>
   );

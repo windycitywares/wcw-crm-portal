@@ -1,8 +1,9 @@
 """Sales channels (External shops): which marketplaces exist and are connected, and the Etsy connection."""
 
+from decimal import Decimal
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, Field
 
 from app.core.permissions import Permission
@@ -11,9 +12,11 @@ from app.modules.users.models import User
 
 from .catalog import CHANNELS
 from .connection import EtsyConnectionService
+from .listings import EtsyListingSync, ListingService
 
 router = APIRouter(prefix="/channels", tags=["channels"], dependencies=[Depends(require(Permission.CHANNELS_VIEW))])
 Manager = Annotated[User, Depends(require(Permission.CHANNELS_MANAGE))]
+Worker = Annotated[User, Depends(require(Permission.CHANNELS_EDIT))]
 
 
 class CredentialsIn(BaseModel):
@@ -55,3 +58,36 @@ async def disconnect(session: SessionDep, actor: Manager) -> dict[str, Any]:
     service = EtsyConnectionService(session)
     await service.disconnect(actor)
     return await service.status()
+
+
+# ---- listings (Etsy's own fields are read-only; the team keeps supplier, cost and notes) ----------------
+
+
+class ListingTeamIn(BaseModel):
+    supplier_account_id: int | None = None
+    purchase_cost: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
+    notes: str | None = Field(default=None, max_length=5000)
+
+
+@router.get("/etsy/listings")
+async def etsy_listings(
+    response: Response, session: SessionDep,
+    q: Annotated[str | None, Query(max_length=100)] = None,
+    state: Annotated[str | None, Query(max_length=20)] = None,
+    supplier: Annotated[str | None, Query(max_length=20, description="an account id, or 'none'")] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 25,
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    return await ListingService(session).search(q=q, state=state, supplier=supplier, page=page, page_size=page_size)
+
+
+@router.patch("/etsy/listings/{listing_id}")
+async def update_etsy_listing(listing_id: int, body: ListingTeamIn, session: SessionDep, actor: Worker) -> dict[str, Any]:
+    return await ListingService(session).update(listing_id, body.model_dump(exclude_unset=True), actor)
+
+
+@router.post("/etsy/sync")
+async def sync_etsy_now(session: SessionDep, actor: Worker) -> dict[str, Any]:
+    """Bring Etsy's listings in now instead of waiting for the next pass."""
+    return {"listings": await EtsyListingSync(session).run(force=True)}

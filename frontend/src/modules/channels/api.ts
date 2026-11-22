@@ -1,4 +1,5 @@
-import { apiFetch } from "@/lib/client-api";
+import { apiFetch, qs } from "@/lib/client-api";
+import type { Page } from "@/lib/types";
 
 export interface ChannelInfo {
   key: string;
@@ -36,4 +37,52 @@ export const channelsApi = {
     connect: () => apiFetch<{ url: string }>("/channels/etsy/connect", { method: "POST" }),
     disconnect: () => apiFetch<EtsyConnection>("/channels/etsy/disconnect", { method: "POST" }),
   },
+};
+
+export interface Variation {
+  sku: string | null;
+  options: Record<string, string>;
+  price: string | null;
+  quantity: number | null;
+}
+
+export interface Listing {
+  id: number;
+  channel: string;
+  external_id: number;
+  title: string;
+  state: string;
+  price: string | null;
+  currency: string;
+  quantity: number | null;
+  skus: string[];
+  url: string | null;
+  image: string | null;
+  variations: Variation[];
+  tags: string[];
+  description: string | null;
+  synced_at: string | null;
+  supplier_account_id: number | null;
+  supplier_name: string | null;
+  purchase_cost: string | null;
+  notes: string | null;
+}
+
+export interface ListingFilters {
+  q?: string;
+  state?: string;
+  supplier?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export const listingsApi = {
+  list: (f: ListingFilters) => apiFetch<Page<Listing>>(`/channels/etsy/listings${qs(f as Record<string, string | number | undefined>)}`),
+  update: (id: number, data: { supplier_account_id?: number | null; purchase_cost?: string | null; notes?: string | null }) =>
+    apiFetch<Listing>(`/channels/etsy/listings/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  sync: () => apiFetch<{ listings: Record<string, unknown> }>("/channels/etsy/sync", { method: "POST" }),
+};
+
+export const LISTING_STATES: Record<string, string> = {
+  active: "Active", inactive: "Inactive", sold_out: "Sold out", draft: "Draft", expired: "Expired", removed: "Removed from Etsy",
 };
