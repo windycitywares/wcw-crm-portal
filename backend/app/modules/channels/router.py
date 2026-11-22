@@ -1,5 +1,6 @@
 """Sales channels (External shops): which marketplaces exist and are connected, and the Etsy connection."""
 
+from datetime import date
 from decimal import Decimal
 from typing import Annotated, Any
 
@@ -12,7 +13,10 @@ from app.modules.users.models import User
 
 from .catalog import CHANNELS
 from .connection import EtsyConnectionService
+from .etsy import status as etsy_status
 from .listings import EtsyListingSync, ListingService
+from .orders import OrderService
+from .orders_sync import EtsyOrderSync
 
 router = APIRouter(prefix="/channels", tags=["channels"], dependencies=[Depends(require(Permission.CHANNELS_VIEW))])
 Manager = Annotated[User, Depends(require(Permission.CHANNELS_MANAGE))]
@@ -89,5 +93,67 @@ async def update_etsy_listing(listing_id: int, body: ListingTeamIn, session: Ses
 
 @router.post("/etsy/sync")
 async def sync_etsy_now(session: SessionDep, actor: Worker) -> dict[str, Any]:
-    """Bring Etsy's listings in now instead of waiting for the next pass."""
-    return {"listings": await EtsyListingSync(session).run(force=True)}
+    """Bring Etsy's listings and orders in now instead of waiting for the next pass."""
+    listings = await EtsyListingSync(session).run(force=True)
+    return {"listings": listings, "orders": await EtsyOrderSync(session).run(force=True)}
+
+
+# ---- orders ---------------------------------------------------------------------------------------------------
+
+
+class OrderPatch(BaseModel):
+    purchase_cost: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
+    shipping_cost: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
+    supplier_account_id: int | None = None
+    supplier_order_number: str | None = Field(default=None, max_length=100)
+    carrier: str | None = Field(default=None, max_length=60)
+    tracking_number: str | None = Field(default=None, max_length=100)
+    notes: str | None = Field(default=None, max_length=5000)
+    buyer_phone: str | None = Field(default=None, max_length=50)
+
+
+class StatusIn(BaseModel):
+    status: str = Field(max_length=20)
+    note: str | None = Field(default=None, max_length=300)
+
+
+@router.get("/etsy/statuses")
+async def order_statuses() -> dict[str, Any]:
+    """Every order status with its label, the main path and which ones count as open."""
+    return {"labels": etsy_status.LABELS, "main_path": list(etsy_status.MAIN_PATH),
+            "exceptions": list(etsy_status.EXCEPTIONS), "open": list(etsy_status.OPEN_STATUSES)}
+
+
+@router.get("/etsy/orders")
+async def etsy_orders(
+    response: Response, session: SessionDep,
+    q: Annotated[str | None, Query(max_length=100)] = None,
+    status: Annotated[str | None, Query(max_length=20)] = None,
+    attention: bool = False,
+    supplier: Annotated[str | None, Query(max_length=20, description="an account id, or 'none'")] = None,
+    listing_id: int | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 25,
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    return await OrderService(session).search(q=q, status=status, attention=attention, supplier=supplier,
+                                              listing_id=listing_id, date_from=date_from, date_to=date_to,
+                                              page=page, page_size=page_size)
+
+
+@router.get("/etsy/orders/{order_id}")
+async def etsy_order(order_id: int, response: Response, session: SessionDep) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    return await OrderService(session).detail(order_id)
+
+
+@router.patch("/etsy/orders/{order_id}")
+async def update_etsy_order(order_id: int, body: OrderPatch, session: SessionDep, actor: Worker) -> dict[str, Any]:
+    return await OrderService(session).update(order_id, actor, body.model_dump(exclude_unset=True))
+
+
+@router.post("/etsy/orders/{order_id}/status")
+async def set_etsy_order_status(order_id: int, body: StatusIn, session: SessionDep, actor: Worker) -> dict[str, Any]:
+    return await OrderService(session).set_status(order_id, actor, body.status, body.note)

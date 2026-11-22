@@ -158,3 +158,135 @@ class EtsyListingTests(unittest.TestCase):
                          ("Mug v2", supplier["id"], "6.50"))
         tee = c.get(f"{API}/channels/etsy/listings", headers=self.sales_h, params={"q": f"SKU-{base + 1}"}).json()["items"]
         self.assertEqual(tee[0]["state"], "removed")
+
+
+def _money(cents):
+    return {"amount": cents, "divisor": 100, "currency_code": "USD"}
+
+
+def receipt(rid, listing_id, **over):
+    base = {
+        "receipt_id": rid, "status": "Paid", "is_paid": True, "is_shipped": False, "name": "Sam Buyer", "buyer_user_id": 42,
+        "city": "Chicago", "country_iso": "US", "created_timestamp": 1760000000, "message_from_buyer": "Thanks!",
+        "grandtotal": _money(3300), "total_shipping_cost": _money(500), "discount_amt": _money(0),
+        "total_tax_cost": _money(300),
+        "transactions": [{"transaction_id": rid * 10, "listing_id": listing_id, "title": "Mug", "quantity": 2,
+                          "price": _money(1250), "expected_ship_date": 1760400000}],
+    }
+    base.update(over)
+    return base
+
+
+@skip_unless_db
+class EtsyOrderTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from app.modules.lookups.service import LookupService
+        from tests.support import run
+
+        cls.w = World()
+        reset_limits()
+        run(lambda s: LookupService(s).seed())
+        cls.support, cls.support_h = cls.w.user_with_token("support")
+        cls.sales, cls.sales_h = cls.w.user_with_token("sales")
+        cls.manager, cls.manager_h = cls.w.user_with_token("manager")
+        cls.ro, cls.ro_h = cls.w.user_with_token("read_only")
+
+    def setUp(self):
+        from tests.support import run
+
+        reset_limits()
+        run(connect_etsy_for_tests)
+        self.base = 7_000_000 + int(self.w.sfx[:6], 16) % 900_000 * 10
+
+    def sync(self, receipts, listings=None):
+        from app.modules.channels.listings import EtsyListingSync
+        from app.modules.channels.orders_sync import EtsyOrderSync
+        from tests.support import run
+
+        async def fake_get(path, **kw):
+            if path.endswith("/listings"):
+                return {"results": (listings or []) if kw["params"]["state"] == "active" else []}
+            return {"results": receipts if kw["params"]["offset"] == 0 else []}
+
+        async def go(session):
+            with mock.patch("app.modules.channels.etsy.client.get", fake_get):
+                if listings is not None:
+                    await EtsyListingSync(session).run(force=True)
+                return await EtsyOrderSync(session).run(force=True)
+
+        return run(go)
+
+    def find(self, rid, headers=None, **params):
+        res = self.w.client.get(f"{API}/channels/etsy/orders", headers=headers or self.sales_h,
+                                params={"q": str(rid), **params})
+        self.assertEqual(res.status_code, 200, res.text)
+        return res.json()
+
+    def test_paid_order_arrives_once_with_the_listing_cost_and_supplier(self):
+        c = self.w.client
+        rid, lid = self.base, self.base + 1
+        self.sync([], listings=[{"listing_id": lid, "title": "Mug", "state": "active", "price": _money(1250)}])
+        listing = c.get(f"{API}/channels/etsy/listings", headers=self.sales_h, params={"q": "Mug"}).json()["items"]
+        listing = next(x for x in listing if x["external_id"] == lid)
+        supplier = c.post(f"{API}/accounts", headers=self.manager_h,
+                          json={"name": f"Acme {self.w.sfx}", "account_type": "supplier"}).json()
+        c.patch(f"{API}/channels/etsy/listings/{listing['id']}", headers=self.support_h,
+                json={"supplier_account_id": supplier["id"], "purchase_cost": "4.00"})
+
+        self.assertGreaterEqual(self.sync([receipt(rid, lid)])["created"], 1)
+        self.sync([receipt(rid, lid)])  # a second pass adds nothing
+        page = self.find(rid)
+        self.assertEqual(page["total"], 1)
+        order = c.get(f"{API}/channels/etsy/orders/{page['items'][0]['id']}", headers=self.sales_h).json()
+        self.assertEqual((order["status"], str(order["items_total"]), str(order["purchase_cost"])), ("new", "25.00", "8.00"))
+        self.assertTrue(order["costs_prefilled"])
+        self.assertEqual((order["supplier_account_id"], order["supplier_name"]), (supplier["id"], supplier["name"]))
+        self.assertEqual(order["buyer_note"], "Thanks!")
+        self.assertEqual(len(order["line_items"]), 1)
+        self.assertEqual([h["kind"] for h in order["history"]], ["created"])
+        self.assertEqual(c.get(f"{API}/channels/etsy/orders", headers=self.ro_h).status_code, 403)
+
+    def test_unpaid_order_is_not_created(self):
+        rid = self.base + 2
+        self.sync([receipt(rid, None, status="Open", is_paid=False)])
+        self.assertEqual(self.find(rid)["total"], 0)
+
+    def test_team_work_survives_etsy_and_status_only_moves_forward(self):
+        c = self.w.client
+        rid = self.base + 3
+        self.sync([receipt(rid, None)])
+        oid = self.find(rid)["items"][0]["id"]
+        self.assertEqual(c.patch(f"{API}/channels/etsy/orders/{oid}", headers=self.sales_h,
+                                 json={"purchase_cost": "9.99"}).status_code, 403)
+        patched = c.patch(f"{API}/channels/etsy/orders/{oid}", headers=self.support_h,
+                          json={"purchase_cost": "9.99", "notes": "bought from Acme"})
+        self.assertEqual(patched.status_code, 200, patched.text)
+        moved = c.post(f"{API}/channels/etsy/orders/{oid}/status", headers=self.support_h,
+                       json={"status": "purchased", "note": "ordered"})
+        self.assertEqual((moved.status_code, moved.json()["status"]), (200, "purchased"))
+
+        self.sync([receipt(rid, None, is_shipped=True, name="Sam B. Buyer",
+                           shipments=[{"tracking_code": "9400111", "carrier_name": "usps"}])])
+        order = c.get(f"{API}/channels/etsy/orders/{oid}", headers=self.sales_h).json()
+        self.assertEqual((order["status"], str(order["purchase_cost"]), order["notes"]), ("shipped", "9.99", "bought from Acme"))
+        self.assertEqual((order["buyer_name"], order["tracking_number"]), ("Sam B. Buyer", "9400111"))
+        kinds = [(h["kind"], h["source"]) for h in order["history"]]
+        for expected in (("status", "etsy"), ("tracking", "etsy"), ("costs", "team"), ("status", "team")):
+            self.assertIn(expected, kinds)
+
+        # parked on an exception by the team: Etsy leaves it there
+        c.post(f"{API}/channels/etsy/orders/{oid}/status", headers=self.support_h, json={"status": "issue"})
+        self.sync([receipt(rid, None, is_shipped=True, status="Completed")])
+        self.assertEqual(c.get(f"{API}/channels/etsy/orders/{oid}", headers=self.sales_h).json()["status"], "issue")
+
+    def test_already_shipped_on_arrival_never_needs_attention(self):
+        rid = self.base + 6
+        self.sync([receipt(rid, None, is_shipped=True)])
+        item = self.find(rid)["items"][0]
+        self.assertTrue(item["past_order"])
+        self.assertEqual(item["attention"], [])
+        self.assertEqual(self.find(rid, attention="true")["total"], 0)
+        fresh = self.base + 7
+        self.sync([receipt(fresh, None)])
+        self.assertIn("cost_missing", self.find(fresh)["items"][0]["attention"])
