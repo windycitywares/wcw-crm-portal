@@ -400,3 +400,56 @@ class EtsyOrderTests(unittest.TestCase):
         self.assertIn("supplier", {h["source"] for h in team_view["history"]})
         pay = c.get(f"{API}/supplier-portal/etsy/payments", headers=h, params={"state": "all"}).json()
         self.assertEqual({r["id"] for r in pay["items"]}, {ids[31]})
+
+    def test_copy_from_the_shop_fills_gaps_once(self):
+        from app.integrations.shop.client import set_shop_client_factory
+
+        c = self.w.client
+        rid, lid = self.base + 41, self.base + 42
+        self.sync([receipt(rid, None)], listings=[{"listing_id": lid, "title": "Vase", "state": "active",
+                                                   "price": _money(5000)}])
+        supplier = c.post(f"{API}/suppliers", headers=self.manager_h,
+                          json={"name": f"Shop maker {self.w.sfx}", "supplier_type": "manufacturer"})
+        self.assertEqual(supplier.status_code, 201, supplier.text)
+        supplier = supplier.json()
+        order = {"id": 1, "etsy_receipt_id": rid, "supplier": supplier["name"], "supplier_crm_id": supplier["id"],
+                 "purchase_cost": "11.00", "costs_prefilled": False, "past_order": False, "supplier_order_number": "PO-9",
+                 "supplier_paid_at": "2026-11-01T12:00:00+00:00", "supplier_paid_amount": "11.00",
+                 "supplier_payment_ref": "INV-1", "supplier_paid_by": "Ada", "shipping_cost": "3.00", "carrier": "USPS",
+                 "tracking_number": "94001", "tracking_sent_at": None, "purchased_at": "2026-10-30T12:00:00+00:00",
+                 "shipped_at": None, "delivered_at": None, "notes": "from the shop", "buyer_phone": None,
+                 "status": "purchased",
+                 "events": [{"kind": "costs", "from_status": None, "to_status": None, "message": "purchase cost: empty → $11.00",
+                             "actor_name": "Ada", "created_at": "2026-10-30T12:00:00+00:00"}]}
+
+        class FakeShop:
+            async def etsy_handover(self, kind, after_id=0):
+                if kind == "counts":
+                    return {"orders": 1, "orders_with_cost": 1, "orders_with_supplier": 1, "orders_paid": 1}
+                if kind == "listings":
+                    return {"items": [{"id": 1, "etsy_listing_id": lid, "supplier": supplier["name"],
+                                       "supplier_crm_id": supplier["id"], "purchase_cost": "4.00", "notes": None}],
+                            "next_after_id": None}
+                return {"items": [order, {**order, "etsy_receipt_id": 1}], "next_after_id": None}
+
+        set_shop_client_factory(lambda settings: FakeShop())
+        try:
+            self.assertEqual(c.post(f"{API}/channels/etsy/import-from-shop", headers=self.manager_h).status_code, 403)
+            first = c.post(f"{API}/channels/etsy/import-from-shop", headers=self.admin_h)
+            self.assertEqual(first.status_code, 200, first.text)
+            body = first.json()
+            self.assertEqual((body["orders_not_in_crm"], body["events"], body["suppliers_not_found"]), (1, 1, []))
+            self.assertTrue(body["check"]["matches"], body["check"])
+            again = c.post(f"{API}/channels/etsy/import-from-shop", headers=self.admin_h).json()
+            self.assertEqual((again["orders"], again["events"]), (0, 0))  # nothing twice
+        finally:
+            set_shop_client_factory(None)
+
+        oid = self.find(rid)["items"][0]["id"]
+        got = c.get(f"{API}/channels/etsy/orders/{oid}", headers=self.sales_h).json()
+        self.assertEqual((got["status"], str(got["purchase_cost"]), got["supplier_account_id"], got["supplier_payment"]),
+                         ("purchased", "11.00", supplier["account_id"], "settled"))
+        self.assertEqual([h["message"] for h in got["history"] if h["source"] == "team"], ["purchase cost: empty → $11.00"])
+        listing = next(x for x in c.get(f"{API}/channels/etsy/listings", headers=self.sales_h,
+                                        params={"q": "Vase"}).json()["items"] if x["external_id"] == lid)
+        self.assertEqual((str(listing["purchase_cost"]), listing["supplier_account_id"]), ("4.00", supplier["account_id"]))
