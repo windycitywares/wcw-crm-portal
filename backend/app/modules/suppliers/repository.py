@@ -24,6 +24,9 @@ class SupplierRepository(BaseRepository[Supplier]):
             stmt = stmt.where(Supplier.status == status)
         return stmt.order_by(func.lower(Supplier.name), Supplier.id)
 
+    async def by_account(self, account_id: int) -> Supplier | None:
+        return (await self.session.execute(self.query().where(Supplier.account_id == account_id))).scalar_one_or_none()
+
     async def contacts_for(self, supplier_ids: list[int]) -> dict[int, list[SupplierContact]]:
         if not supplier_ids:
             return {}

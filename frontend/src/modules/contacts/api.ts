@@ -31,6 +31,8 @@ export interface Contact {
   owner_id: number | null;
   user_id: number | null;
   customer_id: number | null;
+  account_id: number | null;
+  account_name: string | null;
   subscribed_at: string | null;
   unsubscribed_at: string | null;
   subscribe_source: string | null;
@@ -56,6 +58,7 @@ export interface ContactInput {
   notes?: string | null;
   status?: ContactStatus;
   owner_id?: number | null;
+  account_id?: number | null;
 }
 
 export interface ContactFilters {
@@ -65,6 +68,7 @@ export interface ContactFilters {
   owner?: "me" | "any";
   subscription?: "" | "subscribed" | "unsubscribed";
   sort?: string;
+  account_id?: number;
   page?: number;
   page_size?: number;
 }

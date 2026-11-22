@@ -18,6 +18,8 @@ import { qs } from "@/lib/client-api";
 import type { Page } from "@/lib/types";
 import { contactsApi, type Contact, type ContactFilters, type ContactInput, type ContactStatus } from "@/modules/contacts/api";
 import { useLookups } from "@/modules/settings/useLookups";
+import { AccountPicker } from "@/modules/accounts/AccountPicker";
+import Link from "next/link";
 
 const PAGE_SIZE = 25;
 const BLANK: ContactFilters = { q: "", type: "", status: "", owner: "any", subscription: "", sort: "-updated", page: 1 };
@@ -107,7 +109,9 @@ export default function ContactsPage() {
               {c.display_name}
             </button>
           </div>
-          {c.company && c.display_name !== c.company && <div className="truncate text-xs text-muted">{c.company}</div>}
+          {c.account_id ? (
+            <Link href={`/accounts/${c.account_id}`} className="block truncate text-xs text-accent-strong hover:underline">{c.account_name ?? c.company}</Link>
+          ) : c.company && c.display_name !== c.company && <div className="truncate text-xs text-muted">{c.company}</div>}
           {c.email && <div className="truncate text-xs text-muted">{c.email}</div>}
           {c.user_id && <div className="mt-0.5 text-xs text-muted"><Badge variant="neutral">Staff user</Badge></div>}
           {c.customer_id && <div className="mt-0.5 text-xs text-muted"><Badge variant="accent">Customer</Badge></div>}
@@ -231,6 +235,8 @@ function ContactDialog({ open, contact, typeOptions, onClose, onSaved }: {
   const [types, setTypes] = useState<string[]>(["other"]);
   const [status, setStatus] = useState<ContactStatus>("active");
   const [notes, setNotes] = useState("");
+  const [accountId, setAccountId] = useState<number | null>(null);
+  const [accountName, setAccountName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -243,6 +249,8 @@ function ContactDialog({ open, contact, typeOptions, onClose, onSaved }: {
     setTypes(contact?.types?.length ? contact.types : ["other"]);
     setStatus(contact?.status ?? "active");
     setNotes(contact?.notes ?? "");
+    setAccountId(contact?.account_id ?? null);
+    setAccountName(contact?.account_name ?? null);
   }, [open, contact]);
 
   const toggleType = (key: string) => setTypes((t) => t.includes(key) ? t.filter((x) => x !== key) : [...t, key]);
@@ -251,7 +259,8 @@ function ContactDialog({ open, contact, typeOptions, onClose, onSaved }: {
     if (types.length === 0) { toast.push({ title: "Pick at least one type", tone: "danger" }); return; }
     setSaving(true);
     const payload: ContactInput = { first_name: first || null, last_name: last || null, company: company || null,
-      title: title || null, email: email || null, phone: phone || null, types, status, notes: notes || null };
+      title: title || null, email: email || null, phone: phone || null, types, status, notes: notes || null,
+      account_id: accountId };
     try {
       if (contact) await contactsApi.update(contact.id, payload);
       else await contactsApi.create(payload);
@@ -271,6 +280,8 @@ function ContactDialog({ open, contact, typeOptions, onClose, onSaved }: {
         <Field label="Last name">{(p) => <Input {...p} value={last} onChange={(e) => setLast(e.target.value)} />}</Field>
         <Field label="Company">{(p) => <Input {...p} value={company} onChange={(e) => setCompany(e.target.value)} />}</Field>
         <Field label="Job title">{(p) => <Input {...p} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
+        <AccountPicker className="sm:col-span-2" value={accountId} currentName={accountName}
+          onChange={(id, name) => { setAccountId(id); setAccountName(name); if (name && !company) setCompany(name); }} />
         <Field label="Email" className="sm:col-span-2">{(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
         <Field label="Phone">{(p) => <Input {...p} value={phone} onChange={(e) => setPhone(e.target.value)} />}</Field>
         <Field label="Status">

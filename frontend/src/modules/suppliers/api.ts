@@ -43,6 +43,7 @@ export interface SupplierProduct {
 
 export interface Supplier {
   id: number;
+  account_id: number | null;
   name: string;
   supplier_type: string;
   status: SupplierStatus;
@@ -89,6 +90,7 @@ export const suppliersApi = {
   list: (page = 1, pageSize = 25, q?: string, supplierType?: string, status?: SupplierStatus) =>
     apiFetch<Page<Supplier>>(`/suppliers${qs({ page, page_size: pageSize, q, supplier_type: supplierType, status })}`),
   get: (id: number) => apiFetch<Supplier>(`/suppliers/${id}`),
+  forAccount: (accountId: number) => apiFetch<Supplier>(`/suppliers/by-account/${accountId}`),
   create: (data: SupplierInput) => apiFetch<Supplier>("/suppliers", { method: "POST", body: JSON.stringify(data) }),
   update: (id: number, data: Partial<SupplierInput>) =>
     apiFetch<Supplier>(`/suppliers/${id}`, { method: "PATCH", body: JSON.stringify(data) }),

@@ -300,6 +300,7 @@ export default function SupplierPage() {
         back={{ href: "/suppliers", label: "Suppliers" }}
         description={<span className="flex flex-wrap items-center gap-2"><Pill tone={supplier.status === "active" ? "success" : "neutral"}>{supplier.status}</Pill><Pill tone="info">{typeLabel}</Pill></span>}
         actions={<>
+          {supplier.account_id && <ButtonLink href={`/accounts/${supplier.account_id}`} size="sm" variant="secondary">Open account</ButtonLink>}
           {canEdit && <ButtonLink href={`/suppliers/${supplier.id}/edit`} size="sm">Edit supplier</ButtonLink>}
           {canEdit && <Button type="button" size="sm" variant="secondary" className="text-danger" onClick={() => void removeSupplier()}>Archive</Button>}
         </>}

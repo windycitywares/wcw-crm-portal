@@ -138,6 +138,8 @@ class SupplierTests(unittest.TestCase):
         options = self.w.client.get(f"{API}/accounts/options", headers=self.sales_h,
                                     params={"type": "supplier", "q": made["name"]}).json()
         self.assertEqual([o["id"] for o in options], [made["account_id"]])
+        behind = self.w.client.get(f"{API}/suppliers/by-account/{made['account_id']}", headers=self.sales_h)
+        self.assertEqual((behind.status_code, behind.json()["id"]), (200, made["id"]))
 
         # a rename reaches the account; a person already in Contacts is linked, not copied
         self.w.client.patch(f"{API}/suppliers/{made['id']}", headers=self.manager_h, json={"name": made["name"] + " Co"})
