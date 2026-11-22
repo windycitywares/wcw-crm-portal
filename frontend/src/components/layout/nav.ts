@@ -76,6 +76,17 @@ export const NAV: NavGroup[] = [
  * The sidebar while in Settings (as in the shop admin): a way back to the dashboard, then these sections.
  * Adding a settings page = one line here.
  */
+/** What a supplier's login sees: only their own orders and payments. */
+export const SUPPLIER_NAV: NavGroup[] = [
+  {
+    label: "Your work",
+    items: [
+      { href: "/supplier", label: "Your orders", icon: "orders", permission: "supplier:portal" },
+      { href: "/supplier/payments", label: "Your payments", icon: "archive", permission: "supplier:portal" },
+    ],
+  },
+];
+
 /** What each connected sales channel adds under "External shops" (the group only shows connected ones). */
 export const CHANNEL_NAV: Record<string, NavItem[]> = {
   etsy: [
@@ -100,6 +111,7 @@ export const SETTINGS_NAV: NavGroup[] = [
     label: "Team",
     items: [
       { href: "/settings/users", label: "Users", icon: "users", permission: "users:manage" },
+      { href: "/settings/supplier-logins", label: "Supplier logins", icon: "key", permission: "users:manage" },
       { href: "/settings/audit", label: "Audit log", icon: "shield", permission: "audit:view" },
     ],
   },
@@ -151,7 +163,7 @@ export function isActive(pathname: string, href: string) {
 }
 
 /** The one entry that owns this page: the longest match, so /campaigns/templates lights Templates and not Campaigns. */
-const CHANNEL_GROUP: NavGroup = { items: Object.values(CHANNEL_NAV).flat() };
+const CHANNEL_GROUP: NavGroup = { items: [...Object.values(CHANNEL_NAV).flat(), ...SUPPLIER_NAV[0].items] };
 
 export function activeHref(pathname: string, groups: NavGroup[] = [...SETTINGS_NAV, ...NAV, CHANNEL_GROUP]): string | undefined {
   let best: string | undefined;

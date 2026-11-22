@@ -1,4 +1,4 @@
-export type Role = "admin" | "manager" | "sales" | "support" | "marketing" | "read_only";
+export type Role = "admin" | "manager" | "sales" | "support" | "marketing" | "read_only" | "supplier";
 
 export interface User {
   id: number;
@@ -31,4 +31,5 @@ export const ROLE_LABEL: Record<Role, string> = {
   support: "Support",
   marketing: "Marketing",
   read_only: "Read-only",
+  supplier: "Supplier",
 };
