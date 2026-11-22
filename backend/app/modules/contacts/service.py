@@ -27,8 +27,10 @@ from .repository import ContactRepository
 from .schemas import ContactCreate, ContactOut, ContactPage, ContactUpdate
 
 ENTITY = "contact"
-TRACKED = ("first_name", "last_name", "company", "title", "email", "phone", "types", "status", "owner_id")
-LABELS = {"first_name": "first name", "last_name": "last name", "types": "types", "owner_id": "owner"}
+TRACKED = ("first_name", "last_name", "company", "title", "email", "phone", "types", "status", "owner_id",
+           "account_id")
+LABELS = {"first_name": "first name", "last_name": "last name", "types": "types", "owner_id": "owner",
+          "account_id": "account"}
 TYPE_USER = "user"
 TYPE_CUSTOMER = "customer"
 TYPE_SUBSCRIBER = "subscriber"
@@ -53,12 +55,23 @@ class ContactService:
     # ---- reads ----------------------------------------------------------
     async def list(self, params: PageParams, *, q: str | None = None, type: str | None = None,
                    status: str | None = None, owner_id: int | None = None, subscription: str | None = None,
-                   sort: str = "-updated") -> ContactPage:
+                   sort: str = "-updated", account_id: int | None = None) -> ContactPage:
         rows, total = await self.repo.paginate(
-            self.repo.search(q=q, type=type, status=status, owner_id=owner_id, subscription=subscription, sort=sort),
+            self.repo.search(q=q, type=type, status=status, owner_id=owner_id, subscription=subscription, sort=sort,
+                             account_id=account_id),
             params)
-        return ContactPage(items=[ContactOut.model_validate(c) for c in rows], total=total, page=params.page,
+        return ContactPage(items=await self._out(list(rows)), total=total, page=params.page,
                            page_size=params.page_size)
+
+    async def _out(self, contacts: list[Contact]) -> list[ContactOut]:
+        from app.modules.accounts.service import AccountService
+
+        names = await AccountService(self.session).names(sorted({c.account_id for c in contacts if c.account_id}))
+        return [ContactOut.model_validate(c).model_copy(update={"account_name": names.get(c.account_id)})
+                for c in contacts]
+
+    async def counts_by_account(self, account_ids: list[int]) -> dict[int, int]:
+        return await self.repo.counts_by_account(account_ids)
 
     async def _get(self, contact_id: int, *, include_deleted: bool = False) -> Contact:
         contact = await self.repo.get(contact_id, include_deleted=include_deleted)
@@ -67,7 +80,7 @@ class ContactService:
         return contact
 
     async def get(self, contact_id: int, *, include_deleted: bool = False) -> ContactOut:
-        return ContactOut.model_validate(await self._get(contact_id, include_deleted=include_deleted))
+        return (await self._out([await self._get(contact_id, include_deleted=include_deleted)]))[0]
 
     # ---- validation -----------------------------------------------------
     # System types that drive the links to users/customers. They don't have to exist as lookup rows;
@@ -103,6 +116,10 @@ class ContactService:
             data["address"] = {k: v for k, v in data["address"].items() if v} or None
         if "types" in data:
             data["types"] = await self._types(data["types"], current.types if current else None)
+        if data.get("account_id") is not None and (current is None or data["account_id"] != current.account_id):
+            from app.modules.accounts.service import AccountService
+
+            await AccountService(self.session).require(data["account_id"])
         return data
 
     # ---- writes ---------------------------------------------------------
@@ -124,7 +141,7 @@ class ContactService:
         await self._ensure_customer(contact, actor)
         await self.session.commit()
         await self.session.refresh(contact)
-        return ContactOut.model_validate(contact)
+        return (await self._out([contact]))[0]
 
     async def update(self, contact_id: int, data: ContactUpdate, actor) -> ContactOut:
         contact = await self._get(contact_id)
@@ -144,7 +161,7 @@ class ContactService:
         await self._ensure_customer(contact, actor)
         await self.session.commit()
         await self.session.refresh(contact)
-        return ContactOut.model_validate(contact)
+        return (await self._out([contact]))[0]
 
     async def delete(self, contact_id: int, actor) -> None:
         contact = await self._get(contact_id)

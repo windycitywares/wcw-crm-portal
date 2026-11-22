@@ -45,7 +45,7 @@ class ContactRepository(BaseRepository[Contact]):
 
     def search(self, *, q: str | None = None, type: str | None = None, status: str | None = None,
                owner_id: int | None = None, subscription: str | None = None,
-               sort: str = "-updated") -> Select[tuple[Contact]]:
+               sort: str = "-updated", account_id: int | None = None) -> Select[tuple[Contact]]:
         stmt = self.query()
         if q:
             words = [w for w in q.strip().lower().split() if w][:5]
@@ -66,6 +66,8 @@ class ContactRepository(BaseRepository[Contact]):
             stmt = stmt.where(Contact.status == status)
         if owner_id is not None:
             stmt = stmt.where(Contact.owner_id == owner_id)
+        if account_id is not None:
+            stmt = stmt.where(Contact.account_id == account_id)
         if subscription == "subscribed":
             stmt = stmt.where(Contact.subscribed_at.is_not(None), Contact.unsubscribed_at.is_(None),
                               Contact.paused_at.is_(None))
@@ -101,3 +103,10 @@ class ContactRepository(BaseRepository[Contact]):
         stmt = (select(Contact.subscribe_source).where(Contact.deleted_at.is_(None), Contact.types.contains(["subscriber"]),
                                                        Contact.subscribe_source.is_not(None)).distinct())
         return sorted(str(v) for v in (await self.session.execute(stmt)).scalars())
+
+    async def counts_by_account(self, account_ids: list[int]) -> dict[int, int]:
+        if not account_ids:
+            return {}
+        stmt = (select(Contact.account_id, func.count()).where(
+            Contact.account_id.in_(account_ids), Contact.deleted_at.is_(None)).group_by(Contact.account_id))
+        return {row[0]: row[1] for row in (await self.session.execute(stmt)).all()}

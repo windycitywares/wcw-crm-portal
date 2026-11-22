@@ -61,6 +61,9 @@ class Contact(IdMixin, TimestampMixin, AuthorMixin, OwnedMixin, SoftDeleteMixin,
 
     user_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"))
     customer_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("customers.id", ondelete="SET NULL"))
+    # The organisation this person is at (a supplier, a customer's company, a partner).
+    account_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("accounts.id", ondelete="SET NULL"),
+                                                   index=True)
 
     @property
     def subscription_status(self) -> str | None:

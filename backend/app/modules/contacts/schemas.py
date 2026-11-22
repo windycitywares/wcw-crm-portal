@@ -45,6 +45,7 @@ class ContactBase(BaseModel):
     notes: Text = None
     status: Status | None = None
     owner_id: int | None = None
+    account_id: int | None = None
 
 
 class ContactCreate(ContactBase):
@@ -76,6 +77,8 @@ class ContactOut(BaseModel):
     owner_id: int | None
     user_id: int | None
     customer_id: int | None
+    account_id: int | None = None
+    account_name: str | None = None
     subscribed_at: datetime | None = None
     unsubscribed_at: datetime | None = None
     subscribe_source: str | None = None

@@ -20,6 +20,8 @@ KINDS: dict[str, Kind] = {k.key: k for k in (
          ("Retail", "Repeat", "VIP", "Wholesale", "Marketplace (Etsy/Amazon)")),
     Kind("contact_type", "Contact types", "What a person is to the business (one person can be several).",
          ("User", "Customer", "Subscriber", "Vendor", "Lead", "Partner", "Other")),
+    Kind("account_type", "Account types", "What an organisation is to the business (Accounts).",
+         ("Customer", "Supplier", "Partner", "Prospect", "Marketplace", "Other")),
     Kind("supplier_type", "Supplier types", "What a supplier provides.",
          ("Manufacturer", "Raw materials", "Packaging", "Printing & labels", "Shipping & logistics", "Services")),
     Kind("ticket_type", "Ticket types", "What a support ticket is about.",
