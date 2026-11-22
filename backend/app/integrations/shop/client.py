@@ -26,6 +26,12 @@ class ShopClient(Protocol):
 
     async def erase(self, email: str) -> dict[str, Any]: ...
 
+    async def suppliers(self) -> dict[str, Any]: ...
+
+    async def send_supplier(self, payload: dict[str, Any]) -> dict[str, Any]: ...
+
+    async def supplier_stats(self, name: str) -> dict[str, Any]: ...
+
 
 class HttpShopClient:
     def __init__(self, base_url: str, token: str):
@@ -83,6 +89,19 @@ class HttpShopClient:
         """Tell the shop to erase this address's newsletter record (shop docs/CRM_SYNC.md → "Erasing …")."""
         return await asyncio.to_thread(self._post, f"{self.base_url}/integrations/crm/newsletter/erase", {"email": email})
 
+    async def suppliers(self) -> dict[str, Any]:
+        """The shop's supplier list (shop docs/CRM_SYNC.md → "Suppliers"), for the first import."""
+        return await asyncio.to_thread(self._get, f"{self.base_url}/integrations/crm/suppliers")
+
+    async def send_supplier(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """One supplier added or changed here: the shop creates, links (by name) or updates its read-only copy."""
+        return await asyncio.to_thread(self._post, f"{self.base_url}/integrations/crm/suppliers", payload)
+
+    async def supplier_stats(self, name: str) -> dict[str, Any]:
+        """The supplier's figures in the shop: Etsy orders, owed and paid, shipping speed."""
+        query = urllib.parse.urlencode({"name": name})
+        return await asyncio.to_thread(self._get, f"{self.base_url}/integrations/crm/suppliers/stats?{query}")
+
 
 _factory = None
 
@@ -99,3 +118,4 @@ def shop_client(settings) -> ShopClient:
     if not settings.shop_api_url or not settings.shop_api_token:
         raise ShopApiError("Save the shop API address and token first")
     return HttpShopClient(settings.shop_api_url, settings.shop_api_token)
+
