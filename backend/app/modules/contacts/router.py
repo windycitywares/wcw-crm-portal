@@ -24,11 +24,11 @@ async def list_contacts(
     session: SessionDep, user: CurrentUser, page: PageDep, q: str | None = None, type: str | None = None,
     status_: Annotated[str | None, Query(alias="status")] = None, owner: Literal["me", "any"] = "any",
     owner_id: int | None = None, subscription: Literal["subscribed", "unsubscribed"] | None = None,
-    sort: Sort = "-updated",
+    sort: Sort = "-updated", account_id: int | None = None,
 ) -> ContactPage:
     return await ContactService(session).list(
         page, q=q, type=type, status=status_, owner_id=user.id if owner == "me" else owner_id,
-        subscription=subscription, sort=sort)
+        subscription=subscription, sort=sort, account_id=account_id)
 
 
 @router.get("/{contact_id}", response_model=ContactOut)
