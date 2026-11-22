@@ -350,3 +350,53 @@ class EtsyOrderTests(unittest.TestCase):
         self.assertEqual([k["key"] for k in body["kpis"]][:3], ["orders", "items", "revenue"])
         self.assertEqual(c.get(f"{API}/channels/etsy/dashboard", headers=self.sales_h,
                                params={"start": "2026-02-01", "end": "2026-01-01"}).status_code, 422)
+
+    def test_supplier_portal_sees_only_their_own_orders(self):
+        c = self.w.client
+        mine = c.post(f"{API}/accounts", headers=self.manager_h,
+                      json={"name": f"Maker {self.w.sfx}", "account_type": "supplier"}).json()
+        other = c.post(f"{API}/accounts", headers=self.manager_h,
+                       json={"name": f"Other {self.w.sfx}", "account_type": "supplier"}).json()
+        ids = {}
+        for n, account in ((31, mine), (32, other)):
+            self.sync([receipt(self.base + n, None)])
+            oid = self.find(self.base + n)["items"][0]["id"]
+            c.patch(f"{API}/channels/etsy/orders/{oid}", headers=self.support_h,
+                    json={"purchase_cost": "7.00", "supplier_account_id": account["id"], "notes": "team only"})
+            ids[n] = oid
+
+        email, password = self.w.email("maker"), "maker-pass-123"
+        self.assertEqual(c.post(f"{API}/supplier-portal/logins", headers=self.manager_h, json={
+            "email": email, "password": password, "full_name": "Mia Maker", "account_id": mine["id"]}).status_code, 403)
+        made = c.post(f"{API}/supplier-portal/logins", headers=self.admin_h, json={
+            "email": email, "password": password, "full_name": "Mia Maker", "account_id": mine["id"],
+            "channels": ["etsy"]})
+        self.assertEqual(made.status_code, 201, made.text)
+        self.assertEqual(made.json()["supplier_name"], mine["name"])
+        people = c.get(f"{API}/accounts/{mine['id']}/contacts", headers=self.manager_h).json()
+        self.assertIn(email, [p["email"] for p in people["items"]])
+        self.assertEqual(c.post(f"{API}/supplier-portal/logins", headers=self.admin_h, json={
+            "email": self.w.email("x"), "password": password, "full_name": "X", "account_id": mine["id"],
+            "channels": ["ebay"]}).status_code, 422)
+
+        h = self.w.login(email, password)
+        self.assertEqual(c.get(f"{API}/channels/etsy/orders", headers=h).status_code, 403)
+        me = c.get(f"{API}/supplier-portal/me", headers=h).json()
+        self.assertEqual((me["supplier_name"], me["channels"]), (mine["name"], ["etsy"]))
+        listed = c.get(f"{API}/supplier-portal/etsy/orders", headers=h, params={"view": "all"}).json()
+        self.assertIn(ids[31], [o["id"] for o in listed["items"]])
+        self.assertNotIn(ids[32], [o["id"] for o in listed["items"]])
+        self.assertEqual(c.get(f"{API}/supplier-portal/etsy/orders/{ids[32]}", headers=h).status_code, 404)
+        detail = c.get(f"{API}/supplier-portal/etsy/orders/{ids[31]}", headers=h).json()
+        self.assertNotIn("notes", detail)
+        self.assertNotIn("buyer_email", detail)
+        self.assertEqual(str(detail["owed"]), "7.00")
+
+        shipped = c.post(f"{API}/supplier-portal/etsy/orders/{ids[31]}/shipped", headers=h,
+                         json={"carrier": "USPS", "tracking_number": "9400 1"})
+        self.assertEqual((shipped.status_code, shipped.json()["status"]), (200, "shipped"), shipped.text)
+        team_view = c.get(f"{API}/channels/etsy/orders/{ids[31]}", headers=self.sales_h).json()
+        self.assertEqual(team_view["tracking_number"], "9400 1")
+        self.assertIn("supplier", {h["source"] for h in team_view["history"]})
+        pay = c.get(f"{API}/supplier-portal/etsy/payments", headers=h, params={"state": "all"}).json()
+        self.assertEqual({r["id"] for r in pay["items"]}, {ids[31]})
