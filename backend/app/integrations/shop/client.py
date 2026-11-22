@@ -32,6 +32,8 @@ class ShopClient(Protocol):
 
     async def supplier_stats(self, name: str) -> dict[str, Any]: ...
 
+    async def etsy_handover(self, kind: str, after_id: int = 0) -> dict[str, Any]: ...
+
 
 class HttpShopClient:
     def __init__(self, base_url: str, token: str):
@@ -101,6 +103,11 @@ class HttpShopClient:
         """The supplier's figures in the shop: Etsy orders, owed and paid, shipping speed."""
         query = urllib.parse.urlencode({"name": name})
         return await asyncio.to_thread(self._get, f"{self.base_url}/integrations/crm/suppliers/stats?{query}")
+
+    async def etsy_handover(self, kind: str, after_id: int = 0) -> dict[str, Any]:
+        """The team's Etsy work kept in the shop (kind: counts, listings or orders), for the one-time copy."""
+        query = "" if kind == "counts" else "?" + urllib.parse.urlencode({"after_id": after_id})
+        return await asyncio.to_thread(self._get, f"{self.base_url}/integrations/crm/etsy/{kind}{query}")
 
 
 _factory = None
