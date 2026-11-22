@@ -172,6 +172,78 @@ class ContactService:
                                 changes={"name": contact.display_name})
         await self.session.commit()
 
+    # ---- people at an account (suppliers keep their contacts here) -----------------------------------------
+    # These flush and never commit: the calling module owns the transaction and its own audit lines.
+    async def at_account(self, account_id: int) -> list[Contact]:
+        stmt = self.repo.search(account_id=account_id, sort="created")
+        return list(await self.repo.list(stmt))
+
+    async def one_at_account(self, account_id: int, contact_id: int) -> Contact | None:
+        contact = await self.repo.get(contact_id)
+        return contact if contact is not None and contact.account_id == account_id else None
+
+    @staticmethod
+    def _split(name: str) -> tuple[str, str]:
+        first, _, last = " ".join(name.split()).partition(" ")
+        return first[:80], last.strip()[:80]
+
+    async def attach(self, account_id: int, *, name: str, title: str | None, email: str | None,
+                     phone: str | None, company: str | None, type_key: str, actor) -> Contact:
+        """The person at this account: an existing contact with the same email is linked (one person, one row),
+        otherwise a new contact is made."""
+        email = email.strip().lower() if email else None
+        contact = await self.repo.by_email(email) if email else None
+        if contact is None:
+            first, last = self._split(name)
+            contact = Contact(first_name=first, last_name=last, title=title, email=email, phone=phone,
+                              company=company, types=[type_key], source="supplier", account_id=account_id,
+                              owner_id=actor.id, created_by=actor.id, updated_by=actor.id)
+            await self.repo.add(contact)
+            await self.audit.record("contact.create", actor=actor, entity_type=ENTITY, entity_id=contact.id,
+                                    changes=diff({}, snapshot(contact, TRACKED)))
+            return contact
+        before = snapshot(contact, TRACKED)
+        contact.account_id = account_id
+        contact.types = _with_type(contact.types, type_key)
+        contact.title = title or contact.title
+        contact.phone = contact.phone or phone
+        contact.company = contact.company or company
+        contact.updated_by = actor.id
+        changes = diff(before, snapshot(contact, TRACKED))
+        if changes:
+            await self.audit.record("contact.update", actor=actor, entity_type=ENTITY, entity_id=contact.id,
+                                    changes=changes)
+        return contact
+
+    async def edit_person(self, contact: Contact, values: dict[str, Any], actor) -> dict[str, list[Any]]:
+        """Name (one string), title, email, phone — what a supplier's contact list edits."""
+        before = snapshot(contact, TRACKED)
+        if values.get("name"):
+            contact.first_name, contact.last_name = self._split(values["name"])
+        for field in ("title", "phone"):
+            if field in values:
+                setattr(contact, field, values[field])
+        if "email" in values:
+            email = str(values["email"]).strip().lower() if values["email"] else None
+            if email and email != contact.email:
+                dup = await self.repo.by_email(email)
+                if dup is not None and dup.id != contact.id:
+                    raise ConflictError(f"A contact with this email already exists (#{dup.id} {dup.display_name})")
+            contact.email = email
+        contact.updated_by = actor.id
+        changes = diff(before, snapshot(contact, TRACKED))
+        if changes:
+            await self.audit.record("contact.update", actor=actor, entity_type=ENTITY, entity_id=contact.id,
+                                    changes=changes)
+        return changes
+
+    async def detach(self, contact: Contact, actor) -> None:
+        """No longer at the account; the person stays in Contacts."""
+        await self.audit.record("contact.update", actor=actor, entity_type=ENTITY, entity_id=contact.id,
+                                changes={"account_id": [contact.account_id, None]})
+        contact.account_id = None
+        contact.updated_by = actor.id
+
     async def _ensure_customer(self, contact: Contact, actor) -> None:
         """A contact labelled 'customer' must have a customer record, so it shows in the Customers tab.
 

@@ -122,6 +122,45 @@ class SupplierTests(unittest.TestCase):
         self.assertEqual(archived.status_code, 204, archived.text)
         self.assertEqual(self.w.client.get(f"{API}/suppliers/{made['id']}", headers=self.manager_h).status_code, 404)
 
+    def test_a_supplier_is_an_account_and_its_people_are_contacts(self):
+        email = self.w.email("irha")
+        made = self.supplier(website="https://irha.example", contacts=[{"name": "Irha Khan", "email": email}])
+        self.assertIsNotNone(made["account_id"])
+        self.assertTrue(made["contacts"][0]["is_primary"], "the first person becomes the primary contact")
+        account = self.w.client.get(f"{API}/accounts/{made['account_id']}", headers=self.manager_h).json()
+        self.assertEqual((account["name"], account["account_type"], account["contacts_count"]),
+                         (made["name"], "supplier", 1))
+        self.assertEqual(account["primary_contact_id"], made["contacts"][0]["id"])
+        person = self.w.client.get(f"{API}/contacts/{made['contacts'][0]['id']}", headers=self.manager_h).json()
+        self.assertEqual((person["email"], person["account_id"], person["first_name"], person["last_name"]),
+                         (email, made["account_id"], "Irha", "Khan"))
+        self.assertIn("vendor", person["types"])
+        options = self.w.client.get(f"{API}/accounts/options", headers=self.sales_h,
+                                    params={"type": "supplier", "q": made["name"]}).json()
+        self.assertEqual([o["id"] for o in options], [made["account_id"]])
+
+        # a rename reaches the account; a person already in Contacts is linked, not copied
+        self.w.client.patch(f"{API}/suppliers/{made['id']}", headers=self.manager_h, json={"name": made["name"] + " Co"})
+        self.assertEqual(self.w.client.get(f"{API}/accounts/{made['account_id']}", headers=self.manager_h)
+                         .json()["name"], made["name"] + " Co")
+        res = self.w.client.post(f"{API}/contacts", headers=self.manager_h, json={
+            "first_name": "Sam", "email": self.w.email("sam"), "types": ["vendor"]})
+        self.assertEqual(res.status_code, 201, res.text)
+        known = res.json()
+        linked = self.w.client.post(f"{API}/suppliers/{made['id']}/contacts", headers=self.manager_h,
+                                    json={"name": "Sam P", "email": known["email"]})
+        self.assertEqual((linked.status_code, linked.json()["id"]), (201, known["id"]))
+
+        # taking someone off the supplier keeps them in Contacts
+        gone = self.w.client.delete(f"{API}/suppliers/{made['id']}/contacts/{known['id']}", headers=self.manager_h)
+        self.assertEqual(gone.status_code, 204, gone.text)
+        kept = self.w.client.get(f"{API}/contacts/{known['id']}", headers=self.manager_h).json()
+        self.assertIsNone(kept["account_id"])
+        # archiving the supplier archives its account
+        self.assertEqual(self.w.client.delete(f"{API}/suppliers/{made['id']}", headers=self.manager_h).status_code, 204)
+        self.assertEqual(self.w.client.get(f"{API}/accounts/{made['account_id']}", headers=self.manager_h)
+                         .status_code, 404)
+
     def test_lookup_validation_and_permissions(self):
         forbidden = self.w.client.post(
             f"{API}/suppliers", headers=self.sales_h,

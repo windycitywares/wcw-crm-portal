@@ -73,6 +73,7 @@ class AccountOut(BaseModel):
     address: dict[str, Any] | None
     notes: str | None
     owner_id: int | None
+    primary_contact_id: int | None = None
     custom_fields: dict[str, Any]
     contacts_count: int = 0
     created_by: int | None

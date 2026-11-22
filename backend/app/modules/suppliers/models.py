@@ -17,6 +17,7 @@ class Supplier(IdMixin, TimestampMixin, AuthorMixin, SoftDeleteMixin, CustomFiel
     __table_args__ = (
         CheckConstraint("rating IS NULL OR rating BETWEEN 1 AND 5", name="rating_range"),
         Index("ix_suppliers_type_status", "supplier_type", "status"),
+        Index("uq_suppliers_account_id", "account_id", unique=True, postgresql_where=text("account_id IS NOT NULL")),
     )
 
     name: Mapped[str] = mapped_column(String(160), index=True)
@@ -28,10 +29,13 @@ class Supplier(IdMixin, TimestampMixin, AuthorMixin, SoftDeleteMixin, CustomFiel
     lead_time_days: Mapped[int | None] = mapped_column(Integer)
     currency: Mapped[str] = mapped_column(String(3), default="USD", server_default="USD")
     rating: Mapped[int | None] = mapped_column(Integer)
+    # The supplier *is* an organisation: its Account (type "supplier") holds the people (Contacts) who work there.
+    account_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("accounts.id", ondelete="SET NULL"))
 
 
 class SupplierContact(IdMixin, TimestampMixin, AuthorMixin, SoftDeleteMixin, Base):
-    """A person at a supplier, kept separately so a supplier can have several contacts."""
+    """Legacy: a supplier's people now live in Contacts (account_id = the supplier's account). Copied there by
+    migration 0037 and no longer written; the table goes in a later clean-up."""
 
     __tablename__ = "supplier_contacts"
     __table_args__ = (

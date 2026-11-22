@@ -100,6 +100,7 @@ class SupplierOut(BaseModel):
     lead_time_days: int | None
     currency: str
     rating: int | None
+    account_id: int | None = None
     custom_fields: dict[str, Any]
     contacts: list[SupplierContactOut] = Field(default_factory=list)
     created_by: int | None

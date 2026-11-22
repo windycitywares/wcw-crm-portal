@@ -100,6 +100,43 @@ class AccountService:
     async def names(self, ids: list[int]) -> dict[int, str]:
         return await self.repo.names(ids)
 
+    async def model(self, account_id: int, *, include_deleted: bool = False) -> Account | None:
+        """For other modules that keep an account in step with their own record (suppliers)."""
+        return await self.repo.get(account_id, include_deleted=include_deleted)
+
+    # ---- for other modules: flush, never commit (the caller owns the transaction) ----------------------
+    async def add(self, values: dict[str, Any], actor) -> Account:
+        values = await self._validate(dict(values), None)
+        account = Account(**values, owner_id=actor.id, created_by=actor.id, updated_by=actor.id)
+        await self.repo.add(account)
+        await self.audit.record("account.create", actor=actor, entity_type=ENTITY, entity_id=account.id,
+                                changes=diff({}, snapshot(account, TRACKED)))
+        await self.timeline.record(ENTITY, account.id, "account.created", "Account added", actor=actor)
+        return account
+
+    async def mirror(self, account: Account, values: dict[str, Any], actor) -> None:
+        """Copy the shared fields of a record that *is* this account (a supplier's name, status, website…)."""
+        before = snapshot(account, TRACKED)
+        self.repo.apply(account, await self._validate(dict(values), account))
+        account.updated_by = actor.id
+        changes = diff(before, snapshot(account, TRACKED))
+        if changes:
+            await self.audit.record("account.update", actor=actor, entity_type=ENTITY, entity_id=account.id,
+                                    changes=changes)
+
+    async def archive(self, account: Account, actor) -> None:
+        await self.repo.soft_delete(account)
+        await self.audit.record("account.delete", actor=actor, entity_type=ENTITY, entity_id=account.id,
+                                changes={"name": account.name})
+
+    async def set_primary(self, account: Account, contact_id: int | None, actor) -> None:
+        if account.primary_contact_id == contact_id:
+            return
+        await self.audit.record("account.update", actor=actor, entity_type=ENTITY, entity_id=account.id,
+                                changes={"primary_contact_id": [account.primary_contact_id, contact_id]})
+        account.primary_contact_id = contact_id
+        account.updated_by = actor.id
+
     # ---- writes ---------------------------------------------------------
     async def _validate(self, values: dict[str, Any], current: Account | None) -> dict[str, Any]:
         if values.get("account_type") is not None:
