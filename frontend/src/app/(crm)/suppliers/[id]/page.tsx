@@ -17,6 +17,7 @@ import { Timeline } from "@/modules/records/Timeline";
 import { customFieldsApi, type FieldDef } from "@/modules/settings/api";
 import { useLookups } from "@/modules/settings/useLookups";
 import { suppliersApi, type Supplier, type SupplierContact, type SupplierProduct } from "@/modules/suppliers/api";
+import { ShopPerformancePanel } from "@/modules/suppliers/ShopPanel";
 
 type ContactDraft = { name: string; title: string; email: string; phone: string; is_primary: boolean };
 type ProductDraft = { shop_sku: string; supplier_sku: string; description: string; unit_cost: string; currency: string; minimum_order_quantity: string; lead_time_days: string; notes: string };
@@ -329,6 +330,7 @@ export default function SupplierPage() {
         </div>
 
         <div className="grid content-start gap-6">
+          <ShopPerformancePanel supplierId={supplier.id} />
           <ContactsPanel supplier={supplier} canEdit={canEdit} onChange={changed} />
           <ProductsPanel supplierId={supplier.id} canEdit={canEdit} />
           <Timeline record={record} refreshKey={`${refresh}-${supplier.updated_at}`} />
