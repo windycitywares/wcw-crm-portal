@@ -120,6 +120,12 @@ class SupplierService:
         return SupplierPage(items=await self._out(list(rows)), total=total, page=params.page,
                             page_size=params.page_size)
 
+    async def for_account(self, account_id: int) -> SupplierOut:
+        supplier = await self.repo.by_account(account_id)
+        if supplier is None:
+            raise NotFoundError("No supplier for this account")
+        return (await self._out([supplier]))[0]
+
     async def get(self, supplier_id: int) -> SupplierOut:
         return (await self._out([await self._get(supplier_id)]))[0]
 

@@ -34,6 +34,12 @@ async def create_supplier(session: SessionDep, actor: Editor, data: SupplierIn) 
     return await SupplierService(session).create(data, actor)
 
 
+@router.get("/by-account/{account_id}", response_model=SupplierOut)
+async def supplier_for_account(session: SessionDep, account_id: int) -> SupplierOut:
+    """The supplier record behind a Supplier account (an account page links to it)."""
+    return await SupplierService(session).for_account(account_id)
+
+
 @router.get("/{supplier_id}", response_model=SupplierOut)
 async def get_supplier(session: SessionDep, supplier_id: int) -> SupplierOut:
     return await SupplierService(session).get(supplier_id)
