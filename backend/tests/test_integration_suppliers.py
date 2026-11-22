@@ -143,8 +143,10 @@ class SupplierTests(unittest.TestCase):
         self.w.client.patch(f"{API}/suppliers/{made['id']}", headers=self.manager_h, json={"name": made["name"] + " Co"})
         self.assertEqual(self.w.client.get(f"{API}/accounts/{made['account_id']}", headers=self.manager_h)
                          .json()["name"], made["name"] + " Co")
-        known = self.w.client.post(f"{API}/contacts", headers=self.manager_h, json={
-            "first_name": "Sam", "email": self.w.email("sam"), "types": ["other"]}).json()
+        res = self.w.client.post(f"{API}/contacts", headers=self.manager_h, json={
+            "first_name": "Sam", "email": self.w.email("sam"), "types": ["vendor"]})
+        self.assertEqual(res.status_code, 201, res.text)
+        known = res.json()
         linked = self.w.client.post(f"{API}/suppliers/{made['id']}/contacts", headers=self.manager_h,
                                     json={"name": "Sam P", "email": known["email"]})
         self.assertEqual((linked.status_code, linked.json()["id"]), (201, known["id"]))
