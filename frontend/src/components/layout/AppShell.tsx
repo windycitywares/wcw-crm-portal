@@ -16,7 +16,7 @@ import { applyTheme, readTheme, saveTheme, type Theme } from "@/lib/theme";
 import { ROLE_LABEL } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./NotificationBell";
-import { NAV, SETTINGS_NAV, activeHref, inSettings, titleFor, withChannels, type NavGroup } from "./nav";
+import { NAV, SETTINGS_NAV, SUPPLIER_NAV, activeHref, inSettings, titleFor, withChannels, type NavGroup } from "./nav";
 import { channelsApi } from "@/modules/channels/api";
 
 /*
@@ -106,7 +106,8 @@ function NavGroups({ groups, onNavigate, collapsed }: { groups: NavGroup[]; onNa
 function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collapsed: boolean }) {
   const pathname = usePathname();
   const settings = inSettings(pathname);
-  const { can } = useAuth();
+  const { can, user } = useAuth();
+  const supplier = user?.role === "supplier";
   const mayView = can("channels:view");
   const [connected, setConnected] = useState<string[]>([]);
   useEffect(() => {
@@ -117,7 +118,9 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
   }, [mayView]);
   return (
     <nav aria-label={settings ? "Settings" : "CRM"} className={cn("flex-1 overflow-y-auto pb-6 pt-2", collapsed ? "px-2" : "px-4")}>
-      {settings ? (
+      {supplier ? (
+        <NavGroups groups={SUPPLIER_NAV} onNavigate={onNavigate} collapsed={collapsed} />
+      ) : settings ? (
         <>
           <Link
             href="/dashboard"
@@ -169,6 +172,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!loading && !user) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
   }, [loading, user, router, pathname]);
+  const supplier = user?.role === "supplier";
+  // A supplier's login only has their own portal (and their account page).
+  useEffect(() => {
+    if (supplier && !pathname.startsWith("/supplier") && !pathname.startsWith("/account")) router.replace("/supplier");
+  }, [supplier, pathname, router]);
 
   // Remember a collapsed sidebar for next time (a per-browser convenience only).
   useEffect(() => {
@@ -262,7 +270,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Dialog.Portal>
             </Dialog.Root>
 
-            <form
+            {!supplier && <form
               role="search"
               className="ml-2 hidden max-w-[26rem] flex-1 sm:flex"
               onSubmit={(e) => {
@@ -287,10 +295,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className="w-full rounded-full border border-line bg-canvas py-2 pl-10 pr-4 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
                 />
               </div>
-            </form>
+            </form>}
 
             <div className="ml-auto flex items-center gap-2">
-              <NotificationBell />
+              {!supplier && <NotificationBell />}
               <button
                 type="button"
                 onClick={toggle}

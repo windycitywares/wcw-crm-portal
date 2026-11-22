@@ -16,7 +16,8 @@ import { ROLE_LABEL, type Page, type Role, type User } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 import { usersApi, type UserFilters } from "@/modules/users/api";
 
-const ROLES = Object.keys(ROLE_LABEL) as Role[];
+// Supplier logins are made in Settings → Supplier logins (they need a supplier account), not here.
+const ROLES = (Object.keys(ROLE_LABEL) as Role[]).filter((r) => r !== "supplier");
 const ROLE_HINT: Record<Role, string> = {
   admin: "Everything, including users and settings.",
   manager: "All business data, reports, types and pipelines; no system settings.",
@@ -24,6 +25,7 @@ const ROLE_HINT: Record<Role, string> = {
   support: "Customers, tickets and own tasks.",
   marketing: "Campaigns, templates, lists and reports.",
   read_only: "Can look at everything they're shown; changes nothing.",
+  supplier: "Only their own marketplace orders and payments (Settings → Supplier logins).",
 };
 const PAGE_SIZE = 25;
 
