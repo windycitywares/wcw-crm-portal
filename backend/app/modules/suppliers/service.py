@@ -12,8 +12,11 @@ from app.modules.customfields.service import CustomFieldService
 from app.modules.lookups.service import LookupService
 from app.shared.snapshot import snapshot
 
-from .models import Supplier, SupplierContact, SupplierProduct
-from .repository import SupplierContactRepository, SupplierProductRepository, SupplierRepository
+from app.modules.accounts.service import AccountService
+from app.modules.contacts.service import ContactService
+
+from .models import Supplier, SupplierProduct
+from .repository import SupplierProductRepository, SupplierRepository
 from .schemas import (
     SupplierContactIn, SupplierContactOut, SupplierContactUpdate, SupplierIn, SupplierOut, SupplierPage,
     SupplierProductIn, SupplierProductOut, SupplierProductsPage, SupplierProductUpdate, SupplierUpdate,
@@ -44,8 +47,21 @@ def register() -> None:
 
 
 
-def _contact_snapshot(contact: SupplierContact) -> dict[str, Any]:
-    return {field: getattr(contact, field) for field in ("name", "title", "email", "phone", "is_primary")}
+ACCOUNT_TYPE = "supplier"
+CONTACT_TYPE = "vendor"  # the contact_type a supplier's people carry
+MIRRORED = ("name", "status", "website", "address")  # supplier fields that are the account's too
+
+
+def _contact_snapshot(contact) -> dict[str, Any]:
+    return {"name": contact.full_name or contact.display_name, "title": contact.title, "email": contact.email,
+            "phone": contact.phone}
+
+
+def _contact_out(supplier_id: int, contact, primary_id: int | None) -> SupplierContactOut:
+    return SupplierContactOut(
+        id=contact.id, supplier_id=supplier_id, name=contact.full_name or contact.display_name, title=contact.title,
+        email=contact.email, phone=contact.phone, is_primary=contact.id == primary_id,
+        created_at=contact.created_at, updated_at=contact.updated_at)
 
 
 def _product_snapshot(product: SupplierProduct) -> dict[str, Any]:
@@ -58,7 +74,8 @@ class SupplierService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repo = SupplierRepository(session)
-        self.contact_repo = SupplierContactRepository(session)
+        self.accounts = AccountService(session)
+        self.people = ContactService(session)
         self.product_repo = SupplierProductRepository(session)
         self.audit = AuditService(session)
         self.timeline = TimelineService(session)
@@ -71,11 +88,29 @@ class SupplierService:
             raise NotFoundError("Supplier not found")
         return supplier
 
+    async def _account(self, supplier: Supplier, actor=None):
+        """The supplier's account; one is made for a supplier that has none (only rows older than 0037)."""
+        account = await self.accounts.model(supplier.account_id, include_deleted=True) if supplier.account_id else None
+        if account is None and actor is not None:
+            account = await self.accounts.add(self._mirrored(supplier) | {"account_type": ACCOUNT_TYPE}, actor)
+            supplier.account_id = account.id
+        return account
+
+    @staticmethod
+    def _mirrored(supplier: Supplier) -> dict[str, Any]:
+        return {field: getattr(supplier, field) for field in MIRRORED}
+
     async def _out(self, suppliers: list[Supplier]) -> list[SupplierOut]:
-        contacts = await self.repo.contacts_for([supplier.id for supplier in suppliers])
-        return [SupplierOut.model_validate(supplier).model_copy(update={
-            "contacts": [SupplierContactOut.model_validate(contact) for contact in contacts.get(supplier.id, [])],
-        }) for supplier in suppliers]
+        out = []
+        for supplier in suppliers:
+            contacts = []
+            account = await self._account(supplier)
+            if account is not None:
+                people = await self.people.at_account(account.id)
+                contacts = [_contact_out(supplier.id, c, account.primary_contact_id) for c in people]
+                contacts.sort(key=lambda c: (not c.is_primary, c.name.lower(), c.id))
+            out.append(SupplierOut.model_validate(supplier).model_copy(update={"contacts": contacts}))
+        return out
 
     async def list(self, params: PageParams, *, q: str | None = None, supplier_type: str | None = None,
                    status: str | None = None) -> SupplierPage:
@@ -106,25 +141,14 @@ class SupplierService:
             )
         return values
 
-    async def _clear_primary(self, supplier_id: int, actor, *, keep_id: int | None = None) -> None:
-        for contact in (await self.repo.contacts_for([supplier_id])).get(supplier_id, []):
-            if contact.is_primary and contact.id != keep_id:
-                before = _contact_snapshot(contact)
-                contact.is_primary = False
-                contact.updated_by = actor.id
-                changes = diff(before, _contact_snapshot(contact))
-                await self.audit.record("supplier.contact_update", actor=actor, entity_type=ENTITY,
-                                        entity_id=supplier_id, changes={"contact_id": contact.id, **changes})
-                await self.timeline.record(ENTITY, supplier_id, "supplier.contact_updated",
-                                           f"Primary contact changed: {contact.name}", actor=actor,
-                                           data={"contact_id": contact.id, "fields": list(changes)})
-
-    async def _add_contact(self, supplier: Supplier, data: SupplierContactIn, actor) -> SupplierContact:
-        values = data.model_dump(exclude_unset=True, mode="json")
-        if values.get("is_primary"):
-            await self._clear_primary(supplier.id, actor)
-        contact = SupplierContact(**values, supplier_id=supplier.id, created_by=actor.id, updated_by=actor.id)
-        await self.contact_repo.add(contact)
+    async def _add_contact(self, supplier: Supplier, data: SupplierContactIn, actor):
+        account = await self._account(supplier, actor)
+        values = data.model_dump(mode="json")
+        contact = await self.people.attach(account.id, name=values["name"], title=values.get("title"),
+                                           email=values.get("email"), phone=values.get("phone"),
+                                           company=supplier.name, type_key=CONTACT_TYPE, actor=actor)
+        if values.get("is_primary") or account.primary_contact_id is None:
+            await self.accounts.set_primary(account, contact.id, actor)
         return contact
 
     async def create(self, data: SupplierIn, actor) -> SupplierOut:
@@ -134,6 +158,7 @@ class SupplierService:
         values = await self._validate(values, None)
         supplier = Supplier(**values, created_by=actor.id, updated_by=actor.id)
         await self.repo.add(supplier)
+        await self._account(supplier, actor)
         for contact in data.contacts:
             await self._add_contact(supplier, contact, actor)
         await self.audit.record("supplier.create", actor=actor, entity_type=ENTITY, entity_id=supplier.id,
@@ -158,6 +183,8 @@ class SupplierService:
         self.repo.apply(supplier, values)
         supplier.updated_by = actor.id
         changes = diff(before, snapshot(supplier, SUPPLIER_FIELDS))
+        if changes.keys() & set(MIRRORED):
+            await self.accounts.mirror(await self._account(supplier, actor), self._mirrored(supplier), actor)
         if changes:
             await self.audit.record("supplier.update", actor=actor, entity_type=ENTITY, entity_id=supplier.id,
                                     changes=changes)
@@ -169,6 +196,9 @@ class SupplierService:
     async def delete(self, supplier_id: int, actor) -> None:
         supplier = await self._get(supplier_id)
         await self.repo.soft_delete(supplier)
+        account = await self._account(supplier)
+        if account is not None and account.deleted_at is None:
+            await self.accounts.archive(account, actor)
         await self.audit.record("supplier.delete", actor=actor, entity_type=ENTITY, entity_id=supplier.id,
                                 changes={"name": supplier.name})
         await self.timeline.record(ENTITY, supplier.id, "supplier.deleted", "Supplier archived", actor=actor)
@@ -179,50 +209,65 @@ class SupplierService:
         contact = await self._add_contact(supplier, data, actor)
         supplier.updated_by = actor.id
         await self.audit.record("supplier.contact_add", actor=actor, entity_type=ENTITY, entity_id=supplier.id,
-                                changes={"contact": contact.name})
-        await self.timeline.record(ENTITY, supplier.id, "supplier.contact_added", f"Contact added: {contact.name}",
-                                   actor=actor)
+                                changes={"contact_id": contact.id, "contact": contact.display_name})
+        await self.timeline.record(ENTITY, supplier.id, "supplier.contact_added",
+                                   f"Contact added: {contact.display_name}", actor=actor,
+                                   data={"contact_id": contact.id})
         await self.session.commit()
-        return SupplierContactOut.model_validate(contact)
+        return await self._one_contact(supplier, contact.id)
+
+    async def _one_contact(self, supplier: Supplier, contact_id: int) -> SupplierContactOut:
+        account = await self._account(supplier)
+        contact = await self.people.one_at_account(account.id, contact_id) if account else None
+        if contact is None:
+            raise NotFoundError("Supplier contact not found")
+        await self.session.refresh(contact)  # `updated_at` is written by the database; read it back, don't lazy-load
+        return _contact_out(supplier.id, contact, account.primary_contact_id)
+
+    async def _contact_at(self, supplier: Supplier, contact_id: int):
+        account = await self._account(supplier, None)
+        contact = await self.people.one_at_account(account.id, contact_id) if account else None
+        if contact is None:
+            raise NotFoundError("Supplier contact not found")
+        return account, contact
 
     async def update_contact(self, supplier_id: int, contact_id: int, data: SupplierContactUpdate,
                              actor) -> SupplierContactOut:
         supplier = await self._get(supplier_id)
-        contact = await self.repo.contact(supplier_id, contact_id)
-        if contact is None:
-            raise NotFoundError("Supplier contact not found")
+        account, contact = await self._contact_at(supplier, contact_id)
         values = data.model_dump(exclude_unset=True, mode="json")
-        for field in ("name", "is_primary"):
-            if values.get(field) is None:
-                values.pop(field, None)
-        before = _contact_snapshot(contact)
-        if values.get("is_primary"):
-            await self._clear_primary(supplier_id, actor, keep_id=contact.id)
-        self.contact_repo.apply(contact, values)
-        contact.updated_by = actor.id
-        changes = diff(before, _contact_snapshot(contact))
+        make_primary = values.pop("is_primary", None)
+        if values.get("name") is None:
+            values.pop("name", None)
+        changes = await self.people.edit_person(contact, values, actor)
+        if make_primary and account.primary_contact_id != contact.id:
+            await self.accounts.set_primary(account, contact.id, actor)
+            changes["is_primary"] = [False, True]
+        elif make_primary is False and account.primary_contact_id == contact.id:
+            await self.accounts.set_primary(account, None, actor)
+            changes["is_primary"] = [True, False]
         if changes:
             supplier.updated_by = actor.id
             await self.audit.record("supplier.contact_update", actor=actor, entity_type=ENTITY,
                                     entity_id=supplier.id, changes={"contact_id": contact.id, **changes})
             await self.timeline.record(ENTITY, supplier.id, "supplier.contact_updated",
-                                       f"Contact updated: {contact.name}", actor=actor,
+                                       f"Contact updated: {contact.display_name}", actor=actor,
                                        data={"contact_id": contact.id, "fields": list(changes)})
         await self.session.commit()
-        await self.session.refresh(contact)  # `updated_at` is written by the database; read it back, don't lazy-load
-        return SupplierContactOut.model_validate(contact)
+        return await self._one_contact(supplier, contact.id)
 
     async def delete_contact(self, supplier_id: int, contact_id: int, actor) -> None:
+        """Takes the person off this supplier; they stay in Contacts."""
         supplier = await self._get(supplier_id)
-        contact = await self.repo.contact(supplier_id, contact_id)
-        if contact is None:
-            raise NotFoundError("Supplier contact not found")
-        await self.contact_repo.soft_delete(contact)
+        account, contact = await self._contact_at(supplier, contact_id)
+        if account.primary_contact_id == contact.id:
+            await self.accounts.set_primary(account, None, actor)
+        await self.people.detach(contact, actor)
         supplier.updated_by = actor.id
         await self.audit.record("supplier.contact_delete", actor=actor, entity_type=ENTITY, entity_id=supplier.id,
-                                changes={"contact_id": contact.id, "name": contact.name})
-        await self.timeline.record(ENTITY, supplier.id, "supplier.contact_deleted", f"Contact removed: {contact.name}",
-                                   actor=actor)
+                                changes={"contact_id": contact.id, "name": contact.display_name})
+        await self.timeline.record(ENTITY, supplier.id, "supplier.contact_deleted",
+                                   f"Contact removed: {contact.display_name}", actor=actor)
         await self.session.commit()
 
     async def list_products(self, supplier_id: int, params: PageParams, *, q: str | None = None) -> SupplierProductsPage:

@@ -23,7 +23,11 @@ from app.core.exceptions import NotFoundError, ValidationFailedError
 from app.modules.audit.models import AuditLog
 from app.modules.settings.models import AppSetting
 from app.modules.settings.service import SettingsService
-from app.modules.suppliers.models import Supplier, SupplierContact
+from types import SimpleNamespace
+
+from app.modules.accounts.models import Account
+from app.modules.contacts.models import Contact
+from app.modules.suppliers.models import Supplier
 
 from .client import ShopApiError, shop_client
 
@@ -33,7 +37,7 @@ ACTIONS = ("supplier.create", "supplier.update", "supplier.delete", "supplier.re
            "supplier.contact_add", "supplier.contact_update", "supplier.contact_delete")
 
 
-def supplier_payload(supplier: Supplier, contact: SupplierContact | None) -> dict[str, Any]:
+def supplier_payload(supplier: Supplier, contact: Any | None) -> dict[str, Any]:
     """Pure (unit-tested): what the shop gets for one supplier. Archived or inactive → switched off there."""
     return {
         "crm_id": supplier.id,
@@ -45,11 +49,19 @@ def supplier_payload(supplier: Supplier, contact: SupplierContact | None) -> dic
     }
 
 
-async def _contact(session: AsyncSession, supplier_id: int) -> SupplierContact | None:
-    """The primary contact, else the first one added (deleted contacts don't count)."""
-    return (await session.execute(
-        select(SupplierContact).where(SupplierContact.supplier_id == supplier_id, SupplierContact.deleted_at.is_(None))
-        .order_by(SupplierContact.is_primary.desc(), SupplierContact.id).limit(1))).scalar_one_or_none()
+async def _contact(session: AsyncSession, supplier_id: int) -> SimpleNamespace | None:
+    """The account's primary contact, else the first person added at the supplier (archived people don't count)."""
+    supplier = await session.get(Supplier, supplier_id)
+    if supplier is None or supplier.account_id is None:
+        return None
+    primary = (await session.execute(select(Account.primary_contact_id).where(Account.id == supplier.account_id)))\
+        .scalar_one_or_none()
+    row = (await session.execute(
+        select(Contact).where(Contact.account_id == supplier.account_id, Contact.deleted_at.is_(None))
+        .order_by((Contact.id == (primary or 0)).desc(), Contact.id).limit(1))).scalar_one_or_none()
+    if row is None:
+        return None
+    return SimpleNamespace(name=row.full_name or row.display_name, email=row.email, phone=row.phone)
 
 
 async def _client(session: AsyncSession):

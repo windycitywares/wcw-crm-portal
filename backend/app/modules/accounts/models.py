@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import Index, String, Text
+from sqlalchemy import BigInteger, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,3 +28,6 @@ class Account(IdMixin, TimestampMixin, AuthorMixin, OwnedMixin, SoftDeleteMixin,
     phone: Mapped[str | None] = mapped_column(String(40))
     address: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     notes: Mapped[str | None] = mapped_column(Text)
+    # The person to talk to first (what the shop shows as a supplier's contact). Contacts point back with account_id.
+    primary_contact_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("contacts.id", ondelete="SET NULL", use_alter=True))
