@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/utils";
 import { CustomerPicker } from "@/modules/tickets/CustomerPicker";
+import { AccountPicker } from "@/modules/accounts/AccountPicker";
 import { useDirectory } from "@/modules/records/useDirectory";
 import { useLookups } from "@/modules/settings/useLookups";
 import { DealItemsPanel } from "./DealItemsPanel";
@@ -44,6 +45,7 @@ export function DealDialog({
   deal,
   pipelines,
   customer,
+  account,
   onClose,
   onSaved,
 }: {
@@ -53,6 +55,8 @@ export function DealDialog({
   pipelines: Pipeline[];
   /** Set when opening from a customer's page, so a new deal starts linked to them. */
   customer?: { id: number; name: string };
+  /** Set when opening from an account's page, so a new deal starts at that account. */
+  account?: { id: number; name: string };
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -62,6 +66,7 @@ export function DealDialog({
   const toast = useToast();
   const [form, setForm] = useState<Form | null>(null);
   const [picked, setPicked] = useState<{ id: number; name: string } | null>(null);
+  const [org, setOrg] = useState<{ id: number; name: string | null } | null>(null);
   const [touchedProbability, setTouchedProbability] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,9 +99,10 @@ export function DealDialog({
           ? { id: customerId, name: customerName ?? `Customer #${customerId}` }
           : null,
     );
+    setOrg(deal?.account_id ? { id: deal.account_id, name: deal.account_name } : account ? { ...account } : null);
     setTouchedProbability(false);
     setError(null);
-  }, [open, deal, pipelines, fallbackId, customerId, customerName, user?.id]);
+  }, [open, deal, pipelines, fallbackId, customerId, customerName, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!form) return null;
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm({ ...form, [key]: value });
@@ -130,6 +136,7 @@ export function DealDialog({
       title: form.title.trim(),
       description: form.description.trim() || null,
       customer_id: picked?.id ?? null,
+      account_id: org?.id ?? null,
       stage_id: Number(form.stage_id),
       value: form.value.trim() === "" ? 0 : form.value.trim(),
       currency: form.currency.trim().toUpperCase() || "USD",
@@ -245,6 +252,8 @@ export function DealDialog({
               <p className="mb-1.5 text-sm font-medium text-ink">Customer</p>
               <CustomerPicker value={picked?.id ?? null} name={picked?.name ?? null} onChange={setPicked} />
             </div>
+            <AccountPicker className="sm:col-span-2" value={org?.id ?? null} currentName={org?.name}
+              onChange={(id, name) => setOrg(id ? { id, name } : null)} />
             <Field label="Value">
               {(p) => (
                 <div className="flex gap-2">

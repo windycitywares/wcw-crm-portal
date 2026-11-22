@@ -62,6 +62,9 @@ class Deal(IdMixin, TimestampMixin, AuthorMixin, OwnedMixin, SoftDeleteMixin, Cu
     description: Mapped[str | None] = mapped_column(Text)
 
     customer_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("customers.id", ondelete="SET NULL"))
+    # The organisation the opportunity is with (industry standard: an opportunity belongs to an account).
+    account_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("accounts.id", ondelete="SET NULL"),
+                                                   index=True)
     stage_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("pipeline_stages.id", ondelete="SET NULL"))
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # order within its stage
 

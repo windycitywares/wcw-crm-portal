@@ -60,6 +60,8 @@ class LeadOut(BaseModel):
     converted_customer_name: str | None = None
     converted_deal_id: int | None
     converted_deal_title: str | None = None
+    converted_account_id: int | None = None
+    converted_account_name: str | None = None
     custom_fields: dict[str, Any]
     created_at: datetime
     updated_at: datetime
@@ -93,6 +95,9 @@ class LeadConvert(BaseModel):
     """
 
     customer_id: int | None = None
+    # The organisation: an existing account, else one made (type "customer") from the lead's company, if it has one.
+    account_id: int | None = None
+    create_account: bool = True
     create_deal: bool = True
     deal_title: Annotated[str | None, Field(default=None, max_length=200), AfterValidator(_strip)] = None
     stage_id: int | None = None

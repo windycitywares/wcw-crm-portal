@@ -42,6 +42,8 @@ class Lead(IdMixin, TimestampMixin, AuthorMixin, OwnedMixin, SoftDeleteMixin, Cu
     converted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     converted_customer_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("customers.id", ondelete="SET NULL"))
     converted_deal_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("deals.id", ondelete="SET NULL"))
+    converted_account_id: Mapped[int | None] = mapped_column(BigInteger,
+                                                             ForeignKey("accounts.id", ondelete="SET NULL"))
 
     @property
     def full_name(self) -> str:

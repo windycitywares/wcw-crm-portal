@@ -237,6 +237,16 @@ class ContactService:
                                     changes=changes)
         return changes
 
+    async def place_customer(self, customer_id: int, account_id: int, actor) -> None:
+        """The customer's contact works at this account (lead conversion). An existing account link is kept."""
+        contact = await self.repo.by_customer(customer_id)
+        if contact is None or contact.account_id is not None:
+            return
+        await self.audit.record("contact.update", actor=actor, entity_type=ENTITY, entity_id=contact.id,
+                                changes={"account_id": [None, account_id]})
+        contact.account_id = account_id
+        contact.updated_by = actor.id
+
     async def detach(self, contact: Contact, actor) -> None:
         """No longer at the account; the person stays in Contacts."""
         await self.audit.record("contact.update", actor=actor, entity_type=ENTITY, entity_id=contact.id,

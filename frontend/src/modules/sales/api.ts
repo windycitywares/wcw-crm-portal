@@ -33,6 +33,8 @@ export interface Deal {
   description: string | null;
   customer_id: number | null;
   customer_name: string | null;
+  account_id: number | null;
+  account_name: string | null;
   pipeline_id: number | null;
   pipeline_name: string | null;
   stage_id: number | null;
@@ -58,6 +60,7 @@ export interface DealInput {
   title?: string;
   description?: string | null;
   customer_id?: number | null;
+  account_id?: number | null;
   stage_id?: number | null;
   status?: DealStatus;
   value?: Money;
@@ -78,6 +81,7 @@ export interface DealFilters {
   stage_id?: number;
   owner_id?: number;
   customer_id?: number;
+  account_id?: number;
   q?: string;
   page?: number;
   page_size?: number;

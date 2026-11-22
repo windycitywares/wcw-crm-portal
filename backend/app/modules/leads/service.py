@@ -22,7 +22,9 @@ from app.core.entities import EntityType, check_entity_access, entity_labels, re
 from app.core.exceptions import NotFoundError, PermissionDeniedError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.core.permissions import Permission, has_permission
+from app.modules.accounts.service import AccountService
 from app.modules.activity.service import TimelineService
+from app.modules.contacts.service import ContactService
 from app.modules.audit.service import AuditService, diff
 from app.modules.customers.schemas import CustomerCreate
 from app.modules.customers.service import CustomerService
@@ -91,6 +93,8 @@ class LeadService:
         deal_ids = [x.converted_deal_id for x in leads if x.converted_deal_id]
         customers = await entity_labels(self.session, "customer", customer_ids) if customer_ids else {}
         deal_titles = await entity_labels(self.session, "deal", deal_ids) if deal_ids else {}
+        account_ids = sorted({x.converted_account_id for x in leads if x.converted_account_id})
+        accounts = await AccountService(self.session).names(account_ids) if account_ids else {}
         people = {u.id: u.full_name for u in await UserService(self.session).directory()}
         out = []
         for lead in leads:
@@ -98,6 +102,7 @@ class LeadService:
             item.owner_name = people.get(lead.owner_id) if lead.owner_id else None
             item.converted_customer_name = customers.get(lead.converted_customer_id) if lead.converted_customer_id else None
             item.converted_deal_title = deal_titles.get(lead.converted_deal_id) if lead.converted_deal_id else None
+            item.converted_account_name = accounts.get(lead.converted_account_id) if lead.converted_account_id else None
             out.append(item)
         return out
 
@@ -240,10 +245,18 @@ class LeadService:
                 phone=lead.phone, source=source, owner_id=owner_id), actor, commit=False)
             customer_id = created.id
 
+        # The organisation (Account): the one asked for, else the lead's company — found by name or made.
+        account_id = await AccountService(self.session).require(data.account_id)
+        if account_id is None and data.create_account and lead.company:
+            account_id = (await AccountService(self.session).ensure(lead.company, "customer", actor)).id
+        if account_id is not None:
+            await ContactService(self.session).place_customer(customer_id, account_id, actor)
+
         deal_id = None
         if data.create_deal:
             fields: dict[str, Any] = {
                 "title": data.deal_title or lead.company or lead.display_name, "customer_id": customer_id,
+                "account_id": account_id,
                 "owner_id": owner_id, "value": data.value, "currency": data.currency,
                 "expected_close_on": data.expected_close_on, "source": source,
             }
@@ -255,12 +268,13 @@ class LeadService:
 
         lead.status = "converted"
         lead.converted_at, lead.converted_customer_id, lead.converted_deal_id = utcnow(), customer_id, deal_id
+        lead.converted_account_id = account_id
         lead.updated_by = actor.id
         await self.session.flush()
         what = f"Lead converted to customer #{customer_id}" + (f" and deal #{deal_id}" if deal_id else "")
         await self.audit.record("lead.convert", actor=actor, entity_type=ENTITY, entity_id=lead.id,
-                                changes={"customer_id": customer_id, "deal_id": deal_id})
+                                changes={"customer_id": customer_id, "deal_id": deal_id, "account_id": account_id})
         await self.timeline.record(ENTITY, lead.id, "lead.converted", what, actor=actor,
-                                   data={"customer_id": customer_id, "deal_id": deal_id})
+                                   data={"customer_id": customer_id, "deal_id": deal_id, "account_id": account_id})
         await self.session.commit()
         return await self.get(lead.id)

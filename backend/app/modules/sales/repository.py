@@ -58,7 +58,8 @@ class DealRepository(BaseRepository[Deal]):
 
     def search(self, *, pipeline_id: int | None = None, stage_id: int | None = None, status: str | None = None,
                owner_id: int | None = None, unassigned: bool = False, customer_id: int | None = None,
-               close_before: date | None = None, q: str | None = None) -> Select[tuple[Deal]]:
+               close_before: date | None = None, q: str | None = None,
+               account_id: int | None = None) -> Select[tuple[Deal]]:
         stmt = self.query()
         if pipeline_id is not None:
             # a deal's pipeline is its stage's pipeline (there is no pipeline_id column to keep in step)
@@ -74,6 +75,8 @@ class DealRepository(BaseRepository[Deal]):
             stmt = stmt.where(Deal.owner_id.is_(None))
         if customer_id is not None:
             stmt = stmt.where(Deal.customer_id == customer_id)
+        if account_id is not None:
+            stmt = stmt.where(Deal.account_id == account_id)
         if close_before is not None:
             stmt = stmt.where(Deal.expected_close_on < close_before)
         if q:
