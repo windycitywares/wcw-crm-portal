@@ -21,7 +21,7 @@ class UserAdminTests(unittest.TestCase):
         self.assertEqual(self.w.client.get(f"{API}/users", headers=self.manager_h).status_code, 403)
         self.assertEqual(self.w.client.get(f"{API}/users", headers=self.admin_h).status_code, 200)
         roles = self.w.client.get(f"{API}/users/roles", headers=self.manager_h).json()
-        self.assertEqual([r["key"] for r in roles], ["admin", "manager", "sales", "support", "marketing", "read_only"])
+        self.assertEqual([r["key"] for r in roles], ["admin", "manager", "sales", "support", "marketing", "read_only", "supplier"])
 
     def test_create_search_update_and_set_password(self):
         email = self.w.email("new-hire")
