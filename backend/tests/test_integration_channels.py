@@ -191,6 +191,7 @@ class EtsyOrderTests(unittest.TestCase):
         cls.sales, cls.sales_h = cls.w.user_with_token("sales")
         cls.manager, cls.manager_h = cls.w.user_with_token("manager")
         cls.ro, cls.ro_h = cls.w.user_with_token("read_only")
+        cls.admin, cls.admin_h = cls.w.user_with_token("admin")
 
     def setUp(self):
         from tests.support import run
@@ -290,3 +291,48 @@ class EtsyOrderTests(unittest.TestCase):
         fresh = self.base + 7
         self.sync([receipt(fresh, None)])
         self.assertIn("cost_missing", self.find(fresh)["items"][0]["attention"])
+
+    def test_supplier_payments_pending_settled_undo_and_exports(self):
+        c = self.w.client
+        supplier = c.post(f"{API}/accounts", headers=self.manager_h,
+                          json={"name": f"Payee {self.w.sfx}", "account_type": "supplier"}).json()
+        ids = []
+        for n in (11, 12):
+            self.sync([receipt(self.base + n, None)])
+            oid = self.find(self.base + n)["items"][0]["id"]
+            c.patch(f"{API}/channels/etsy/orders/{oid}", headers=self.support_h,
+                    json={"purchase_cost": "10.00", "shipping_cost": "2.50", "supplier_account_id": supplier["id"]})
+            ids.append(oid)
+        sid = str(supplier["id"])
+        pending = c.get(f"{API}/channels/etsy/supplier-payments", headers=self.sales_h,
+                        params={"supplier": sid}).json()
+        self.assertEqual(pending["total"], 2)
+        self.assertEqual(str(pending["items"][0]["owed"]), "12.50")
+        overview = c.get(f"{API}/channels/etsy/supplier-payments/overview", headers=self.sales_h,
+                         params={"supplier": sid}).json()
+        self.assertEqual((overview["pending_count"], str(overview["pending_amount"])), (2, "25.00"))
+
+        self.assertEqual(c.post(f"{API}/channels/etsy/supplier-payments/settle", headers=self.support_h,
+                                json={"order_ids": ids}).status_code, 403)
+        done = c.post(f"{API}/channels/etsy/supplier-payments/settle", headers=self.admin_h,
+                      json={"order_ids": ids, "reference": "INV-7"})
+        self.assertEqual((done.status_code, done.json()["settled"]), (200, 2), done.text)
+        settled = c.get(f"{API}/channels/etsy/supplier-payments", headers=self.sales_h,
+                        params={"supplier": sid, "state": "settled"}).json()
+        self.assertEqual({r["payment_ref"] for r in settled["items"]}, {"INV-7"})
+        order = c.get(f"{API}/channels/etsy/orders/{ids[0]}", headers=self.sales_h).json()
+        self.assertEqual(order["supplier_payment"], "settled")
+        self.assertIn("payment", [h["kind"] for h in order["history"]])
+
+        self.assertEqual(c.post(f"{API}/channels/etsy/supplier-payments/{ids[0]}/undo", headers=self.admin_h,
+                                json={"reason": "wrong invoice"}).status_code, 200)
+        self.assertEqual(c.get(f"{API}/channels/etsy/orders/{ids[0]}", headers=self.sales_h).json()["supplier_payment"],
+                         "pending")
+
+        csv = c.get(f"{API}/channels/etsy/supplier-payments/export", headers=self.sales_h,
+                    params={"supplier": sid, "state": "all"})
+        self.assertEqual(csv.status_code, 200)
+        self.assertIn("Etsy order", csv.content.decode("utf-8-sig").splitlines()[0])
+        xlsx = c.get(f"{API}/channels/etsy/supplier-payments/export", headers=self.sales_h,
+                     params={"supplier": sid, "format": "xlsx"})
+        self.assertEqual((xlsx.status_code, xlsx.content[:2]), (200, b"PK"))
