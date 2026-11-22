@@ -203,12 +203,12 @@ class OrderService:
         }
 
     def _event(self, o: ChannelOrder, actor, kind: str, message: str, frm: str | None = None,
-               to: str | None = None) -> None:
+               to: str | None = None, source: str = "team") -> None:
         self.session.add(ChannelOrderEvent(order_id=o.id, kind=kind, from_status=frm, to_status=to,
-                                           message=message[:500], source="team", actor_id=actor.id,
+                                           message=message[:500], source=source, actor_id=actor.id,
                                            actor_name=getattr(actor, "full_name", None) or actor.email))
 
-    async def update(self, order_id: int, actor, patch: dict[str, Any]) -> dict[str, Any]:
+    async def update(self, order_id: int, actor, patch: dict[str, Any], *, source: str = "team") -> dict[str, Any]:
         o = await self.get(order_id)
         unknown = set(patch) - set(EDITABLE)
         if unknown:
@@ -240,13 +240,14 @@ class OrderService:
             o.tracking_sent_at, o.tracking_error = None, None  # sending tracking to Etsy comes in a later phase
         for kind, lines in changed.items():
             if lines:
-                self._event(o, actor, kind, "; ".join(lines))
+                self._event(o, actor, kind, "; ".join(lines), source=source)
         await self.audit.record("channel.order_update", actor=actor, entity_type="channel_order", entity_id=o.id,
                                 changes={"order": o.external_id, "fields": sorted(k for k in patch if k in EDITABLE)})
         await self.session.commit()
         return await self.detail(o.id)
 
-    async def set_status(self, order_id: int, actor, status: str, note: str | None) -> dict[str, Any]:
+    async def set_status(self, order_id: int, actor, status: str, note: str | None, *,
+                         source: str = "team") -> dict[str, Any]:
         o = await self.get(order_id)
         if not etsy_status.is_valid(status):
             raise ValidationFailedError("Unknown status")
@@ -262,7 +263,7 @@ class OrderService:
         if status == etsy_status.DELIVERED and not o.delivered_at:
             o.delivered_at = now
         msg = f"{etsy_status.LABELS[old]} → {etsy_status.LABELS[status]}" + (f": {note.strip()}" if note and note.strip() else "")
-        self._event(o, actor, "status", msg, old, status)
+        self._event(o, actor, "status", msg, old, status, source=source)
         await self.audit.record("channel.order_status", actor=actor, entity_type="channel_order", entity_id=o.id,
                                 changes={"order": o.external_id, "status": [old, status]})
         await self.session.commit()

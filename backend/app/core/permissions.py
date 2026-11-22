@@ -16,6 +16,7 @@ class Role(StrEnum):
     SUPPORT = "support"
     MARKETING = "marketing"
     READ_ONLY = "read_only"
+    SUPPLIER = "supplier"  # an outside supplier's login: only their own marketplace orders and payments
 
 
 class Permission(StrEnum):
@@ -68,6 +69,9 @@ class Permission(StrEnum):
     # Inbox (the mailboxes the CRM reads — SPEC §3.9)
     INBOX_MANAGE = "inbox:manage"
 
+    # The supplier portal (role "supplier" only; staff never need it)
+    SUPPLIER_PORTAL = "supplier:portal"
+
 
 P = Permission
 
@@ -119,6 +123,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.SUPPORT: _SUPPORT,
     Role.MARKETING: _MARKETING,
     Role.READ_ONLY: _READ,
+    Role.SUPPLIER: frozenset({P.SUPPLIER_PORTAL}),
 }
 
 ROLE_LABELS: dict[Role, str] = {
@@ -128,6 +133,7 @@ ROLE_LABELS: dict[Role, str] = {
     Role.SUPPORT: "Support",
     Role.MARKETING: "Marketing",
     Role.READ_ONLY: "Read-only",
+    Role.SUPPLIER: "Supplier",
 }
 
 
