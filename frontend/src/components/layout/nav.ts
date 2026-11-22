@@ -112,6 +112,7 @@ export const SETTINGS_NAV: NavGroup[] = [
     label: "System",
     items: [
       { href: "/settings/integrations", label: "Integrations", icon: "globe", permission: "settings:manage" },
+      { href: "/settings/channels", label: "Sales channels", icon: "cart", permission: "channels:manage" },
       { href: "/settings/deployments", label: "Deployments", icon: "download", permission: "settings:manage" },
       { href: "/settings/environment", label: "Test mode", icon: "flask", permission: "settings:manage" },
     ],

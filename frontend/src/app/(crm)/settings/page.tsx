@@ -19,6 +19,7 @@ const ABOUT: Record<string, string> = {
   "/settings/email": "The mailbox the CRM sends from, and its limits.",
   "/settings/email-accounts": "Mailboxes the inbox reads customer email from.",
   "/settings/integrations": "The connection to the shop and other channels.",
+  "/settings/channels": "Connect Etsy (and later Amazon, Walmart) to bring in listings and orders.",
   "/settings/deployments": "When merged changes go live, and the deploy log.",
   "/settings/environment": "Work on a copy of the data without touching the real one.",
 };
