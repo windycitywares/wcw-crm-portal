@@ -24,11 +24,18 @@ export default function EtsyHome() {
             {conn ? (
               <>
                 <p>{conn.connected ? <Pill tone="success">Connected</Pill> : <Pill tone="warning">Not connected</Pill>} {conn.shop_name}</p>
-                <p className="text-muted">Listings synced {conn.listings_synced_at ? formatDateTime(conn.listings_synced_at) : "not yet"}</p>
+                <p className="text-muted">Listings synced {conn.listings_synced_at ? formatDateTime(conn.listings_synced_at) : "not yet"} · orders synced {conn.orders_synced_at ? formatDateTime(conn.orders_synced_at) : "not yet"}</p>
                 {conn.last_error && <p className="text-danger">{conn.last_error}</p>}
               </>
             ) : <p className="text-muted">Loading…</p>}
             {can("channels:manage") && <Link href="/settings/channels" className="text-accent-strong hover:underline">Settings → Sales channels</Link>}
+          </PanelBody>
+        </Panel>
+        <Panel>
+          <PanelHeader title="Orders" description="Paid Etsy orders: purchase from the supplier, ship, track, see the profit." />
+          <PanelBody className="flex flex-wrap gap-4 text-sm font-medium">
+            <Link href="/channels/etsy/orders?view=attention" className="text-accent-strong hover:underline">Needs attention</Link>
+            <Link href="/channels/etsy/orders" className="text-accent-strong hover:underline">Open orders</Link>
           </PanelBody>
         </Panel>
         <Panel>

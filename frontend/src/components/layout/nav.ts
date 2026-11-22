@@ -80,6 +80,7 @@ export const NAV: NavGroup[] = [
 export const CHANNEL_NAV: Record<string, NavItem[]> = {
   etsy: [
     { href: "/channels/etsy", label: "Etsy", icon: "cart", permission: "channels:view" },
+    { href: "/channels/etsy/orders", label: "Orders", icon: "orders", permission: "channels:view", child: true },
     { href: "/channels/etsy/listings", label: "Listings", icon: "tag", permission: "channels:view", child: true },
   ],
 };
