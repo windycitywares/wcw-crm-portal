@@ -30,6 +30,7 @@ from app.core.exceptions import NotFoundError, PermissionDeniedError, Validation
 from app.core.pagination import PageParams
 from app.core.permissions import Permission, has_permission
 from app.integrations.shop.client import ShopApiError, shop_client
+from app.modules.accounts.service import AccountService
 from app.modules.activity.service import TimelineService
 from app.modules.audit.service import AuditService, diff
 from app.modules.customfields.service import CustomFieldService
@@ -48,7 +49,7 @@ from .schemas import (
 )
 
 ENTITY = "deal"
-TRACKED = ("title", "description", "customer_id", "stage_id", "status", "value", "currency", "probability",
+TRACKED = ("title", "description", "customer_id", "account_id", "stage_id", "status", "value", "currency", "probability",
            "expected_close_on", "closed_at", "owner_id", "source", "lost_reason", "position")
 
 # Starter board (SPEC §3.3 mentions Custom order and Wholesale as examples), used when a pipeline is
@@ -149,6 +150,8 @@ class SalesService:
         pipelines = {p.id: p.name for p in pipeline_rows}
         customer_ids = [d.customer_id for d in deals if d.customer_id]
         names = await entity_labels(self.session, "customer", customer_ids) if customer_ids else {}
+        account_ids = sorted({d.account_id for d in deals if d.account_id})
+        accounts = await AccountService(self.session).names(account_ids) if account_ids else {}
         people = {u.id: u.full_name for u in await UserService(self.session).directory()}
         out = []
         for d in deals:
@@ -158,6 +161,7 @@ class SalesService:
             item.pipeline_id = stage.pipeline_id if stage else None
             item.pipeline_name = pipelines.get(stage.pipeline_id) if stage else None
             item.customer_name = names.get(d.customer_id) if d.customer_id else None
+            item.account_name = accounts.get(d.account_id) if d.account_id else None
             item.owner_name = people.get(d.owner_id) if d.owner_id else None
             item.weighted_value = weighted_value(d)
             out.append(item)
@@ -212,9 +216,10 @@ class SalesService:
     # ---- reads --------------------------------------------------------------------------------
     async def list(self, user, params: PageParams, *, view: str = "all", status: str | None = None,
                    pipeline_id: int | None = None, stage_id: int | None = None, owner_id: int | None = None,
-                   customer_id: int | None = None, q: str | None = None) -> DealPage:
+                   customer_id: int | None = None, q: str | None = None,
+                   account_id: int | None = None) -> DealPage:
         filters: dict[str, Any] = {"status": status, "pipeline_id": pipeline_id, "stage_id": stage_id,
-                                   "customer_id": customer_id, "q": q}
+                                   "customer_id": customer_id, "q": q, "account_id": account_id}
         if view == "mine":
             filters["owner_id"] = user.id
         elif view == "unassigned":
@@ -268,6 +273,7 @@ class SalesService:
         self._check_owner(actor, owner_id)
         if values.get("customer_id") is not None:
             await check_entity_access(self.session, actor, "customer", values["customer_id"], write=False)
+        await AccountService(self.session).require(values.get("account_id"))
         stage = await self._stage(values["stage_id"]) if values.get("stage_id") is not None else None
         if "stage_id" not in values:
             first = await self.stages.stages((await self._pipeline(None)).id)
@@ -307,6 +313,8 @@ class SalesService:
             self._check_owner(actor, values["owner_id"], deal.owner_id)
         if values.get("customer_id") is not None and values["customer_id"] != deal.customer_id:
             await check_entity_access(self.session, actor, "customer", values["customer_id"], write=False)
+        if values.get("account_id") is not None and values["account_id"] != deal.account_id:
+            await AccountService(self.session).require(values["account_id"])
         await self._check_lookups(values, deal)
 
         moved = "stage_id" in values and values["stage_id"] != deal.stage_id

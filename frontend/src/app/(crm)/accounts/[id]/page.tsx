@@ -16,6 +16,7 @@ import { AccountDialog } from "@/modules/accounts/AccountDialog";
 import { accountsApi, type Account } from "@/modules/accounts/api";
 import { contactsApi, type Contact } from "@/modules/contacts/api";
 import { NotesPanel } from "@/modules/records/NotesPanel";
+import { AccountDeals } from "@/modules/sales/AccountDeals";
 import { TagEditor } from "@/modules/records/TagEditor";
 import { Timeline } from "@/modules/records/Timeline";
 import { useLookups } from "@/modules/settings/useLookups";
@@ -214,6 +215,7 @@ export default function AccountPage() {
           </Panel>
         </div>
         <div className="grid content-start gap-6">
+          {can("sales:view") && <AccountDeals accountId={account.id} accountName={account.name} onChange={changed} />}
           <NotesPanel record={record} onChange={changed} />
           <Timeline record={record} refreshKey={`${refresh}-${account.updated_at}`} />
         </div>

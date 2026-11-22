@@ -70,6 +70,7 @@ class DealBase(BaseModel):
     title: Annotated[str | None, Field(default=None, max_length=200), AfterValidator(_strip)] = None
     description: Annotated[str | None, Field(default=None, max_length=20_000), AfterValidator(_strip)] = None
     customer_id: int | None = None
+    account_id: int | None = None
     stage_id: int | None = None
     status: Status | None = None
     value: Decimal = Field(default=Decimal("0"), ge=0, le=Decimal("9999999999.99"))
@@ -99,6 +100,8 @@ class DealOut(BaseModel):
     description: str | None
     customer_id: int | None
     customer_name: str | None = None
+    account_id: int | None = None
+    account_name: str | None = None
     pipeline_id: int | None = None
     pipeline_name: str | None = None
     stage_id: int | None

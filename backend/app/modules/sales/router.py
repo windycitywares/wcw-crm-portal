@@ -85,10 +85,11 @@ async def list_deals(
     status_: Annotated[Literal["open", "won", "lost", "all"], Query(alias="status")] = "open",
     pipeline_id: int | None = None, stage_id: int | None = None, owner_id: int | None = None,
     customer_id: int | None = None, q: Annotated[str | None, Query(max_length=100)] = None,
+    account_id: int | None = None,
 ) -> DealPage:
     return await SalesService(session).list(
         user, page, view=view, status=None if status_ == "all" else status_, pipeline_id=pipeline_id,
-        stage_id=stage_id, owner_id=owner_id, customer_id=customer_id, q=q)
+        stage_id=stage_id, owner_id=owner_id, customer_id=customer_id, q=q, account_id=account_id)
 
 
 @router.post("/deals", response_model=DealOut, status_code=status.HTTP_201_CREATED)

@@ -169,9 +169,9 @@ class AccountService:
         return await self.get(account.id)
 
     async def ensure(self, name: str, account_type: str, actor) -> Account:
-        """For other modules (suppliers, lead conversion): the live account of this name and type, made if
+        """For other modules (suppliers, lead conversion): the live account of this name (any type), made with this type if
         missing. Flushes, never commits — the caller owns the transaction."""
-        existing = await self.repo.by_name(name, account_type=account_type)
+        existing = await self.repo.by_name(name)  # one organisation, one row — whatever else it is to us
         if existing is not None:
             return existing
         await self.lookups.require(KIND, account_type)

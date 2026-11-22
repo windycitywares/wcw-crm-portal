@@ -186,6 +186,15 @@ class LeadTests(unittest.TestCase):
         self.assertEqual((deal["status"], deal["owner_id"], deal["expected_close_on"]), ("open", self.sales["id"],
                                                                                         "2026-12-01"))
         self.assertEqual((float(deal["value"]), deal["currency"]), (1500.0, "USD"))
+        # the company became the account: the deal (opportunity) and the person are at it
+        account_id = converted["converted_account_id"]
+        self.assertIsNotNone(account_id)
+        self.assertEqual(converted["converted_account_name"].lower(), "voss woodworks")
+        self.assertEqual((deal["account_id"], deal["account_name"].lower()), (account_id, "voss woodworks"))
+        people = self.w.client.get(f"{API}/accounts/{account_id}/contacts", headers=self.sales_h).json()
+        self.assertIn(customer_id, [c["customer_id"] for c in people["items"]])
+        on_account = self.w.client.get(f"{API}/sales/deals", headers=self.sales_h, params={"account_id": account_id})
+        self.assertIn(deal_id, [d["id"] for d in on_account.json()["items"]])
         # both timelines tell the story, and the deal shows on the customer
         self.assertTrue(any(t.startswith("Lead converted to customer") for t in self.titles("lead", lead["id"])))
         self.assertIn("Deal opened: Voss Woodworks", self.titles("customer", customer_id))
