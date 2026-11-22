@@ -244,7 +244,7 @@ class ContactService:
         contact.account_id = None
         contact.updated_by = actor.id
 
-
+    async def _ensure_customer(self, contact: Contact, actor) -> None:
         """A contact labelled 'customer' must have a customer record, so it shows in the Customers tab.
 
         Creates one when missing (the customer service mirrors it back to this contact). Staff edits win:
