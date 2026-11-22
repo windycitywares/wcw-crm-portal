@@ -13,6 +13,7 @@ from app.modules.users.models import User
 
 from .catalog import CHANNELS
 from .connection import EtsyConnectionService
+from .dashboard import EtsyDashboard
 from .etsy import status as etsy_status
 from .listings import EtsyListingSync, ListingService
 from .orders import OrderService
@@ -235,3 +236,14 @@ async def payments_settle(body: SettleIn, session: SessionDep, actor: Payer) -> 
 async def payments_undo(order_id: int, body: UndoIn, session: SessionDep, actor: Payer) -> dict[str, bool]:
     await SupplierPayments(session).unsettle(actor, order_id, body.reason)
     return {"ok": True}
+
+
+@router.get("/etsy/dashboard")
+async def etsy_dashboard(
+    response: Response, session: SessionDep, start: date | None = None, end: date | None = None,
+    listing_id: int | None = None, supplier: Annotated[str | None, Query(max_length=20)] = None,
+) -> dict[str, Any]:
+    """Sales, costs, profit and fulfilment for the period (default: the last 30 days) against the one before it."""
+    response.headers["Cache-Control"] = "no-store"
+    board = EtsyDashboard(session)
+    return await board.build(await board.range(start, end), listing_id, supplier)

@@ -336,3 +336,17 @@ class EtsyOrderTests(unittest.TestCase):
         xlsx = c.get(f"{API}/channels/etsy/supplier-payments/export", headers=self.sales_h,
                      params={"supplier": sid, "format": "xlsx"})
         self.assertEqual((xlsx.status_code, xlsx.content[:2]), (200, b"PK"))
+
+    def test_dashboard_answers_for_a_period(self):
+        c = self.w.client
+        self.sync([receipt(self.base + 21, None, created_timestamp=1767225600)])  # 2026-01-01
+        board = c.get(f"{API}/channels/etsy/dashboard", headers=self.sales_h,
+                      params={"start": "2025-12-25", "end": "2026-01-07"})
+        self.assertEqual(board.status_code, 200, board.text)
+        body = board.json()
+        self.assertGreaterEqual(body["totals"]["orders"], 1)
+        self.assertEqual(body["range"]["granularity"], "day")
+        self.assertEqual(len(body["series"]), 14)
+        self.assertEqual([k["key"] for k in body["kpis"]][:3], ["orders", "items", "revenue"])
+        self.assertEqual(c.get(f"{API}/channels/etsy/dashboard", headers=self.sales_h,
+                               params={"start": "2026-02-01", "end": "2026-01-01"}).status_code, 422)
