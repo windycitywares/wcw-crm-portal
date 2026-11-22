@@ -42,6 +42,10 @@ export default function EtsyHome() {
           <PanelHeader title="Listings" description="Etsy's products, with the supplier and what each costs you." />
           <PanelBody><Link href="/channels/etsy/listings" className="text-sm font-medium text-accent-strong hover:underline">Open Etsy listings</Link></PanelBody>
         </Panel>
+        <Panel>
+          <PanelHeader title="Supplier payments" description="What each supplier is owed and what you've paid, with exports for the books." />
+          <PanelBody><Link href="/channels/etsy/payments" className="text-sm font-medium text-accent-strong hover:underline">Open supplier payments</Link></PanelBody>
+        </Panel>
       </div>
     </>
   );

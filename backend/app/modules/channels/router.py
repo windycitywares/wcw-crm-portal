@@ -2,7 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, Field
@@ -17,10 +17,14 @@ from .etsy import status as etsy_status
 from .listings import EtsyListingSync, ListingService
 from .orders import OrderService
 from .orders_sync import EtsyOrderSync
+from .payments import SupplierPayments
 
 router = APIRouter(prefix="/channels", tags=["channels"], dependencies=[Depends(require(Permission.CHANNELS_VIEW))])
 Manager = Annotated[User, Depends(require(Permission.CHANNELS_MANAGE))]
 Worker = Annotated[User, Depends(require(Permission.CHANNELS_EDIT))]
+Payer = Annotated[User, Depends(require(Permission.CHANNELS_PAYMENTS))]
+PaymentState = Literal["pending", "settled", "cost_missing", "all"]
+XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 class CredentialsIn(BaseModel):
@@ -157,3 +161,77 @@ async def update_etsy_order(order_id: int, body: OrderPatch, session: SessionDep
 @router.post("/etsy/orders/{order_id}/status")
 async def set_etsy_order_status(order_id: int, body: StatusIn, session: SessionDep, actor: Worker) -> dict[str, Any]:
     return await OrderService(session).set_status(order_id, actor, body.status, body.note)
+
+
+# ---- supplier payments: what each supplier is owed (purchase + shipping cost), recorded and exported -------------
+
+
+class SettleIn(BaseModel):
+    order_ids: list[int] = Field(min_length=1, max_length=500)
+    paid_on: date | None = None
+    reference: str | None = Field(default=None, max_length=100)
+    note: str | None = Field(default=None, max_length=300)
+    amount: Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)] | None = None
+
+
+class UndoIn(BaseModel):
+    reason: str | None = Field(default=None, max_length=300)
+
+
+def _today() -> date:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).date()
+
+
+@router.get("/etsy/supplier-payments/overview")
+async def payments_overview(
+    response: Response, session: SessionDep,
+    supplier: Annotated[str | None, Query(max_length=20)] = None,
+    date_from: date | None = None, date_to: date | None = None,
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    return await SupplierPayments(session).overview(supplier, date_from, date_to)
+
+
+@router.get("/etsy/supplier-payments")
+async def payments_list(
+    response: Response, session: SessionDep, state: PaymentState = "pending",
+    supplier: Annotated[str | None, Query(max_length=20)] = None,
+    date_from: date | None = None, date_to: date | None = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    rows, total = await SupplierPayments(session).rows(state, supplier, date_from, date_to, page_size,
+                                                       (page - 1) * page_size)
+    return {"items": rows, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/etsy/supplier-payments/export")
+async def payments_export(
+    session: SessionDep, format: Literal["csv", "xlsx"] = "csv", state: PaymentState = "pending",
+    supplier: Annotated[str | None, Query(max_length=20)] = None,
+    date_from: date | None = None, date_to: date | None = None,
+) -> Response:
+    service = SupplierPayments(session)
+    rows, _ = await service.rows(state, supplier, date_from, date_to)
+    name = f"supplier-payments-{state}-{_today().isoformat()}"
+    if format == "xlsx":
+        data, mime, ext = service.xlsx_bytes(rows, f"{state.title()} payments"), XLSX_MIME, "xlsx"
+    else:
+        data, mime, ext = service.csv_bytes(rows), "text/csv; charset=utf-8", "csv"
+    return Response(data, media_type=mime, headers={
+        "Content-Disposition": f'attachment; filename="{name}.{ext}"', "Cache-Control": "no-store"})
+
+
+@router.post("/etsy/supplier-payments/settle")
+async def payments_settle(body: SettleIn, session: SessionDep, actor: Payer) -> dict[str, Any]:
+    return await SupplierPayments(session).settle(actor, body.order_ids, body.paid_on or _today(), body.reference,
+                                                  body.note, body.amount)
+
+
+@router.post("/etsy/supplier-payments/{order_id}/undo")
+async def payments_undo(order_id: int, body: UndoIn, session: SessionDep, actor: Payer) -> dict[str, bool]:
+    await SupplierPayments(session).unsettle(actor, order_id, body.reason)
+    return {"ok": True}
