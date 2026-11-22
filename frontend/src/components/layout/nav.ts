@@ -76,6 +76,23 @@ export const NAV: NavGroup[] = [
  * The sidebar while in Settings (as in the shop admin): a way back to the dashboard, then these sections.
  * Adding a settings page = one line here.
  */
+/** What each connected sales channel adds under "External shops" (the group only shows connected ones). */
+export const CHANNEL_NAV: Record<string, NavItem[]> = {
+  etsy: [
+    { href: "/channels/etsy", label: "Etsy", icon: "cart", permission: "channels:view" },
+    { href: "/channels/etsy/listings", label: "Listings", icon: "tag", permission: "channels:view", child: true },
+  ],
+};
+
+/** The sidebar with an "External shops" group (after Sales) for the connected channels. */
+export function withChannels(nav: NavGroup[], connected: string[]): NavGroup[] {
+  const items = connected.flatMap((key) => CHANNEL_NAV[key] ?? []);
+  if (!items.length) return nav;
+  const at = nav.findIndex((g) => g.label === "Sales");
+  const group: NavGroup = { label: "External shops", items };
+  return at < 0 ? [...nav, group] : [...nav.slice(0, at + 1), group, ...nav.slice(at + 1)];
+}
+
 export const SETTINGS_NAV: NavGroup[] = [
   {
     label: "Team",
@@ -132,7 +149,9 @@ export function isActive(pathname: string, href: string) {
 }
 
 /** The one entry that owns this page: the longest match, so /campaigns/templates lights Templates and not Campaigns. */
-export function activeHref(pathname: string, groups: NavGroup[] = [...SETTINGS_NAV, ...NAV]): string | undefined {
+const CHANNEL_GROUP: NavGroup = { items: Object.values(CHANNEL_NAV).flat() };
+
+export function activeHref(pathname: string, groups: NavGroup[] = [...SETTINGS_NAV, ...NAV, CHANNEL_GROUP]): string | undefined {
   let best: string | undefined;
   for (const group of groups) for (const item of group.items) if (isActive(pathname, item.href) && (!best || item.href.length > best.length)) best = item.href;
   return best;
@@ -141,6 +160,6 @@ export function activeHref(pathname: string, groups: NavGroup[] = [...SETTINGS_N
 export function titleFor(pathname: string) {
   if (EXTRA_TITLES[pathname]) return EXTRA_TITLES[pathname];
   const href = activeHref(pathname);
-  for (const group of [...SETTINGS_NAV, ...NAV]) for (const item of group.items) if (item.href === href) return item.label;
+  for (const group of [...SETTINGS_NAV, ...NAV, CHANNEL_GROUP]) for (const item of group.items) if (item.href === href) return item.label;
   return "CRM";
 }
