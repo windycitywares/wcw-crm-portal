@@ -44,6 +44,7 @@ INSTALLED_MODULES: tuple[str, ...] = (
     "app.modules.leads",
     "app.modules.campaigns",
     "app.modules.suppliers",
+    "app.modules.channels",
     "app.modules.reports",
     "app.modules.notifications",
     "app.integrations.shop",

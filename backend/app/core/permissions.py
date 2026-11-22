@@ -59,6 +59,12 @@ class Permission(StrEnum):
     SUPPLIERS_VIEW = "suppliers:view"
     SUPPLIERS_EDIT = "suppliers:edit"
 
+    # Sales channels (external shops: Etsy …): view orders/listings, work them, connect the shop, pay suppliers
+    CHANNELS_VIEW = "channels:view"
+    CHANNELS_EDIT = "channels:edit"
+    CHANNELS_MANAGE = "channels:manage"  # connect / disconnect a marketplace (admin)
+    CHANNELS_PAYMENTS = "channels:payments"  # settle what suppliers are owed (admin)
+
     # Inbox (the mailboxes the CRM reads — SPEC §3.9)
     INBOX_MANAGE = "inbox:manage"
 
@@ -70,6 +76,7 @@ _READ = frozenset({
 })
 
 _SALES = frozenset({
+    P.CHANNELS_VIEW,
     P.CUSTOMERS_VIEW, P.CUSTOMERS_EDIT_OWN,
     P.SALES_VIEW, P.SALES_EDIT_OWN,
     P.TASKS_VIEW, P.TASKS_EDIT_OWN,
@@ -78,6 +85,7 @@ _SALES = frozenset({
 })
 
 _SUPPORT = frozenset({
+    P.CHANNELS_VIEW, P.CHANNELS_EDIT,  # fulfilment: buying from the supplier, shipping, tracking
     P.CUSTOMERS_VIEW, P.CUSTOMERS_EDIT_ANY,
     P.TASKS_VIEW, P.TASKS_EDIT_OWN,
     P.TICKETS_VIEW, P.TICKETS_EDIT,
@@ -97,6 +105,7 @@ _MANAGER = _READ | _SALES | _SUPPORT | _MARKETING | frozenset({
     P.TASKS_EDIT_ANY, P.TASKS_ASSIGN,
     P.TICKETS_ASSIGN,
     P.SUPPLIERS_EDIT,
+    P.CHANNELS_EDIT,
     P.INBOX_MANAGE,
     P.LOOKUPS_MANAGE,
     P.DATA_EXPORT,
