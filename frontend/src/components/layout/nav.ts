@@ -113,6 +113,7 @@ export const SETTINGS_NAV: NavGroup[] = [
       { href: "/settings/users", label: "Users", icon: "users", permission: "users:manage" },
       { href: "/settings/supplier-logins", label: "Supplier logins", icon: "key", permission: "users:manage" },
       { href: "/settings/audit", label: "Audit log", icon: "shield", permission: "audit:view" },
+      { href: "/settings/trash", label: "Trash", icon: "trash", permission: "trash:manage" },
     ],
   },
   {
