@@ -77,7 +77,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
   const removeCampaign = async () => {
     if (!id) return;
-    const confirmed = window.confirm(`Delete ${campaign?.name ?? "this campaign"}? This cannot be undone.`);
+    const confirmed = window.confirm(`Move ${campaign?.name ?? "this campaign"} to the Trash? It can be restored from Settings → Trash.`);
     if (!confirmed) return;
 
     setBusy(true);

@@ -215,7 +215,7 @@ export default function ContactsPage() {
         open={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
         title="Delete contact"
-        message={`Delete "${deleteTarget?.name}"? This can't be undone.`}
+        message={`Move "${deleteTarget?.name}" to the Trash? It can be restored from Settings → Trash until it is emptied.`}
         onConfirm={handleDeleteConfirmed}
       />
     </div>

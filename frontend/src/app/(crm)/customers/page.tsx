@@ -319,7 +319,7 @@ export default function CustomersPage() {
         open={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
         title="Delete customer"
-        message={`Delete "${deleteTarget?.name}"? This can't be undone.`}
+        message={`Move "${deleteTarget?.name}" to the Trash? It can be restored from Settings → Trash until it is emptied.`}
         onConfirm={handleDeleteConfirmed}
       />
     </>
