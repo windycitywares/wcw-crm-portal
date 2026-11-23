@@ -56,6 +56,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import rate_limit
 from app.core.config import get_settings
 from app.core.entities import check_entity_access
+from app.core.trash import ensure_no_children
 from app.core.exceptions import ConflictError, NotFoundError, TooManyRequestsError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.integrations.email import EmailSender, Mail, get_email_sender
@@ -289,6 +290,7 @@ class CampaignService:
 
     async def delete_template(self, template_id: int, actor) -> None:
         template = await self._get(template_id)
+        await ensure_no_children(self.session, "email_template", template)
         await self.templates.soft_delete(template)
         await self.audit.record("email_template.delete", actor=actor, entity_type=ENTITY, entity_id=template.id,
                                 changes={"name": template.name})
@@ -489,6 +491,7 @@ class CampaignService:
     async def delete_list(self, list_id: int, actor) -> None:
         """Soft-delete a list: the memberships stay (a mistake is recoverable) but no campaign sees it."""
         target = await self._get_list(list_id)
+        await ensure_no_children(self.session, "target_list", target)
         await self.lists.soft_delete(target)
         await self.audit.record("target_list.delete", actor=actor, entity_type=LIST, entity_id=target.id,
                                 changes={"name": target.name})

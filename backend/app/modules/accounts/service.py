@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.entities import EntityType, register_entity
+from app.core.trash import ensure_no_children
 from app.core.exceptions import NotFoundError, PermissionDeniedError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.core.permissions import Permission, has_permission
@@ -213,6 +214,7 @@ class AccountService:
         account = await self._get(account_id)
         if not has_permission(actor.role, Permission.CUSTOMERS_EDIT_ANY):
             raise PermissionDeniedError("Only managers can archive accounts")
+        await ensure_no_children(self.session, "account", account)
         await self.repo.soft_delete(account)
         await self.audit.record("account.delete", actor=actor, entity_type=ENTITY, entity_id=account.id,
                                 changes={"name": account.name})

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.entities import EntityType, RecordsMerged, register_entity
 from app.core.events import bus
+from app.core.trash import ensure_no_children
 from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.core.permissions import Permission, has_permission
@@ -191,6 +192,7 @@ class CustomerService:
         customer = await self._get(customer_id)
         if not has_permission(actor.role, Permission.CUSTOMERS_EDIT_ANY):
             raise PermissionDeniedError("Only managers and support can delete customers")
+        await ensure_no_children(self.session, "customer", customer)
         await self.repo.soft_delete(customer)
         await self.audit.record("customer.delete", actor=actor, entity_type=ENTITY, entity_id=customer.id,
                                 changes={"name": customer.display_name})

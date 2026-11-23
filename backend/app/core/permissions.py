@@ -26,7 +26,8 @@ class Permission(StrEnum):
     LOOKUPS_MANAGE = "lookups:manage"  # customer/supplier/ticket/task types, pipelines, SLA
     AUDIT_VIEW = "audit:view"
     DATA_EXPORT = "data:export"
-    DATA_DELETE = "data:delete"  # GDPR erase, hard delete
+    DATA_DELETE = "data:delete"  # GDPR erase, hard delete (incl. emptying the Trash now)
+    TRASH_MANAGE = "trash:manage"  # see what was deleted and restore it
     REPORTS_VIEW = "reports:view"
 
     # Customers
@@ -114,6 +115,7 @@ _MANAGER = _READ | _SALES | _SUPPORT | _MARKETING | frozenset({
     P.LOOKUPS_MANAGE,
     P.DATA_EXPORT,
     P.AUDIT_VIEW,
+    P.TRASH_MANAGE,
 })
 
 ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
