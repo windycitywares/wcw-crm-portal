@@ -434,7 +434,10 @@ class UrnService:
                                                       UrnVariation.sku.is_not(None),
                                                       or_(UrnVariation.etsy_sku.is_(None),
                                                           UrnVariation.etsy_sku != UrnVariation.sku)))).scalar_one()
-        return {"listings_without_urn": max(listings - urns, 0), "urns": urns, "no_supplier": no_supplier,
+        open_rows = select(UrnVariation.urn_id).where(UrnVariation.removed.is_(False), UrnVariation.state != "approved")
+        ready = (await self.session.execute(select(func.count()).select_from(Urn).where(
+            live, Urn.supplier_id.is_not(None), Urn.id.not_in(open_rows), Urn.id.in_(priced)))).scalar_one()
+        return {"listings_without_urn": max(listings - urns, 0), "urns": urns, "ready": ready, "no_supplier": no_supplier,
                 "to_review": to_review, "unclear": unclear, "no_prices": no_prices, "sku_differs": mismatched}
 
     async def list(self, *, q: str | None, supplier_id: int | None, needs: str | None, page: int,

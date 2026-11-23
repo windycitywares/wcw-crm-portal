@@ -111,6 +111,7 @@ class EtsyDashboard:
             purchase_cost=o.purchase_cost, shipping_cost=o.shipping_cost, etsy_fees=o.marketplace_fees,
             supplier=o.supplier_account_id, state=(o.ship_address or {}).get("state"),
             country=(o.ship_address or {}).get("country_iso"), items=tuple(items.get(o.id, ())),
+            other_costs=o.other_costs,
         ) for o in rows]
 
     async def build(self, rng: Range, listing_id: int | None = None, supplier: str | None = None) -> dict[str, Any]:

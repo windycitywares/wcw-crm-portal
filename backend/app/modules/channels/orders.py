@@ -46,7 +46,8 @@ def facts(o: ChannelOrder) -> etsy_attention.OrderFacts:
 
 def profit(o: ChannelOrder) -> dict[str, Any]:
     p = etsy_profit.compute(items_total=o.items_total, shipping_charged=o.shipping_charged, discounts=o.discounts,
-                            purchase_cost=o.purchase_cost, shipping_cost=o.shipping_cost, etsy_fees=o.marketplace_fees)
+                            purchase_cost=o.purchase_cost, shipping_cost=o.shipping_cost, etsy_fees=o.marketplace_fees,
+                            extra_costs=o.other_costs)
     return {"revenue": p.revenue, "total_cost": p.total_cost, "net_profit": p.net_profit, "margin_pct": p.margin_pct,
             "missing": ["marketplace_fees" if m == "etsy_fees" else m for m in p.missing],
             "days_to_ship": etsy_profit.days_to_ship(o.paid_at, o.shipped_at)}
@@ -55,7 +56,7 @@ def profit(o: ChannelOrder) -> dict[str, Any]:
 def attention_sql(now: datetime):
     revenue = ChannelOrder.items_total + ChannelOrder.shipping_charged - ChannelOrder.discounts
     cost = (func.coalesce(ChannelOrder.purchase_cost, 0) + func.coalesce(ChannelOrder.shipping_cost, 0)
-            + func.coalesce(ChannelOrder.marketplace_fees, 0))
+            + func.coalesce(ChannelOrder.marketplace_fees, 0) + func.coalesce(ChannelOrder.other_costs, 0))
     return and_(ChannelOrder.status != "cancelled", ChannelOrder.past_order.is_(False), or_(
         and_(ChannelOrder.status == "new", ChannelOrder.paid_at < now - etsy_attention.NOT_PURCHASED_AFTER),
         and_(ChannelOrder.status.in_(etsy_attention.WAITING), ChannelOrder.ship_by < now),
@@ -184,7 +185,8 @@ class OrderService:
             "buyer_phone": o.buyer_phone, "ship_address": o.ship_address, "gift_message": o.gift_message,
             "buyer_note": o.buyer_note, "items_total": o.items_total, "shipping_charged": o.shipping_charged,
             "discounts": o.discounts, "tax": o.tax, "grand_total": o.grand_total, "marketplace_fees": o.marketplace_fees,
-            "purchase_cost": o.purchase_cost, "costs_prefilled": o.costs_prefilled,
+            "purchase_cost": o.purchase_cost, "costs_prefilled": o.costs_prefilled, "other_costs": o.other_costs,
+            "cost_source": o.cost_source,
             "supplier_order_number": o.supplier_order_number, "shipping_cost": o.shipping_cost, "carrier": o.carrier,
             "tracking_sent_at": o.tracking_sent_at, "tracking_error": o.tracking_error, "purchased_at": o.purchased_at,
             "shipped_at": o.shipped_at, "delivered_at": o.delivered_at, "notes": o.notes, "synced_at": o.synced_at,
@@ -236,6 +238,7 @@ class OrderService:
             return await self.detail(o.id)
         if changed["costs"] and "purchase_cost" in patch:
             o.costs_prefilled = False
+            o.cost_source = "manual" if o.purchase_cost is not None else None  # never overwritten by SKU costs
         if changed["tracking"]:
             o.tracking_sent_at, o.tracking_error = None, None  # sending tracking to Etsy comes in a later phase
         for kind, lines in changed.items():

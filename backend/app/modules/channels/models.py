@@ -101,7 +101,10 @@ class ChannelOrder(TimestampMixin, Base):
     marketplace_fees: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     marketplace_fees_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # the team's own
-    purchase_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    purchase_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))  # the supplier's part (what they're owed)
+    other_costs: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))    # our own extras: profit only
+    cost_source: Mapped[str | None] = mapped_column(String(10))  # sku | listing | manual
+    cost_breakdown: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
     costs_prefilled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
     past_order: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
     supplier_account_id: Mapped[int | None] = mapped_column(
@@ -153,4 +156,20 @@ class ChannelOrderEvent(Base):
     source: Mapped[str] = mapped_column(String(10), default="team", server_default="team")
     actor_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"))
     actor_name: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChannelOrderAdjustment(Base):
+    """A one-off cost on one order that adds (reshipping +$6) or subtracts (a supplier refund −$10). `party`:
+    `supplier` changes what they're owed; `ours` only our profit. Always with a note."""
+
+    __tablename__ = "channel_order_adjustments"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    order_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("channel_orders.id", ondelete="CASCADE"), index=True)
+    label: Mapped[str] = mapped_column(String(120))
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    party: Mapped[str] = mapped_column(String(10), default="supplier", server_default="supplier")
+    note: Mapped[str] = mapped_column(String(500))
+    created_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

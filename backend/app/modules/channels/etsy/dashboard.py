@@ -45,6 +45,7 @@ class Order:
     state: str | None
     country: str | None
     items: tuple[Item, ...] = field(default_factory=tuple)
+    other_costs: Decimal | None = None  # our own extras (packaging, labels…): profit only
 
     @property
     def revenue(self) -> Decimal:
@@ -56,7 +57,8 @@ class Order:
 
     @property
     def cost(self) -> Decimal:
-        return (self.purchase_cost or ZERO) + (self.shipping_cost or ZERO) + (self.etsy_fees or ZERO)
+        return ((self.purchase_cost or ZERO) + (self.shipping_cost or ZERO) + (self.etsy_fees or ZERO)
+                + (self.other_costs or ZERO))
 
     @property
     def profit(self) -> Decimal:
