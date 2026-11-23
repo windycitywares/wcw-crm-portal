@@ -211,7 +211,32 @@ export function dealStageLabel(deal: Deal) {
 
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
+/** A person on a deal and the part they play (a `deal_role` key). */
+export interface DealContact {
+  id: number;
+  deal_id: number;
+  deal_title: string;
+  deal_status: string;
+  contact_id: number;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  title: string | null;
+  account_id: number | null;
+  role: string | null;
+  is_primary: boolean;
+  notes: string | null;
+}
+
 export const salesApi = {
+  dealContacts: (dealId: number) => apiFetch<DealContact[]>(`/sales/deals/${dealId}/contacts`),
+  addDealContact: (dealId: number, data: { contact_id: number; role?: string | null; is_primary?: boolean }) =>
+    apiFetch<DealContact>(`/sales/deals/${dealId}/contacts`, json("POST", data)),
+  updateDealContact: (dealId: number, linkId: number, data: { role?: string | null; is_primary?: boolean; notes?: string | null }) =>
+    apiFetch<DealContact>(`/sales/deals/${dealId}/contacts/${linkId}`, json("PATCH", data)),
+  removeDealContact: (dealId: number, linkId: number) =>
+    apiFetch<void>(`/sales/deals/${dealId}/contacts/${linkId}`, { method: "DELETE" }),
+  contactDeals: (contactId: number) => apiFetch<DealContact[]>(`/sales/contact-deals${qs({ contact_id: contactId })}`),
   summary: () => apiFetch<SalesSummary>("/sales/summary"),
   board: (pipelineId?: number) => apiFetch<Board>(`/sales/board${qs({ pipeline_id: pipelineId })}`),
   deals: (f: DealFilters) => apiFetch<Page<Deal>>(`/sales/deals${qs({ ...f })}`),

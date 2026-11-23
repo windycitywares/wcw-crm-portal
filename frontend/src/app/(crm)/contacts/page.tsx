@@ -20,6 +20,7 @@ import { contactsApi, type Contact, type ContactFilters, type ContactInput, type
 import { useLookups } from "@/modules/settings/useLookups";
 import { AccountPicker } from "@/modules/accounts/AccountPicker";
 import { accountsApi, type AccountLink } from "@/modules/accounts/api";
+import { salesApi, type DealContact } from "@/modules/sales/api";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 
@@ -285,6 +286,7 @@ function ContactDialog({ open, contact, typeOptions, onClose, onSaved }: {
         <AccountPicker className="sm:col-span-2" value={accountId} currentName={accountName}
           onChange={(id, name) => { setAccountId(id); setAccountName(name); if (name && !company) setCompany(name); }} />
         {contact && <Organisations contactId={contact.id} />}
+        {contact && <ContactDeals contactId={contact.id} />}
         <Field label="Email" className="sm:col-span-2">{(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
         <Field label="Phone">{(p) => <Input {...p} value={phone} onChange={(e) => setPhone(e.target.value)} />}</Field>
         <Field label="Status">
@@ -340,6 +342,36 @@ function Organisations({ contactId }: { contactId: number }) {
             {l.role && ` · ${l.role}`}
             {l.is_primary && " · main account"}
             {` · ${l.started_on ? formatDate(l.started_on) : "—"}${l.ended_on ? ` – ${formatDate(l.ended_on)}` : " – now"}`}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** The deals the person is on, with the part they play in each. */
+function ContactDeals({ contactId }: { contactId: number }) {
+  const { can } = useAuth();
+  const lookups = useLookups();
+  const allowed = can("sales:view");
+  const [rows, setRows] = useState<DealContact[] | null>(null);
+  useEffect(() => {
+    if (!allowed) return;
+    let live = true;
+    salesApi.contactDeals(contactId).then((r) => { if (live) setRows(r); }).catch(() => { if (live) setRows([]); });
+    return () => { live = false; };
+  }, [contactId, allowed]);
+  if (!rows || rows.length === 0) return null;
+  return (
+    <div className="sm:col-span-2">
+      <p className="mb-1 text-sm font-medium">Deals</p>
+      <ul className="space-y-1 text-sm">
+        {rows.map((r) => (
+          <li key={r.id}>
+            <Link href={`/sales?deal=${r.deal_id}`} className="text-accent-strong hover:underline">{r.deal_title}</Link>
+            {r.role && ` · ${lookups.find("deal_role", r.role)?.label ?? r.role}`}
+            {r.is_primary && " · main contact"}
+            {r.deal_status !== "open" && ` · ${r.deal_status}`}
           </li>
         ))}
       </ul>

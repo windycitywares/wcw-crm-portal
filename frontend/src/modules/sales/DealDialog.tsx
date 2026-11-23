@@ -14,6 +14,7 @@ import { AccountPicker } from "@/modules/accounts/AccountPicker";
 import { useDirectory } from "@/modules/records/useDirectory";
 import { useLookups } from "@/modules/settings/useLookups";
 import { DealItemsPanel } from "./DealItemsPanel";
+import { DealPeoplePanel } from "./DealPeoplePanel";
 import { dealPatch, salesApi, STATUS_LABEL, STATUS_TONE, type Deal, type DealInput, type Pipeline } from "./api";
 
 interface Form {
@@ -341,8 +342,9 @@ export function DealDialog({
                 }}
               />
             ) : (
-              <p className="text-sm text-muted">Save the deal first, then add the products it is made of.</p>
+              <p className="text-sm text-muted">Save the deal first, then add the products it is made of and the people on it.</p>
             )}
+            {deal && <div className="mt-5 border-t border-line pt-4"><DealPeoplePanel dealId={deal.id} canEdit={canEdit} /></div>}
           </div>
         )}
       </Modal>
