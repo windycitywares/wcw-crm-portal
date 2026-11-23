@@ -19,7 +19,9 @@ import type { Page } from "@/lib/types";
 import { contactsApi, type Contact, type ContactFilters, type ContactInput, type ContactStatus } from "@/modules/contacts/api";
 import { useLookups } from "@/modules/settings/useLookups";
 import { AccountPicker } from "@/modules/accounts/AccountPicker";
+import { accountsApi, type AccountLink } from "@/modules/accounts/api";
 import Link from "next/link";
+import { formatDate } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
 const BLANK: ContactFilters = { q: "", type: "", status: "", owner: "any", subscription: "", sort: "-updated", page: 1 };
@@ -282,6 +284,7 @@ function ContactDialog({ open, contact, typeOptions, onClose, onSaved }: {
         <Field label="Job title">{(p) => <Input {...p} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
         <AccountPicker className="sm:col-span-2" value={accountId} currentName={accountName}
           onChange={(id, name) => { setAccountId(id); setAccountName(name); if (name && !company) setCompany(name); }} />
+        {contact && <Organisations contactId={contact.id} />}
         <Field label="Email" className="sm:col-span-2">{(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
         <Field label="Phone">{(p) => <Input {...p} value={phone} onChange={(e) => setPhone(e.target.value)} />}</Field>
         <Field label="Status">
@@ -314,5 +317,32 @@ function ContactDialog({ open, contact, typeOptions, onClose, onSaved }: {
         <Button size="sm" disabled={saving} onClick={submit}>{saving ? "Saving…" : (contact ? "Save" : "Add contact")}</Button>
       </div>
     </Modal>
+  );
+}
+
+/** Every organisation the person is or was at, with their role and dates. The picker above sets the main one;
+ *  further links are added from the account's People panel. */
+function Organisations({ contactId }: { contactId: number }) {
+  const [links, setLinks] = useState<AccountLink[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    accountsApi.linksFor(contactId).then((l) => { if (live) setLinks(l); }).catch(() => { if (live) setLinks([]); });
+    return () => { live = false; };
+  }, [contactId]);
+  if (!links || links.length === 0) return null;
+  return (
+    <div className="sm:col-span-2">
+      <p className="mb-1 text-sm font-medium">Organisations</p>
+      <ul className="space-y-1 text-sm">
+        {links.map((l) => (
+          <li key={l.id} className={l.active ? "" : "text-muted"}>
+            <Link href={`/accounts/${l.account_id}`} className="text-accent-strong hover:underline">{l.account_name}</Link>
+            {l.role && ` · ${l.role}`}
+            {l.is_primary && " · main account"}
+            {` · ${l.started_on ? formatDate(l.started_on) : "—"}${l.ended_on ? ` – ${formatDate(l.ended_on)}` : " – now"}`}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
