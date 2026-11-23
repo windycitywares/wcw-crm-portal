@@ -46,6 +46,7 @@ def register() -> None:
     from app.modules.suppliers.models import Supplier, SupplierProduct
     from app.modules.tasks.models import Task
     from app.modules.tickets.models import Ticket
+    from app.modules.urns.models import Urn
 
     for t in (
         TrashType("customer", "Customer", Customer, lambda x: x.display_name, order=200, restore=_restore_customer,
@@ -77,6 +78,7 @@ def register() -> None:
         TrashType("target_list", "Audience", TargetList, lambda x: x.name, order=250,
                   children=(("campaign", "campaigns", count_in("campaigns", "target_list_id")),)),
         TrashType("campaign", "Campaign", Campaign, lambda x: x.name, order=60),
+        TrashType("urn", "Urn", Urn, lambda x: f"#{x.id} {x.name}", order=60),
         TrashType("note", "Note", Note, lambda x: (x.body or "")[:80], order=10),
     ):
         register_trash(t)
