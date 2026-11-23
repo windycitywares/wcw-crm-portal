@@ -200,12 +200,14 @@ class UrnService:
         added = 0
         for key, (label, etsy_sku, words) in wanted.items():
             row = rows.get(key)
-            if row is None:
+            if row is None or row.state != "approved":  # what nobody approved yet follows the latest sizes and words
                 read = reading.read(words, sizes)
-                row = UrnVariation(urn_id=urn.id, key=key, label=label[:300], quantities=read.quantities,
-                                   state="proposed" if read.clear else "unclear", note=read.note)
-                self.session.add(row)
-                added += 1
+                if row is None:
+                    row = UrnVariation(urn_id=urn.id, key=key, label=label[:300])
+                    self.session.add(row)
+                    added += 1
+                row.quantities, row.note = read.quantities, read.note
+                row.state = "proposed" if read.clear else "unclear"
             row.label, row.etsy_sku, row.removed = label[:300], etsy_sku, False
         for key, row in rows.items():
             if key not in wanted:
