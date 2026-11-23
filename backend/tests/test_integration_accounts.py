@@ -115,7 +115,7 @@ class AccountPeopleTests(unittest.TestCase):
         return res.json()
 
     def person(self, account_id=None):
-        body = {"first_name": "Sam", "email": self.w.email("sam"), "types": ["other"]}
+        body = {"first_name": "Sam", "email": self.w.email("sam"), "types": ["vendor"]}
         if account_id:
             body["account_id"] = account_id
         res = self.w.client.post(f"{API}/contacts", headers=self.h, json=body)
