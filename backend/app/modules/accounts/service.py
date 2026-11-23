@@ -68,9 +68,9 @@ class AccountService:
         return account
 
     async def _out(self, accounts: list[Account]) -> list[AccountOut]:
-        from app.modules.contacts.service import ContactService  # contacts validate accounts: import late
+        from .links import LinkService  # people currently linked, main account or not
 
-        counts = await ContactService(self.session).counts_by_account([a.id for a in accounts])
+        counts = await LinkService(self.session).active_counts([a.id for a in accounts])
         return [AccountOut.model_validate(a).model_copy(update={"contacts_count": counts.get(a.id, 0)})
                 for a in accounts]
 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, HttpUrl
@@ -95,3 +95,36 @@ class AccountOption(BaseModel):
     id: int
     name: str
     account_type: str
+
+
+class AccountLinkIn(BaseModel):
+    contact_id: int
+    role: str | None = Field(default=None, max_length=80)
+    is_primary: bool = False
+    started_on: date | None = None
+
+
+class AccountLinkUpdate(BaseModel):
+    role: str | None = Field(default=None, max_length=80)
+    is_primary: bool | None = None
+    started_on: date | None = None
+    ended_on: date | None = None
+
+
+class AccountLinkOut(BaseModel):
+    """A person at an organisation: who, their role there, and when it held. `is_primary` = their main account."""
+
+    id: int
+    account_id: int
+    account_name: str | None
+    account_type: str | None
+    contact_id: int
+    contact_name: str | None
+    email: str | None
+    phone: str | None
+    title: str | None
+    role: str | None
+    is_primary: bool
+    started_on: date | None
+    ended_on: date | None
+    active: bool
