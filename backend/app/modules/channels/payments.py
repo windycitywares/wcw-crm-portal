@@ -96,6 +96,36 @@ class SupplierPayments:
         people = {u.id: u.full_name for u in await UserService(self.session).directory()}
         return [_row(o, items.get(o.id, []), names, people) for o in orders], total
 
+    async def stats(self, account_id: int) -> dict[str, Any]:
+        """One supplier account's Etsy figures for its supplier page: open orders, to ship and late, owed and paid,
+        and (over the last 90 days) days to ship and the share shipped by Etsy's date."""
+        from .etsy import status as etsy_status
+        from .models import ChannelListing
+
+        now = datetime.now(timezone.utc)
+        rows = (await self.session.execute(select(EtsyOrder).where(
+            EtsyOrder.channel == CHANNEL, EtsyOrder.supplier_account_id == account_id))).scalars().all()
+        live = [o for o in rows if o.status != "cancelled"]
+        waiting = [o for o in live if o.status in ("new", "purchased")]
+        owed = [o for o in live if pay.status(order_status=o.status, purchase_cost=o.purchase_cost,
+                                              paid=o.supplier_paid_at is not None) == pay.PENDING]
+        recent = [o for o in live if o.shipped_at and o.paid_at and o.paid_at >= now - timedelta(days=90)]
+        days = [(o.shipped_at - o.paid_at).total_seconds() / 86400 for o in recent]
+        timed = [o for o in recent if o.ship_by]
+        listings = (await self.session.execute(select(func.count()).select_from(ChannelListing).where(
+            ChannelListing.channel == CHANNEL, ChannelListing.supplier_account_id == account_id))).scalar_one()
+        return {
+            "listings": listings, "orders": len(live),
+            "open_orders": sum(o.status in etsy_status.OPEN_STATUSES for o in live), "to_ship": len(waiting),
+            "late": sum(bool(o.ship_by and now > o.ship_by) for o in waiting),
+            "owed": sum((pay.owed(o.purchase_cost, o.shipping_cost) or Decimal("0") for o in owed), Decimal("0")),
+            "owed_orders": len(owed),
+            "paid": sum((o.supplier_paid_amount or Decimal("0") for o in live), Decimal("0")),
+            "avg_days_to_ship_90d": round(sum(days) / len(days), 1) if days else None,
+            "on_time_rate_90d": round(sum(o.shipped_at <= o.ship_by for o in timed) / len(timed), 3) if timed else None,
+            "last_order_at": max((o.ordered_at for o in live), default=None),
+        }
+
     async def overview(self, supplier: str | None, date_from: date | None, date_to: date | None) -> dict[str, Any]:
         """Per supplier: pending (count, amount owed) and settled (count, amount paid) for the filters; orders whose
         cost is still missing are counted so nobody forgets them."""
