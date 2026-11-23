@@ -49,6 +49,9 @@ class ReadingTests(unittest.TestCase):
             "10 inch + 2 Keepsakes": {"10": 1, "3": 2},
             "Large 10\" Urn & Set of 4 3\" Keepsakes": {"10": 1, "3": 4},
             "Two Keepsakes": {"3": 2},
+            "1 Large 2 keepsake": {"10": 1, "3": 2},
+            "1 Large 4 Keepsake": {"10": 1, "3": 4},
+            "3 inch set of 4": {"3": 4},
         }
         for text, want in cases.items():
             got = reading.read(text, SIZES)
@@ -58,6 +61,9 @@ class ReadingTests(unittest.TestCase):
     def test_unclear_is_never_guessed(self):
         self.assertFalse(reading.read("Blue", SIZES).clear)
         self.assertFalse(reading.read("7 inch", SIZES).clear)
+        twelve = reading.read("12 Inch Extra Large", SIZES)  # "large" must not make a 12 inch a 10 inch
+        self.assertEqual((twelve.quantities, twelve.clear), ({}, False))
+        self.assertIn("12 inch", twelve.note)
         self.assertFalse(reading.read("", SIZES).clear)
 
     def test_keys_and_names(self):

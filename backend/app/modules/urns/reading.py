@@ -59,15 +59,27 @@ def read(text: str, sizes: list[Size]) -> Reading:
     if not raw:
         return Reading(note="No words to read")
     compiled = [(s, _patterns(s)) for s in sizes]
+    known = {s.code for s in sizes}
     found: dict[str, int] = {}
     unread: list[str] = []
     for part in [p for p in SPLIT.split(raw.lower()) if p.strip()]:
+        stated = {m.group(1) for m in STATED.finditer(part)}
+        strange = sorted(n for n in stated if n not in known)
+        if strange:  # "12 inch extra large" is not a 10 inch, whatever word follows
+            unread.append(f"{strange[0]} inch isn't one of your sizes (add it in Settings → Products)")
+            continue
         hits = [(s, pat) for s, pats in compiled for pat in pats if pat.search(part)]
         codes = {s.code for s, _ in hits}
-        if len(codes) != 1:
-            if len(codes) > 1:
+        if len(codes) > 1:  # "1 large 2 keepsake": a count before each size
+            pairs = _pairs(part, [s for s in sizes if s.code in codes])
+            if pairs is None:
                 unread.append(f"“{part.strip()}” names more than one size")
-            elif re.search(r"\d", part) or len(SPLIT.split(raw)) > 1:
+                continue
+            for code, qty in pairs.items():
+                found[code] = found.get(code, 0) + qty
+            continue
+        if not codes:
+            if re.search(r"\d", part) or len(SPLIT.split(raw)) > 1:
                 unread.append(f"no size found in “{part.strip()}”")
             continue
         code = codes.pop()
@@ -87,6 +99,23 @@ def read(text: str, sizes: list[Size]) -> Reading:
     if not found:
         return Reading(note=unread[0] if unread else "No size found")
     return Reading(quantities=found, clear=not unread, note="; ".join(unread) or None)
+
+
+STATED = re.compile(rf"(?<![\d.])(\d+(?:\.\d+)?){INCH}", re.IGNORECASE)
+
+
+def _pairs(part: str, sizes: list[Size]) -> dict[str, int] | None:
+    """Counts written before each size in one phrase ("1 large 2 keepsake"), or None when any size has none."""
+    out: dict[str, int] = {}
+    words = "|".join(WORDS)
+    for size in sizes:
+        alts = [re.escape(a.lower()) for a in sorted(size.aliases, key=len, reverse=True) if a.strip()]
+        alts.append(rf"{re.escape(size.code)}{INCH}")
+        m = re.search(rf"(?<![\w.])(\d+|{words})\s*(?:x\s*)?(?:[a-z]+\s+)?(?:{'|'.join(alts)})(?![\w])", part)
+        if not m or not _num(m.group(1)):
+            return None
+        out[size.code] = _num(m.group(1)) or 1
+    return out
 
 
 def short_name(title: str, limit: int = 80) -> str:
