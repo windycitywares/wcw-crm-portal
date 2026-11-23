@@ -152,7 +152,7 @@ class UrnService:
     async def _urn(self, urn_id: int) -> Urn:
         urn = await self.session.get(Urn, urn_id)
         if urn is None or urn.deleted_at is not None:
-            raise NotFoundError("Urn not found")
+            raise NotFoundError("Product not found")
         return urn
 
     async def setup_from_listings(self, actor) -> dict[str, int]:
@@ -247,7 +247,7 @@ class UrnService:
         before = {"name": urn.name, "supplier_id": urn.supplier_id, "notes": urn.notes}
         if "name" in values and values["name"] is not None:
             if not values["name"].strip():
-                raise ValidationFailedError("Give the urn a name")
+                raise ValidationFailedError("Give the product a name")
             urn.name = values["name"].strip()[:120]
         if "supplier_id" in values:
             if values["supplier_id"] is not None:

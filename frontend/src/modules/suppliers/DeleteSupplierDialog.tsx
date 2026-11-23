@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { trashApi } from "@/modules/trash/api";
 import { suppliersApi, type Supplier } from "./api";
 
-/** Delete a supplier: it goes to the Trash (restorable). If urns or supplied products still point at it, say so
+/** Delete a supplier: it goes to the Trash (restorable). If products or supplied products still point at it, say so
  *  first — they have to move to another supplier or be removed before it can go. */
 export function DeleteSupplierDialog({ supplier, onClose, onDeleted }: {
   supplier: Pick<Supplier, "id" | "name"> | null; onClose: () => void; onDeleted: () => void;

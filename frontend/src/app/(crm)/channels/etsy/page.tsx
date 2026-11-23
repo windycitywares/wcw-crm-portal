@@ -183,7 +183,7 @@ export default function EtsyDashboard() {
           <ButtonLink href="/channels/etsy/orders?view=attention" size="sm">Orders needing attention</ButtonLink>
           <ButtonLink href="/channels/etsy/listings" size="sm" variant="secondary">Listings</ButtonLink>
           <ButtonLink href="/channels/etsy/payments" size="sm" variant="secondary">Supplier payments</ButtonLink>
-          <ButtonLink href="/channels/etsy/urns" size="sm" variant="secondary">Urns</ButtonLink>
+          <ButtonLink href="/channels/etsy/products" size="sm" variant="secondary">Products</ButtonLink>
         </div>} />
       <UrnSetupNotice />
       {conn && (

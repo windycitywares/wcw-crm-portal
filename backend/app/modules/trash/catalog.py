@@ -71,7 +71,7 @@ def register() -> None:
                   children=(("open task", "open tasks", open_tasks("ticket")),)),
         TrashType("supplier", "Supplier", Supplier, lambda x: x.name, order=250,
                   children=(("supplied product", "supplied products", count_in("supplier_products", "supplier_id")),
-                            ("urn", "urns", count_in("urns", "supplier_id")))),
+                            ("product", "products", count_in("urns", "supplier_id")))),
         TrashType("supplier_product", "Supplied product", SupplierProduct,
                   lambda x: x.description or x.shop_sku, order=40),
         TrashType("email_template", "Email template", EmailTemplate, lambda x: x.name, order=250,
@@ -79,7 +79,7 @@ def register() -> None:
         TrashType("target_list", "Audience", TargetList, lambda x: x.name, order=250,
                   children=(("campaign", "campaigns", count_in("campaigns", "target_list_id")),)),
         TrashType("campaign", "Campaign", Campaign, lambda x: x.name, order=60),
-        TrashType("urn", "Urn", Urn, lambda x: f"#{x.id} {x.name}", order=60),
+        TrashType("urn", "Product", Urn, lambda x: f"#{x.id} {x.name}", order=60),
         TrashType("note", "Note", Note, lambda x: (x.body or "")[:80], order=10),
     ):
         register_trash(t)

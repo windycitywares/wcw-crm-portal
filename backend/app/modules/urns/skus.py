@@ -1,8 +1,8 @@
 """SKU templates: the owner's format with variables, rendered for a variation and read back from a SKU.
 
-    WCW-{supplier:3}-{urn:4}-{sizes}{-option}   →   WCW-007-0345-10x1-3x3
+    WCW-{supplier:3}-{product:4}-{sizes}{-option}   →   WCW-007-0345-10x1-3x3
 
-Variables: {supplier:N} the supplier's CRM id padded to N digits · {urn:N} the urn's id padded to N digits ·
+Variables: {supplier:N} the supplier's CRM id padded to N digits · {product:N} the product's id padded to N digits ·
 {sizes} each size in the variation (in the sizes list's order) written with the size format and joined with the
 separator · {-option} an option code with its dash, empty until options are coded. Pure: no database.
 """
@@ -13,9 +13,14 @@ import re
 from dataclasses import dataclass
 
 ETSY_MAX = 32
-TOKEN = re.compile(r"\{(supplier|urn)(?::(\d))?\}|\{sizes\}|\{-option\}")
+TOKEN = re.compile(r"\{(supplier|product|urn)(?::(\d))?\}|\{sizes\}|\{-option\}")
+# {product:N} is the product's number; {urn:N} is its old name and still works.
 LITERAL = re.compile(r"^[A-Za-z0-9._-]*$")
 SIZE_FORMAT_TOKENS = ("{code}", "{qty}")
+
+
+def _kind(name: str | None) -> str | None:
+    return "urn" if name == "product" else name
 
 
 class TemplateError(ValueError):
@@ -24,7 +29,7 @@ class TemplateError(ValueError):
 
 @dataclass(frozen=True)
 class SkuFormat:
-    template: str = "WCW-{supplier:3}-{urn:4}-{sizes}{-option}"
+    template: str = "WCW-{supplier:3}-{product:4}-{sizes}{-option}"
     size_format: str = "{code}x{qty}"
     separator: str = "-"
 
@@ -42,11 +47,13 @@ def check(fmt: SkuFormat, *, size_codes: list[str], max_supplier: int = 999, max
     names = [m.group(0) for m in TOKEN.finditer(t)]
     leftover = TOKEN.sub("", t)
     if "{" in leftover or "}" in leftover:
-        problems.append("Unknown variable in the template. Use {supplier:N}, {urn:N}, {sizes} and {-option}.")
+        problems.append("Unknown variable in the template. Use {supplier:N}, {product:N}, {sizes} and {-option}.")
     if not LITERAL.match(leftover):
         problems.append("Outside the variables, use only letters, digits, dash, dot and underscore.")
-    if not any(n.startswith("{urn") for n in names):
-        problems.append("The template needs {urn:N}: without it two urns could get the same SKU.")
+    if not any(n.startswith(("{urn", "{product")) for n in names):
+        problems.append("The template needs {product:N}: without it two products could get the same SKU.")
+    elif sum(n.startswith(("{urn", "{product")) for n in names) > 1:
+        problems.append("Use {product:N} once.")
     if "{sizes}" not in names:
         problems.append("The template needs {sizes}: without it two variations could get the same SKU.")
     if not any(n.startswith("{supplier") for n in names):
@@ -67,11 +74,11 @@ def check(fmt: SkuFormat, *, size_codes: list[str], max_supplier: int = 999, max
             problems.append(f"Say how many digits for {{{m.group(1)}}}, e.g. {{{m.group(1)}:3}}.")
     if problems:
         return problems
-    widths = {m.group(1): int(m.group(2)) for m in TOKEN.finditer(t) if m.group(1)}
+    widths = {_kind(m.group(1)): int(m.group(2)) for m in TOKEN.finditer(t) if m.group(1)}
     if len(str(max_supplier)) > widths["supplier"]:
         problems.append(f"Supplier #{max_supplier} needs {len(str(max_supplier))} digits: raise {{supplier:{widths['supplier']}}}.")
     if len(str(max_urn)) > widths["urn"]:
-        problems.append(f"Urn #{max_urn} needs {len(str(max_urn))} digits: raise {{urn:{widths['urn']}}}.")
+        problems.append(f"Product #{max_urn} needs {len(str(max_urn))} digits: raise {{product:{widths['urn']}}}.")
     sample = render(fmt, supplier_id=max_supplier, urn_id=max_urn,
                     sizes=[(c, 9) for c in size_codes[:2]] or [("10", 9)], option="XXX")
     if len(sample) > ETSY_MAX:
@@ -87,7 +94,7 @@ def render(fmt: SkuFormat, *, supplier_id: int, urn_id: int, sizes: list[tuple[s
     def sub(m: re.Match[str]) -> str:
         if m.group(1) == "supplier":
             return str(supplier_id).zfill(int(m.group(2) or 1))
-        if m.group(1) == "urn":
+        if _kind(m.group(1)) == "urn":
             return str(urn_id).zfill(int(m.group(2) or 1))
         if m.group(0) == "{sizes}":
             return fmt.separator.join(parts)
@@ -97,13 +104,13 @@ def render(fmt: SkuFormat, *, supplier_id: int, urn_id: int, sizes: list[tuple[s
 
 
 def reader(fmt: SkuFormat, size_codes: list[str]) -> re.Pattern[str]:
-    """A pattern that reads a SKU written in this format back into supplier, urn, sizes and option."""
+    """A pattern that reads a SKU written in this format back into supplier, product, sizes and option."""
     out, pos = "", 0
     t = fmt.template.strip()
     for m in TOKEN.finditer(t):
         out += re.escape(t[pos:m.start()])
         if m.group(1):
-            out += rf"(?P<{m.group(1)}>\d+)"
+            out += rf"(?P<{_kind(m.group(1))}>\d+)"
         elif m.group(0) == "{sizes}":
             out += r"(?P<sizes>.+?)"
         else:
