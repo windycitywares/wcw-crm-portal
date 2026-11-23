@@ -4,7 +4,7 @@ the job empties what waited longer than the retention period."""
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from tests.support import API, World, reset_limits, run, skip_unless_db
+from tests.support import API, World, ensure_pipeline, reset_limits, run, skip_unless_db
 
 
 @skip_unless_db
@@ -19,6 +19,7 @@ class TrashTests(unittest.TestCase):
         cls.admin, cls.admin_h = cls.w.user_with_token("admin")
         cls.manager, cls.manager_h = cls.w.user_with_token("manager")
         cls.sales, cls.sales_h = cls.w.user_with_token("sales")
+        ensure_pipeline(cls.w)
 
     def setUp(self):
         reset_limits()

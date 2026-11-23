@@ -2,7 +2,7 @@
 
 import unittest
 
-from tests.support import API, World, reset_limits, run, skip_unless_db
+from tests.support import API, World, ensure_pipeline, reset_limits, run, skip_unless_db
 
 
 @skip_unless_db
@@ -205,6 +205,7 @@ class AccountGroupTests(unittest.TestCase):
         reset_limits()
         run(lambda s: LookupService(s).seed())
         cls.mgr, cls.h = cls.w.user_with_token("manager")
+        ensure_pipeline(cls.w)
 
     def setUp(self):
         reset_limits()
