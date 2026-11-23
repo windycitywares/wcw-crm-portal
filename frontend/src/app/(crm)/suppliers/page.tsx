@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ButtonLink } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth";
 import type { Page } from "@/lib/types";
 import { suppliersApi, type Supplier, type SupplierStatus } from "@/modules/suppliers/api";
 import { useLookups } from "@/modules/settings/useLookups";
+import { DeleteSupplierDialog } from "@/modules/suppliers/DeleteSupplierDialog";
 
 const PAGE_SIZE = 25;
 
@@ -28,6 +29,8 @@ export default function SuppliersPage() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState<Supplier | null>(null);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -54,7 +57,7 @@ export default function SuppliersPage() {
     return () => {
       active = false;
     };
-  }, [page, query, supplierType, status]);
+  }, [page, query, supplierType, status, reload]);
 
   const columns: Column<Supplier>[] = [
     {
@@ -65,7 +68,7 @@ export default function SuppliersPage() {
           <Link href={`/suppliers/${supplier.id}`} className="font-medium text-ink hover:text-accent-strong hover:underline">
             {supplier.name}
           </Link>
-          {supplier.website && <div className="truncate text-xs text-muted">{supplier.website}</div>}
+          <div className="truncate text-xs text-muted">#{supplier.id}{supplier.website ? ` · ${supplier.website}` : ""}</div>
         </div>
       ),
     },
@@ -101,6 +104,19 @@ export default function SuppliersPage() {
       cell: (supplier) => supplier.lead_time_days == null ? <span className="text-muted">—</span> : `${supplier.lead_time_days} days`,
       hide: "lg",
     },
+    ...(canEdit ? [{
+      key: "actions",
+      header: <span className="sr-only">Actions</span>,
+      align: "right" as const,
+      cell: (supplier: Supplier) => (
+        <div className="flex justify-end gap-1">
+          <ButtonLink href={`/suppliers/${supplier.id}/edit`} size="sm" variant="secondary">Edit<span className="sr-only"> {supplier.name}</span></ButtonLink>
+          <Button type="button" size="sm" variant="ghost" className="text-danger" onClick={() => setDeleting(supplier)}>
+            Delete<span className="sr-only"> {supplier.name}</span>
+          </Button>
+        </div>
+      ),
+    }] : []),
   ];
 
   return (
@@ -143,6 +159,8 @@ export default function SuppliersPage() {
         {data && <Pagination page={data.page} pageSize={data.page_size} total={data.total} onPage={setPage} />}
         {loading && data && <PanelBody className="py-2 text-xs text-muted">Updating results…</PanelBody>}
       </Panel>
+      <DeleteSupplierDialog supplier={deleting} onClose={() => setDeleting(null)}
+        onDeleted={() => { setDeleting(null); setReload((n) => n + 1); }} />
     </>
   );
 }

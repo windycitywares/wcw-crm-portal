@@ -13,6 +13,7 @@ import { formatDateTime } from "@/lib/utils";
 import { CustomFieldsView } from "@/modules/records/CustomFields";
 import { NotesPanel } from "@/modules/records/NotesPanel";
 import { TagEditor } from "@/modules/records/TagEditor";
+import { DeleteSupplierDialog } from "@/modules/suppliers/DeleteSupplierDialog";
 import { Timeline } from "@/modules/records/Timeline";
 import { customFieldsApi, type FieldDef } from "@/modules/settings/api";
 import { useLookups } from "@/modules/settings/useLookups";
@@ -276,15 +277,7 @@ export default function SupplierPage() {
 
   const changed = () => setRefresh((value) => value + 1);
 
-  const removeSupplier = async () => {
-    if (!supplier || !window.confirm(`Archive ${supplier.name}?`)) return;
-    try {
-      await suppliersApi.remove(supplier.id);
-      router.push("/suppliers");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't archive supplier");
-    }
-  };
+  const [deleting, setDeleting] = useState(false);
 
   if (error) return <><PageHeader title="Supplier" back={{ href: "/suppliers", label: "Suppliers" }} /><p role="alert" className="text-sm text-danger">{error}</p></>;
   if (!supplier) return <p className="text-sm text-muted">Loading supplier…</p>;
@@ -302,7 +295,7 @@ export default function SupplierPage() {
         actions={<>
           {supplier.account_id && <ButtonLink href={`/accounts/${supplier.account_id}`} size="sm" variant="secondary">Open account</ButtonLink>}
           {canEdit && <ButtonLink href={`/suppliers/${supplier.id}/edit`} size="sm">Edit supplier</ButtonLink>}
-          {canEdit && <Button type="button" size="sm" variant="secondary" className="text-danger" onClick={() => void removeSupplier()}>Archive</Button>}
+          {canEdit && <Button type="button" size="sm" variant="secondary" className="text-danger" onClick={() => setDeleting(true)}>Delete supplier</Button>}
         </>}
       />
 
@@ -337,6 +330,7 @@ export default function SupplierPage() {
           <Timeline record={record} refreshKey={`${refresh}-${supplier.updated_at}`} />
         </div>
       </div>
+      <DeleteSupplierDialog supplier={deleting ? supplier : null} onClose={() => setDeleting(false)} onDeleted={() => router.push("/suppliers")} />
     </>
   );
 }
