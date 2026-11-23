@@ -6,15 +6,15 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
-import { ConfirmDialog } from "@/components/ui/Modal";
+import { ConfirmDialog, Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
-import { formatDateTime } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 import { AccountDialog } from "@/modules/accounts/AccountDialog";
-import { accountsApi, type Account } from "@/modules/accounts/api";
-import { contactsApi, type Contact } from "@/modules/contacts/api";
+import { accountsApi, type Account, type AccountLink } from "@/modules/accounts/api";
+import { contactsApi } from "@/modules/contacts/api";
 import { NotesPanel } from "@/modules/records/NotesPanel";
 import { AccountDeals } from "@/modules/sales/AccountDeals";
 import { TagEditor } from "@/modules/records/TagEditor";
@@ -31,23 +31,40 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
-/** People at the account: add someone new, or move an existing contact here. */
+/** "Mar 2024 – now" for a link's dates. */
+function span(l: AccountLink) {
+  const from = l.started_on ? formatDate(l.started_on) : "—";
+  return l.ended_on ? `${from} – ${formatDate(l.ended_on)}` : `Since ${from}`;
+}
+
+/** People at the account: their role here and when. Someone can be at several accounts; one is their main one.
+ *  Ending a link keeps it, so the account remembers who used to be there. */
 function PeoplePanel({ account, canEdit, onChange }: { account: Account; canEdit: boolean; onChange: () => void }) {
   const toast = useToast();
-  const [people, setPeople] = useState<Contact[] | null>(null);
+  const [people, setPeople] = useState<AccountLink[] | null>(null);
+  const [showPast, setShowPast] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [title, setTitle] = useState("");
+  const [role, setRole] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<AccountLink | null>(null);
+  const [editRole, setEditRole] = useState("");
+  const [ending, setEnding] = useState<AccountLink | null>(null);
+  const supplier = account.account_type === "supplier";
 
   const load = useCallback(async () => {
     try {
-      setPeople((await accountsApi.contacts(account.id)).items);
+      setPeople(await accountsApi.people(account.id, showPast));
     } catch {
       setPeople([]);
     }
-  }, [account.id]);
+  }, [account.id, showPast]);
   useEffect(() => { void load(); }, [load, account.updated_at]);
+
+  const done = async () => { await load(); onChange(); };
+  const fail = (title: string) => (err: unknown) =>
+    toast.push({ tone: "danger", title, description: err instanceof Error ? err.message : undefined });
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,73 +74,104 @@ function PeoplePanel({ account, canEdit, onChange }: { account: Account; canEdit
     try {
       const existing = email.trim() ? (await contactsApi.list({ q: email.trim(), page_size: 5 })).items
         .find((c) => c.email === email.trim().toLowerCase()) : undefined;
-      if (existing) {
-        await contactsApi.update(existing.id, { account_id: account.id });
-        toast.push({ title: "Contact moved here", description: `${existing.display_name} is now at ${account.name}.` });
-      } else {
-        await contactsApi.create({ first_name: first || null, last_name: rest.join(" ") || null, email: email.trim() || null,
-          title: title.trim() || null, company: account.name, account_id: account.id,
-          types: [account.account_type === "supplier" ? "vendor" : account.account_type === "partner" ? "partner" : "other"] });
-        toast.push({ title: "Contact added", description: `${name.trim() || email.trim()} at ${account.name}.` });
-      }
-      setName(""); setEmail(""); setTitle("");
-      await load();
-      onChange();
+      const contact = existing ?? await contactsApi.create({ first_name: first || null, last_name: rest.join(" ") || null,
+        email: email.trim() || null, title: title.trim() || null, company: account.name,
+        types: [account.account_type === "partner" ? "partner" : "other"] });
+      await accountsApi.link(account.id, { contact_id: contact.id, role: role.trim() || null });
+      toast.push({ title: existing ? "Contact linked" : "Contact added",
+        description: `${contact.display_name} at ${account.name}${existing?.account_id ? " (their main account stays the same)" : ""}.` });
+      setName(""); setEmail(""); setTitle(""); setRole("");
+      await done();
     } catch (err) {
-      toast.push({ tone: "danger", title: "Couldn't add the contact", description: err instanceof Error ? err.message : undefined });
+      fail("Couldn't add the contact")(err);
     } finally {
       setBusy(false);
     }
   };
 
-  const takeOff = async (c: Contact) => {
+  const makeMain = async (l: AccountLink) => {
     setBusy(true);
     try {
-      await contactsApi.update(c.id, { account_id: null });
-      toast.push({ title: "Contact removed from account", description: `${c.display_name} stays in Contacts.` });
-      await load();
-      onChange();
-    } catch (err) {
-      toast.push({ tone: "danger", title: "Couldn't remove", description: err instanceof Error ? err.message : undefined });
-    } finally {
-      setBusy(false);
-    }
+      await accountsApi.updateLink(l.id, { is_primary: true });
+      toast.push({ title: "Main account changed", description: `${account.name} is now ${l.contact_name}'s main account.` });
+      await done();
+    } catch (err) { fail("Couldn't change the main account")(err); } finally { setBusy(false); }
+  };
+
+  const saveRole = async () => {
+    if (!editing) return;
+    setBusy(true);
+    try {
+      await accountsApi.updateLink(editing.id, { role: editRole.trim() || null });
+      toast.push({ title: "Role saved", description: `${editing.contact_name}: ${editRole.trim() || "no role"}.` });
+      setEditing(null);
+      await done();
+    } catch (err) { fail("Couldn't save the role")(err); } finally { setBusy(false); }
+  };
+
+  const end = async () => {
+    if (!ending) return;
+    setBusy(true);
+    try {
+      await accountsApi.endLink(ending.id);
+      toast.push({ title: "Link ended", description: `${ending.contact_name} is kept as a past contact of ${account.name}.` });
+      setEnding(null);
+      await done();
+    } catch (err) { fail("Couldn't end the link")(err); } finally { setBusy(false); }
   };
 
   return (
     <Panel>
-      <PanelHeader title="People" description="Contacts at this account." />
+      <PanelHeader title="People" description="Who is at this account, their role here and since when."
+        actions={<label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={showPast} onChange={(e) => setShowPast(e.target.checked)} />Show past people</label>} />
       <PanelBody className="space-y-4">
         <ul className="divide-y divide-line">
-          {(people ?? []).map((c) => (
-            <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0">
+          {(people ?? []).map((l) => (
+            <li key={l.id} className={`flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 ${l.active ? "" : "opacity-70"}`}>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2 font-medium">
-                  <Link href={`/contacts?q=${encodeURIComponent(c.email ?? c.display_name)}`} className="hover:text-accent-strong hover:underline">{c.display_name}</Link>
-                  {account.primary_contact_id === c.id && <Badge variant="info">Primary</Badge>}
+                  <Link href={`/contacts?q=${encodeURIComponent(l.email ?? l.contact_name ?? "")}`} className="hover:text-accent-strong hover:underline">{l.contact_name}</Link>
+                  {l.role && <span className="text-sm font-normal text-muted">{l.role}</span>}
+                  {account.primary_contact_id === l.contact_id && l.active && <Badge variant="info">Primary contact</Badge>}
+                  {l.active && !l.is_primary && <Badge>Main account elsewhere</Badge>}
+                  {!l.active && <Badge variant="warning">Left</Badge>}
                 </div>
-                <div className="text-xs text-muted">{[c.title, c.email, c.phone].filter(Boolean).join(" · ") || "No contact details"}</div>
+                <div className="text-xs text-muted">{[l.title, l.email, l.phone, span(l)].filter(Boolean).join(" · ")}</div>
               </div>
-              {canEdit && account.account_type !== "supplier" && (
-                <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => void takeOff(c)}>Remove from account</Button>
+              {canEdit && !supplier && l.active && (
+                <div className="flex flex-wrap gap-1">
+                  <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => { setEditing(l); setEditRole(l.role ?? ""); }}>Edit role</Button>
+                  {!l.is_primary && <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => void makeMain(l)}>Make main account</Button>}
+                  <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => setEnding(l)}>End link</Button>
+                </div>
               )}
             </li>
           ))}
           {people !== null && people.length === 0 && <li className="py-2 text-sm text-muted">Nobody recorded here yet.</li>}
           {people === null && <li className="py-2 text-sm text-muted">Loading…</li>}
         </ul>
-        {canEdit && account.account_type !== "supplier" && (
-          <form onSubmit={add} className="grid grid-cols-[minmax(0,1fr)] gap-3 border-t border-line pt-4 sm:grid-cols-3">
+        {canEdit && !supplier && (
+          <form onSubmit={add} className="grid grid-cols-[minmax(0,1fr)] gap-3 border-t border-line pt-4 sm:grid-cols-2">
             <Field label="Name">{(p) => <Input {...p} value={name} onChange={(e) => setName(e.target.value)} />}</Field>
-            <Field label="Email" hint="An existing contact with this email is moved here">{(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
+            <Field label="Email" hint="An existing contact with this email is linked here too">{(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
             <Field label="Job title">{(p) => <Input {...p} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
-            <div className="sm:col-span-3">
+            <Field label="Role at this account" hint="E.g. Buyer, Accounts payable, Advisor">{(p) => <Input {...p} value={role} maxLength={80} onChange={(e) => setRole(e.target.value)} />}</Field>
+            <div className="sm:col-span-2">
               <Button type="submit" size="sm" disabled={busy || (!name.trim() && !email.trim())}>{busy ? "Adding…" : "Add contact"}</Button>
             </div>
           </form>
         )}
-        {account.account_type === "supplier" && <p className="text-xs text-muted">A supplier&apos;s people are managed on its supplier page.</p>}
+        {supplier && <p className="text-xs text-muted">A supplier&apos;s people are managed on its supplier page.</p>}
       </PanelBody>
+      <Modal open={editing !== null} onClose={() => setEditing(null)} title="Edit role" size="sm"
+        description={editing ? `${editing.contact_name} at ${account.name}` : undefined}
+        footer={<><Button variant="secondary" onClick={() => setEditing(null)} disabled={busy}>Cancel</Button>
+          <Button onClick={() => void saveRole()} disabled={busy}>{busy ? "Saving…" : "Save role"}</Button></>}>
+        <Field label="Role at this account">{(p) => <Input {...p} value={editRole} maxLength={80} onChange={(e) => setEditRole(e.target.value)} />}</Field>
+      </Modal>
+      <ConfirmDialog open={ending !== null} title="End this link?" confirmLabel="End link" busy={busy}
+        message={ending ? `${ending.contact_name} will be shown as a past contact of ${account.name} from today. The contact itself stays.` : ""}
+        onConfirm={() => void end()} onCancel={() => setEnding(null)} />
     </Panel>
   );
 }
