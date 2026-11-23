@@ -128,6 +128,11 @@ class UrnService:
     async def save_type(self, type_id: int | None, values: dict[str, Any], actor) -> ProductType:
         """Create or change a product type. A new format changes that type's SKUs in the CRM (never on Etsy)."""
         name = (values.get("name") or "").strip()
+        if name:
+            clash = (await self.session.execute(select(ProductType.id).where(
+                func.lower(ProductType.name) == name.lower(), ProductType.id != (type_id or 0)))).first()
+            if clash:
+                raise ValidationFailedError(f"There is already a type called {name}")
         if type_id is None:
             if not name:
                 raise ValidationFailedError("Give the type a name, e.g. Jewelry")
@@ -140,10 +145,6 @@ class UrnService:
         else:
             t = await self._type(type_id)
         if name:
-            clash = (await self.session.execute(select(ProductType.id).where(
-                func.lower(ProductType.name) == name.lower(), ProductType.id != t.id))).first()
-            if clash:
-                raise ValidationFailedError(f"There is already a type called {name}")
             t.name = name[:60]
         if "code" in values:
             code = (values["code"] or "").strip().upper()
