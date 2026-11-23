@@ -93,6 +93,8 @@ export const CHANNEL_NAV: Record<string, NavItem[]> = {
     { href: "/channels/etsy", label: "Etsy", icon: "cart", permission: "channels:view" },
     { href: "/channels/etsy/orders", label: "Orders", icon: "orders", permission: "channels:view", child: true },
     { href: "/channels/etsy/listings", label: "Listings", icon: "tag", permission: "channels:view", child: true },
+    { href: "/channels/etsy/urns", label: "Urns", icon: "products", permission: "channels:view", child: true },
+    { href: "/channels/etsy/skus", label: "SKUs vs Etsy", icon: "inventory", permission: "channels:view", child: true },
     { href: "/channels/etsy/payments", label: "Supplier payments", icon: "archive", permission: "channels:view", child: true },
   ],
 };
@@ -145,6 +147,7 @@ export const SETTINGS_NAV: NavGroup[] = [
     items: [
       { href: "/settings/integrations", label: "Integrations", icon: "globe", permission: "settings:manage" },
       { href: "/settings/channels", label: "Sales channels", icon: "cart", permission: "channels:manage" },
+      { href: "/settings/products", label: "Products", icon: "products", permission: "channels:view" },
       { href: "/settings/deployments", label: "Deployments", icon: "download", permission: "settings:manage" },
       { href: "/settings/environment", label: "Test mode", icon: "flask", permission: "settings:manage" },
     ],

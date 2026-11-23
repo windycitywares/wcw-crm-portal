@@ -54,6 +54,8 @@ export interface OrderDetail extends OrderSummary {
   marketplace_fees: string | null;
   purchase_cost: string | null;
   costs_prefilled: boolean;
+  other_costs: string | null;
+  cost_source: "sku" | "listing" | "manual" | null;
   supplier_order_number: string | null;
   shipping_cost: string | null;
   carrier: string | null;
