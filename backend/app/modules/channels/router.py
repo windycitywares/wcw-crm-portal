@@ -14,7 +14,6 @@ from app.modules.users.models import User
 from .catalog import CHANNELS
 from .connection import EtsyConnectionService
 from .dashboard import EtsyDashboard
-from .handover import ShopHandover, handover
 from .etsy import status as etsy_status
 from .listings import EtsyListingSync, ListingService
 from .orders import OrderService
@@ -250,18 +249,9 @@ async def etsy_dashboard(
     return await board.build(await board.range(start, end), listing_id, supplier)
 
 
-@router.post("/etsy/import-from-shop")
-async def import_from_shop(session: SessionDep, actor: Manager) -> dict[str, Any]:
-    """Copy the team's Etsy work (costs, suppliers, notes, tracking, payments, history) from the shop once; safe to rerun."""
-    return await handover(session, actor)
 
-
-@router.get("/etsy/import-from-shop/check")
-async def import_check(session: SessionDep, _: Manager) -> dict[str, Any]:
-    from app.core.exceptions import ValidationFailedError
-    from app.integrations.shop.client import ShopApiError
-
-    try:
-        return await ShopHandover(session).check()
-    except ShopApiError as exc:
-        raise ValidationFailedError(f"The shop didn't answer: {exc}") from exc
+@router.get("/etsy/supplier-stats/{account_id}")
+async def supplier_stats(account_id: int, response: Response, session: SessionDep) -> dict[str, Any]:
+    """A supplier account's Etsy figures for its supplier page: open orders, owed and paid, shipping speed."""
+    response.headers["Cache-Control"] = "no-store"
+    return await SupplierPayments(session).stats(account_id)

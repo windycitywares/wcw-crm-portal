@@ -2,9 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Button, ButtonLink } from "@/components/ui/Button";
-import { useToast } from "@/components/ui/Toast";
-import { shopSuppliersApi } from "@/modules/suppliers/ShopPanel";
+import { ButtonLink } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -30,23 +28,6 @@ export default function SuppliersPage() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [reload, setReload] = useState(0);
-  const toast = useToast();
-
-  /** The shop's supplier names become CRM suppliers once; from then on suppliers are managed here and sent to the shop. */
-  const bringIn = async () => {
-    setImporting(true);
-    try {
-      const r = await shopSuppliersApi.importFromShop();
-      toast.push({ title: "Brought in from the shop", description: `${r.created} added, ${r.already_here} already here. The shop now follows this list.` });
-      setReload((n) => n + 1);
-    } catch (err) {
-      toast.push({ title: "Couldn't bring them in", description: err instanceof Error ? err.message : undefined, tone: "danger" });
-    } finally {
-      setImporting(false);
-    }
-  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -73,7 +54,7 @@ export default function SuppliersPage() {
     return () => {
       active = false;
     };
-  }, [page, query, supplierType, status, reload]);
+  }, [page, query, supplierType, status]);
 
   const columns: Column<Supplier>[] = [
     {
@@ -129,9 +110,6 @@ export default function SuppliersPage() {
         description={data ? `${data.total.toLocaleString()} suppliers` : "Supplier directory and purchasing details."}
         actions={canEdit ? (
           <>
-            <Button type="button" size="sm" variant="secondary" disabled={importing} onClick={() => void bringIn()}>
-              {importing ? "Bringing in…" : "Bring in from the shop"}
-            </Button>
             <ButtonLink href="/suppliers/new" size="sm">Add supplier</ButtonLink>
           </>
         ) : undefined}

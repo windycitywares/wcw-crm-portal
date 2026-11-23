@@ -26,14 +26,6 @@ class ShopClient(Protocol):
 
     async def erase(self, email: str) -> dict[str, Any]: ...
 
-    async def suppliers(self) -> dict[str, Any]: ...
-
-    async def send_supplier(self, payload: dict[str, Any]) -> dict[str, Any]: ...
-
-    async def supplier_stats(self, name: str) -> dict[str, Any]: ...
-
-    async def etsy_handover(self, kind: str, after_id: int = 0) -> dict[str, Any]: ...
-
 
 class HttpShopClient:
     def __init__(self, base_url: str, token: str):
@@ -90,24 +82,6 @@ class HttpShopClient:
     async def erase(self, email: str) -> dict[str, Any]:
         """Tell the shop to erase this address's newsletter record (shop docs/CRM_SYNC.md → "Erasing …")."""
         return await asyncio.to_thread(self._post, f"{self.base_url}/integrations/crm/newsletter/erase", {"email": email})
-
-    async def suppliers(self) -> dict[str, Any]:
-        """The shop's supplier list (shop docs/CRM_SYNC.md → "Suppliers"), for the first import."""
-        return await asyncio.to_thread(self._get, f"{self.base_url}/integrations/crm/suppliers")
-
-    async def send_supplier(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """One supplier added or changed here: the shop creates, links (by name) or updates its read-only copy."""
-        return await asyncio.to_thread(self._post, f"{self.base_url}/integrations/crm/suppliers", payload)
-
-    async def supplier_stats(self, name: str) -> dict[str, Any]:
-        """The supplier's figures in the shop: Etsy orders, owed and paid, shipping speed."""
-        query = urllib.parse.urlencode({"name": name})
-        return await asyncio.to_thread(self._get, f"{self.base_url}/integrations/crm/suppliers/stats?{query}")
-
-    async def etsy_handover(self, kind: str, after_id: int = 0) -> dict[str, Any]:
-        """The team's Etsy work kept in the shop (kind: counts, listings or orders), for the one-time copy."""
-        query = "" if kind == "counts" else "?" + urllib.parse.urlencode({"after_id": after_id})
-        return await asyncio.to_thread(self._get, f"{self.base_url}/integrations/crm/etsy/{kind}{query}")
 
 
 _factory = None

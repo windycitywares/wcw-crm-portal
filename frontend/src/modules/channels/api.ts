@@ -23,20 +23,6 @@ export interface EtsyConnection {
   scopes: string | null;
 }
 
-export interface HandoverCheck {
-  shop: Record<string, number>;
-  crm: Record<string, number>;
-  matches: boolean;
-}
-export interface HandoverResult {
-  listings: number;
-  orders: number;
-  orders_not_in_crm: number;
-  events: number;
-  suppliers_not_found: string[];
-  check: HandoverCheck;
-}
-
 let cache: Promise<ChannelInfo[]> | null = null;
 
 export const channelsApi = {
@@ -50,8 +36,6 @@ export const channelsApi = {
       apiFetch<EtsyConnection>("/channels/etsy/credentials", { method: "PUT", body: JSON.stringify({ client_id, client_secret }) }),
     connect: () => apiFetch<{ url: string }>("/channels/etsy/connect", { method: "POST" }),
     disconnect: () => apiFetch<EtsyConnection>("/channels/etsy/disconnect", { method: "POST" }),
-    importFromShop: () => apiFetch<HandoverResult>("/channels/etsy/import-from-shop", { method: "POST" }),
-    importCheck: () => apiFetch<HandoverCheck>("/channels/etsy/import-from-shop/check"),
   },
 };
 

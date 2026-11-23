@@ -127,18 +127,10 @@ told to erase its newsletter record too (`POST /integrations/crm/newsletter/eras
 shop gets the ordinary test opt-out instead). A person with an account or orders can't be erased here: unsubscribe them.
 
 
-## Suppliers (CRM → shop)
+## Suppliers (retired from the shop)
 
-The CRM owns the supplier list (owner's decision, 2026-11-22). The shop keeps a read-only copy its Etsy screens and
-supplier logins pick from (shop docs/CRM_SYNC.md → "Suppliers").
-
-- **Job `shop-suppliers`** (live only): reads the audit log for `supplier.create|update|delete|restore|contact_*` and sends
-  each changed supplier to `POST /integrations/crm/suppliers` as `{crm_id, name, is_active, contact_name, email, phone}`
-  (primary contact, else the first one; archived or inactive → switched off). Keeps its place in
-  `app_settings["shop_suppliers"]`; its first run sends every supplier, which links the shop's same-named ones.
-- **Suppliers → Bring in from the shop** (`POST /integrations/shop/suppliers/import`, `suppliers:edit`): the shop's
-  names the CRM doesn't have become CRM suppliers (first supplier type, active, contact if any), then everything is sent
-  back at once so the shop links them.
-- **Supplier page → In the shop** (`GET /integrations/shop/suppliers/{id}/stats`): open Etsy orders, to ship / late,
-  owed and paid, days to ship and on-time rate (90 days), last order. A shop that isn't connected is a readable message.
+Suppliers, Etsy and supplier logins moved fully into the CRM on 2026-11-22: the CRM connects to Etsy itself (module
+`channels`), suppliers are Supplier accounts, and the team's shop work was copied once and checked by counts. The shop
+no longer keeps a supplier copy, so the `shop-suppliers` job, "Bring in from the shop" and the shop-side stats were
+removed; the supplier page's **On Etsy** panel reads `GET /channels/etsy/supplier-stats/{account_id}`.
 - Etsy buyers are never sent to the CRM: Etsy allows buyer data only for fulfilling the order.

@@ -5,9 +5,8 @@ import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { apiFetch } from "@/lib/client-api";
 import { formatDate } from "@/lib/utils";
 
-/** The supplier's figures in the shop (shop docs/CRM_SYNC.md → "Suppliers"): Etsy orders, money, shipping speed. */
+/** The supplier's Etsy figures, from the CRM's own Etsy orders: open orders, money, shipping speed. */
 export interface ShopSupplierStats {
-  name: string;
   listings: number;
   orders: number;
   open_orders: number;
@@ -22,26 +21,24 @@ export interface ShopSupplierStats {
 }
 
 export const shopSuppliersApi = {
-  stats: (id: number) => apiFetch<ShopSupplierStats>(`/integrations/shop/suppliers/${id}/stats`),
-  importFromShop: () =>
-    apiFetch<{ in_shop: number; created: number; already_here: number; sent: number }>("/integrations/shop/suppliers/import", { method: "POST" }),
+  stats: (accountId: number) => apiFetch<ShopSupplierStats>(`/channels/etsy/supplier-stats/${accountId}`),
 };
 
 const usd = (v: string | number) => Number(v).toLocaleString("en-US", { style: "currency", currency: "USD" });
 
-export function ShopPerformancePanel({ supplierId, shopUrl = "https://shop.windycitywares.com/admin/etsy/payments" }: { supplierId: number; shopUrl?: string }) {
+export function ShopPerformancePanel({ accountId }: { accountId: number }) {
   const [stats, setStats] = useState<ShopSupplierStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
-    shopSuppliersApi.stats(supplierId).then(
+    shopSuppliersApi.stats(accountId).then(
       (s) => live && setStats(s),
-      (e: unknown) => live && setError(e instanceof Error ? e.message : "Couldn't reach the shop"),
+      (e: unknown) => live && setError(e instanceof Error ? e.message : "Couldn't load the Etsy figures"),
     );
     return () => {
       live = false;
     };
-  }, [supplierId]);
+  }, [accountId]);
 
   const cells: [string, string, string?][] = stats
     ? [
@@ -55,7 +52,7 @@ export function ShopPerformancePanel({ supplierId, shopUrl = "https://shop.windy
     : [];
   return (
     <Panel>
-      <PanelHeader title="In the shop" description="Etsy orders this supplier fulfils, what you owe them, and how fast they ship." />
+      <PanelHeader title="On Etsy" description="Etsy orders this supplier fulfils, what you owe them, and how fast they ship." />
       <PanelBody>
         {error ? (
           <p className="text-sm text-muted">{error}</p>
@@ -74,7 +71,8 @@ export function ShopPerformancePanel({ supplierId, shopUrl = "https://shop.windy
             </dl>
             <p className="mt-4 text-xs text-muted">
               {stats.listings} Etsy listing{stats.listings === 1 ? "" : "s"} use this supplier.{" "}
-              <a href={shopUrl} target="_blank" rel="noreferrer" className="text-accent-strong underline">Pay or see orders in the shop</a>
+              <a href={`/channels/etsy/payments`} className="text-accent-strong underline">Supplier payments</a>{" · "}
+              <a href={`/channels/etsy/orders?supplier=${accountId}`} className="text-accent-strong underline">Their orders</a>
             </p>
           </>
         )}

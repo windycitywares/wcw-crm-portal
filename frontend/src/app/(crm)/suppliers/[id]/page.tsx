@@ -331,7 +331,7 @@ export default function SupplierPage() {
         </div>
 
         <div className="grid content-start gap-6">
-          <ShopPerformancePanel supplierId={supplier.id} />
+          {supplier.account_id && can("channels:view") && <ShopPerformancePanel accountId={supplier.account_id} />}
           <ContactsPanel supplier={supplier} canEdit={canEdit} onChange={changed} />
           <ProductsPanel supplierId={supplier.id} canEdit={canEdit} />
           <Timeline record={record} refreshKey={`${refresh}-${supplier.updated_at}`} />

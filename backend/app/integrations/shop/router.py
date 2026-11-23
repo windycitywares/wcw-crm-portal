@@ -88,25 +88,3 @@ async def cancel_backfill(session: SessionDep, actor: Admin) -> BackfillOut:
 async def customer_orders(session: SessionDep, _: Viewer, customer_id: int) -> list[ShopOrderOut]:
     """The customer's shop orders (newest first), from the copies the events keep up to date."""
     return await orders_for_customer(session, customer_id)
-
-
-# ---- suppliers (the CRM owns the list; the shop keeps a read-only copy) -------------------------------------------
-
-SupplierEditor = Annotated[User, Depends(require(Permission.SUPPLIERS_EDIT))]
-SupplierViewer = Annotated[User, Depends(require(Permission.SUPPLIERS_VIEW))]
-
-
-@router.post("/suppliers/import")
-async def import_suppliers(session: SessionDep, actor: SupplierEditor) -> dict[str, int]:
-    """Bring the shop's supplier names into the CRM once, then link them (the Suppliers page button)."""
-    from .suppliers import import_from_shop
-
-    return await import_from_shop(session, actor)
-
-
-@router.get("/suppliers/{supplier_id}/stats")
-async def supplier_stats(supplier_id: int, session: SessionDep, _: SupplierViewer) -> dict:
-    """A supplier's figures in the shop (Etsy orders, owed and paid, shipping speed) for the supplier page."""
-    from .suppliers import shop_stats
-
-    return await shop_stats(session, supplier_id)

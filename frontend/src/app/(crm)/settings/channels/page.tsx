@@ -11,7 +11,7 @@ import { Segmented } from "@/components/ui/Segmented";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/utils";
-import { channelsApi, type ChannelInfo, type EtsyConnection, type HandoverCheck, type HandoverResult } from "@/modules/channels/api";
+import { channelsApi, type ChannelInfo, type EtsyConnection } from "@/modules/channels/api";
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
 
@@ -129,70 +129,10 @@ function EtsyPanel() {
           </PanelBody>
         </Panel>
       )}
-      {admin && conn?.connected && <ShopHandoverPanel />}
       <ConfirmDialog open={confirming} title="Disconnect Etsy?" confirmLabel="Disconnect Etsy" busy={busy}
         message="Syncing stops until you connect again. Orders and listings already brought in stay."
         onConfirm={() => void disconnect()} onCancel={() => setConfirming(false)} />
     </div>
-  );
-}
-
-const CHECK_LABEL: Record<string, string> = {
-  orders: "Orders", orders_with_cost: "Orders with a purchase cost", orders_with_supplier: "Orders with a supplier",
-  orders_paid: "Orders the supplier was paid for",
-};
-
-/** The one-time copy of what the team entered on Etsy orders in the shop, checked by counts. */
-function ShopHandoverPanel() {
-  const toast = useToast();
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<HandoverResult | null>(null);
-  const [check, setCheck] = useState<HandoverCheck | null>(null);
-  useEffect(() => { void channelsApi.etsy.importCheck().then(setCheck).catch(() => setCheck(null)); }, []);
-  const run = async () => {
-    setBusy(true);
-    try {
-      const r = await channelsApi.etsy.importFromShop();
-      setResult(r);
-      setCheck(r.check);
-      toast.push({ title: "Copied from the shop", description: `${r.orders} orders and ${r.listings} listings updated, ${r.events} history lines added.` });
-    } catch (e) {
-      toast.push({ tone: "danger", title: "Couldn't copy from the shop", description: errorText(e) });
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Panel>
-      <PanelHeader title="Copy Etsy work from the shop" description="Costs, suppliers, notes, tracking, supplier payments, statuses and history the team entered in the shop. Only fills what the CRM doesn't have yet, so running it again is safe." />
-      <PanelBody className="grid gap-4">
-        {check && (
-          <div className="relative overflow-x-auto">
-            <table className="w-full text-sm">
-              <caption className="sr-only">Shop and CRM counts</caption>
-              <thead><tr className="text-left text-muted"><th className="py-1 font-medium">What</th><th className="py-1 text-right font-medium">Shop</th><th className="py-1 text-right font-medium">CRM</th></tr></thead>
-              <tbody>
-                {Object.keys(CHECK_LABEL).map((k) => (
-                  <tr key={k} className="border-t border-line">
-                    <td className="py-1.5">{CHECK_LABEL[k]}</td>
-                    <td className="num py-1.5 text-right">{check.shop[k] ?? "—"}</td>
-                    <td className={(check.crm[k] ?? 0) < (check.shop[k] ?? 0) ? "num py-1.5 text-right text-danger" : "num py-1.5 text-right"}>{check.crm[k] ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="mt-2 text-sm">{check.matches ? <Pill tone="success">Everything is in the CRM</Pill> : <Pill tone="warning">Not copied yet</Pill>}</p>
-          </div>
-        )}
-        {result && (result.orders_not_in_crm > 0 || result.suppliers_not_found.length > 0) && (
-          <p className="text-sm text-muted">
-            {result.orders_not_in_crm > 0 && `${result.orders_not_in_crm} shop orders are older than the CRM's Etsy history. `}
-            {result.suppliers_not_found.length > 0 && `No supplier account for: ${result.suppliers_not_found.join(", ")}.`}
-          </p>
-        )}
-        <div><Button size="sm" onClick={() => void run()} disabled={busy}>{busy ? "Copying…" : "Copy from the shop"}</Button></div>
-      </PanelBody>
-    </Panel>
   );
 }
 
