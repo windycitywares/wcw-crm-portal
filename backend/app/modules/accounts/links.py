@@ -120,6 +120,17 @@ class LinkService:
                    Contact.deleted_at.is_(None)).group_by(AccountContact.account_id))
         return {a: n for a, n in rows.all()}
 
+    async def people_in(self, account_ids: list[int]) -> int:
+        """Distinct people currently at any of these accounts (someone at two of them counts once)."""
+        if not account_ids:
+            return 0
+        from sqlalchemy import func
+
+        return int((await self.session.execute(
+            select(func.count(func.distinct(AccountContact.contact_id))).join(Contact, Contact.id == AccountContact.contact_id)
+            .where(AccountContact.account_id.in_(account_ids), AccountContact.ended_on.is_(None),
+                   Contact.deleted_at.is_(None)))).scalar_one())
+
     async def _link(self, link_id: int) -> AccountContact:
         link = await self.session.get(AccountContact, link_id)
         if link is None:

@@ -32,6 +32,9 @@ class Account(IdMixin, TimestampMixin, AuthorMixin, OwnedMixin, SoftDeleteMixin,
     # The person to talk to first (what the shop shows as a supplier's contact). Contacts point back with account_id.
     primary_contact_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("contacts.id", ondelete="SET NULL", use_alter=True))
+    # The parent organisation (a head office above its branches, a group above its companies). No cycles.
+    parent_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("accounts.id", ondelete="SET NULL"),
+                                                  index=True)
 
 
 class AccountContact(TimestampMixin, Base):

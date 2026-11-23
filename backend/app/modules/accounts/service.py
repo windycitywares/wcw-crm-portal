@@ -21,12 +21,15 @@ from app.shared.snapshot import snapshot
 
 from .models import Account
 from .repository import AccountRepository
-from .schemas import AccountIn, AccountOption, AccountOut, AccountPage, AccountUpdate
+from .schemas import (
+    AccountGroup, AccountIn, AccountOption, AccountOut, AccountPage, AccountTreeNode, AccountUpdate,
+)
 
 ENTITY = "account"
 KIND = "account_type"
 TRACKED = ("name", "account_type", "status", "industry", "website", "email", "phone", "address", "notes",
-           "owner_id", "custom_fields")
+           "owner_id", "parent_id", "custom_fields")
+MAX_DEPTH = 10  # a group deeper than this is almost certainly a mistake
 
 
 async def _exists(session, account_id: int) -> bool:
@@ -72,13 +75,18 @@ class AccountService:
         from .links import LinkService  # people currently linked, main account or not
 
         counts = await LinkService(self.session).active_counts([a.id for a in accounts])
-        return [AccountOut.model_validate(a).model_copy(update={"contacts_count": counts.get(a.id, 0)})
-                for a in accounts]
+        parents = await self.repo.names([a.parent_id for a in accounts if a.parent_id])
+        kids = await self.repo.children_counts([a.id for a in accounts])
+        return [AccountOut.model_validate(a).model_copy(update={
+            "contacts_count": counts.get(a.id, 0), "parent_name": parents.get(a.parent_id) if a.parent_id else None,
+            "children_count": kids.get(a.id, 0)}) for a in accounts]
 
     async def list(self, params: PageParams, *, q: str | None = None, account_type: str | None = None,
-                   status: str | None = None, owner_id: int | None = None, sort: str = "name") -> AccountPage:
+                   status: str | None = None, owner_id: int | None = None, parent_id: int | None = None,
+                   sort: str = "name") -> AccountPage:
         rows, total = await self.repo.paginate(
-            self.repo.search(q=q, account_type=account_type, status=status, owner_id=owner_id, sort=sort), params)
+            self.repo.search(q=q, account_type=account_type, status=status, owner_id=owner_id, parent_id=parent_id,
+                             sort=sort), params)
         return AccountPage(items=await self._out(list(rows)), total=total, page=params.page,
                            page_size=params.page_size)
 
@@ -139,7 +147,61 @@ class AccountService:
         account.updated_by = actor.id
 
     # ---- writes ---------------------------------------------------------
+    async def _check_parent(self, parent_id: int, current: Account | None) -> None:
+        """The parent must be a live account, and never this account or one of its own sub-accounts."""
+        parent = await self.repo.get(parent_id)
+        if parent is None:
+            raise ValidationFailedError(f"Parent account #{parent_id} doesn't exist")
+        seen, node, depth = set(), parent, 1
+        while node is not None:
+            if current is not None and node.id == current.id:
+                raise ValidationFailedError(f"{parent.name} is under this account, so it can't also be its parent")
+            if node.id in seen:
+                break
+            seen.add(node.id)
+            depth += 1
+            node = await self.repo.get(node.parent_id) if node.parent_id else None
+        if depth + (await self._height(current.id) if current else 0) > MAX_DEPTH:
+            raise ValidationFailedError(f"An account group can be at most {MAX_DEPTH} levels deep")
+
+    async def _height(self, account_id: int) -> int:
+        """How many levels sit under an account (0 when none)."""
+        level, ids = 0, [account_id]
+        while ids and level <= MAX_DEPTH:
+            ids = await self.repo.child_ids(ids)
+            if ids:
+                level += 1
+        return level
+
+    async def group(self, account_id: int) -> AccountGroup:
+        """The account's place in its group: who is above it, everything under it, and the totals underneath."""
+        from .links import LinkService
+
+        account = await self._get(account_id)
+        ancestors: list[AccountOption] = []
+        node, seen = account, {account.id}
+        while node.parent_id and node.parent_id not in seen and len(ancestors) < MAX_DEPTH:
+            node = await self.repo.get(node.parent_id)
+            if node is None:
+                break
+            seen.add(node.id)
+            ancestors.insert(0, AccountOption(id=node.id, name=node.name, account_type=node.account_type))
+        rows = await self.repo.subtree(account.id, max_depth=MAX_DEPTH)  # (account, depth), depth-first
+        ids = [a.id for a, _ in rows]
+        people = await LinkService(self.session).active_counts(ids)
+        deals = await self.repo.open_deals(ids)
+        tree = [AccountTreeNode(id=a.id, name=a.name, account_type=a.account_type, status=a.status, depth=d,
+                                parent_id=a.parent_id, contacts_count=people.get(a.id, 0),
+                                open_deals=deals.get(a.id, (0, 0.0))[0], open_value=deals.get(a.id, (0, 0.0))[1])
+                for a, d in rows]
+        return AccountGroup(ancestors=ancestors, tree=tree, accounts=len(tree),
+                            people=await LinkService(self.session).people_in(ids),
+                            open_deals=sum(n.open_deals for n in tree),
+                            open_value=round(sum(n.open_value for n in tree), 2))
+
     async def _validate(self, values: dict[str, Any], current: Account | None) -> dict[str, Any]:
+        if values.get("parent_id") is not None and (current is None or values["parent_id"] != current.parent_id):
+            await self._check_parent(values["parent_id"], current)
         if values.get("account_type") is not None:
             values["account_type"] = await self.lookups.require(
                 KIND, values["account_type"], allow_inactive_key=current.account_type if current else None)
