@@ -22,7 +22,7 @@ class OrderCostTests(unittest.TestCase):
         types = cls.w.client.get(f"{API}/lookups/supplier_type", headers=cls.h).json()
         cls.supplier = cls.w.client.post(f"{API}/suppliers", headers=cls.h, json={
             "name": cls.w.email("cost-sup"), "supplier_type": next(t["key"] for t in types if t["is_active"])}).json()
-        cls.listing_ext = int(cls.w.sfx) % 10_000_000 * 100 + 8_000_000_000
+        cls.listing_ext = int(cls.w.sfx, 16) % 10_000_000 * 100 + 8_000_000_000
 
         async def listing(session):
             from app.modules.channels.models import ChannelListing
@@ -63,7 +63,7 @@ class OrderCostTests(unittest.TestCase):
         reset_limits()
 
     def order(self, size_value, qty=1, days_ago=1):
-        n = int(self.w.sfx) % 1_000_000 * 1000 + 9_000_000_000 + self._next()
+        n = int(self.w.sfx, 16) % 1_000_000 * 1000 + 9_000_000_000 + self._next()
         when = datetime.now(timezone.utc) - timedelta(days=days_ago)
 
         async def go(session):
