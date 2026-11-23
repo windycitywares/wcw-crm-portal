@@ -42,6 +42,7 @@ class AccountIn(BaseModel):
     address: AccountAddress | None = None
     notes: Annotated[str | None, Field(default=None, max_length=5000)] = None
     owner_id: int | None = None
+    parent_id: int | None = None
     custom_fields: dict[str, Any] | None = None
 
 
@@ -56,6 +57,7 @@ class AccountUpdate(BaseModel):
     address: AccountAddress | None = None
     notes: Annotated[str | None, Field(default=None, max_length=5000)] = None
     owner_id: int | None = None
+    parent_id: int | None = None
     custom_fields: dict[str, Any] | None = None
 
 
@@ -74,6 +76,9 @@ class AccountOut(BaseModel):
     notes: str | None
     owner_id: int | None
     primary_contact_id: int | None = None
+    parent_id: int | None = None
+    parent_name: str | None = None
+    children_count: int = 0
     custom_fields: dict[str, Any]
     contacts_count: int = 0
     created_by: int | None
@@ -128,3 +133,26 @@ class AccountLinkOut(BaseModel):
     started_on: date | None
     ended_on: date | None
     active: bool
+
+
+class AccountTreeNode(BaseModel):
+    id: int
+    name: str
+    account_type: str
+    status: str
+    depth: int  # 0 = the group's top account
+    parent_id: int | None
+    contacts_count: int
+    open_deals: int
+    open_value: float
+
+
+class AccountGroup(BaseModel):
+    """An account with the organisations above it and every account under it, with a roll-up of the whole group."""
+
+    ancestors: list[AccountOption]  # top first
+    tree: list[AccountTreeNode]     # this account and everything under it, depth-first
+    accounts: int
+    people: int
+    open_deals: int
+    open_value: float

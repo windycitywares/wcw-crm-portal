@@ -2,7 +2,7 @@
 
 import unittest
 
-from tests.support import API, World, reset_limits, run, skip_unless_db
+from tests.support import API, World, ensure_pipeline, reset_limits, run, skip_unless_db
 
 
 @skip_unless_db
@@ -191,3 +191,59 @@ class AccountPeopleTests(unittest.TestCase):
         bad = self.w.client.patch(f"{API}/accounts/links/{res.json()['id']}", headers=self.h,
                                   json={"ended_on": "2000-01-01"})
         self.assertEqual(bad.status_code, 422)
+
+
+@skip_unless_db
+class AccountGroupTests(unittest.TestCase):
+    """Parent and child accounts: no cycles, a group view, and totals rolled up from the sub-accounts."""
+
+    @classmethod
+    def setUpClass(cls):
+        from app.modules.lookups.service import LookupService
+
+        cls.w = World()
+        reset_limits()
+        run(lambda s: LookupService(s).seed())
+        cls.mgr, cls.h = cls.w.user_with_token("manager")
+        ensure_pipeline(cls.w)
+
+    def setUp(self):
+        reset_limits()
+
+    def account(self, **data):
+        data.setdefault("name", f"Grp {self.w.email('g').split('@')[0]}")
+        data.setdefault("account_type", "customer")
+        res = self.w.client.post(f"{API}/accounts", headers=self.h, json=data)
+        self.assertEqual(res.status_code, 201, res.text)
+        return res.json()
+
+    def test_group_rollup_and_cycles(self):
+        top = self.account()
+        mid = self.account(parent_id=top["id"])
+        leaf = self.account(parent_id=mid["id"])
+        self.assertEqual((mid["parent_id"], mid["parent_name"]), (top["id"], top["name"]))
+        self.assertEqual(self.w.client.get(f"{API}/accounts/{top['id']}", headers=self.h).json()["children_count"], 1)
+        # People and an open deal under the leaf roll up to the top.
+        p = self.w.client.post(f"{API}/contacts", headers=self.h, json={
+            "first_name": "Ana", "email": self.w.email("ana"), "types": ["vendor"], "account_id": leaf["id"]})
+        self.assertEqual(p.status_code, 201, p.text)
+        d = self.w.client.post(f"{API}/sales/deals", headers=self.h,
+                               json={"title": "Group deal", "account_id": leaf["id"], "value": "250.00"})
+        self.assertEqual(d.status_code, 201, d.text)
+        g = self.w.client.get(f"{API}/accounts/{top['id']}/group", headers=self.h).json()
+        self.assertEqual([(n["id"], n["depth"]) for n in g["tree"]], [(top["id"], 0), (mid["id"], 1), (leaf["id"], 2)])
+        self.assertEqual((g["accounts"], g["people"], g["open_deals"], g["open_value"]), (3, 1, 1, 250.0))
+        self.assertEqual([a["id"] for a in self.w.client.get(f"{API}/accounts/{leaf['id']}/group",
+                                                             headers=self.h).json()["ancestors"]], [top["id"], mid["id"]])
+        # No cycles: the top can't go under its own grandchild, nor under itself.
+        for bad in (leaf["id"], top["id"]):
+            res = self.w.client.patch(f"{API}/accounts/{top['id']}", headers=self.h, json={"parent_id": bad})
+            self.assertEqual(res.status_code, 422, res.text)
+        listed = self.w.client.get(f"{API}/accounts", headers=self.h, params={"parent_id": top["id"]}).json()
+        self.assertEqual([a["id"] for a in listed["items"]], [mid["id"]])
+        # A parent with a live sub-account can't be deleted; detaching it frees the parent.
+        self.assertEqual(self.w.client.delete(f"{API}/accounts/{top['id']}", headers=self.h).status_code, 409)
+        res = self.w.client.patch(f"{API}/accounts/{mid['id']}", headers=self.h, json={"parent_id": None})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertIsNone(res.json()["parent_id"])
+        self.assertEqual(self.w.client.delete(f"{API}/accounts/{top['id']}", headers=self.h).status_code, 204)

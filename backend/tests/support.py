@@ -85,3 +85,10 @@ class World:
     def user_with_token(self, role: str = "admin", **extra: Any) -> tuple[dict[str, Any], dict[str, str]]:
         user = self.make_user(role, **extra)
         return user, self.login(user["email"], user["password"])
+
+
+def ensure_pipeline(w: "World") -> None:
+    """Tests that add deals need a live default pipeline, whatever other suites did to theirs."""
+    _, h = w.user_with_token("manager")
+    res = w.client.post(f"{API}/sales/pipelines", headers=h, json={"name": f"Default {w.email('p')}", "is_default": True})
+    assert res.status_code == 201, res.text

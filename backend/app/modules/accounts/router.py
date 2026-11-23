@@ -10,7 +10,7 @@ from app.modules.users.models import User
 
 from .repository import SORTS
 from .links import LinkService
-from .schemas import AccountIn, AccountLinkIn, AccountLinkOut, AccountLinkUpdate, AccountOption, AccountOut, AccountPage, AccountUpdate
+from .schemas import AccountIn, AccountLinkIn, AccountLinkOut, AccountLinkUpdate, AccountGroup, AccountOption, AccountOut, AccountPage, AccountUpdate
 from .service import AccountService
 
 router = APIRouter(prefix="/accounts", tags=["accounts"], dependencies=[Depends(require(Permission.CUSTOMERS_VIEW))])
@@ -23,10 +23,11 @@ async def list_accounts(
     q: Annotated[str | None, Query(max_length=120)] = None,
     type: Annotated[str | None, Query(max_length=60)] = None,
     status_: Annotated[Literal["active", "inactive"] | None, Query(alias="status")] = None,
-    owner: Literal["me", "any"] = "any", sort: Sort = "name",
+    owner: Literal["me", "any"] = "any", sort: Sort = "name", parent_id: int | None = None,
 ) -> AccountPage:
     return await AccountService(session).list(page, q=q, account_type=type, status=status_,
-                                              owner_id=user.id if owner == "me" else None, sort=sort)
+                                              owner_id=user.id if owner == "me" else None, parent_id=parent_id,
+                                              sort=sort)
 
 
 @router.get("/options", response_model=list[AccountOption])
@@ -74,6 +75,12 @@ async def account_contacts(session: SessionDep, account_id: int, page: PageDep) 
 
     await AccountService(session).get(account_id)
     return await ContactService(session).list(page, account_id=account_id, sort="name")
+
+
+@router.get("/{account_id}/group", response_model=AccountGroup)
+async def account_group(session: SessionDep, account_id: int) -> AccountGroup:
+    """Parent accounts above it, every sub-account under it, and the group's totals (people, open deals)."""
+    return await AccountService(session).group(account_id)
 
 
 @router.get("/{account_id}/people", response_model=list[AccountLinkOut])
