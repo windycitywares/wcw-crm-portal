@@ -3,6 +3,7 @@ import type { Page } from "@/lib/types";
 
 export interface UrnSize {
   id: number;
+  type_id: number;
   code: string;
   label: string;
   position: number;
@@ -27,6 +28,8 @@ export interface UrnVariation {
 
 export interface ReviewRow extends UrnVariation {
   urn_name: string;
+  type_id: number;
+  type_name: string | null;
   supplier_id: number | null;
   supplier_name: string | null;
 }
@@ -34,6 +37,7 @@ export interface ReviewRow extends UrnVariation {
 export interface CostExtra {
   id: number;
   urn_id: number | null;
+  type_id: number | null;
   name: string;
   mode: "amount" | "percent";
   value: string;
@@ -53,6 +57,10 @@ export type ExtraInput = Omit<CostExtra, "id" | "active" | "effective_from" | "e
 export interface Urn {
   id: number;
   name: string;
+  type_id: number;
+  type_name: string | null;
+  /** False for a type sold as one item: its price is `prices.item`. */
+  has_sizes: boolean;
   supplier_id: number | null;
   supplier_name: string | null;
   listing_id: number | null;
@@ -74,6 +82,8 @@ export interface UrnDetail extends Urn {
   variations: UrnVariation[];
   price_history: { id: number; size_code: string; amount: string; effective_from: string }[];
   extras: CostExtra[];
+  /** The sizes of this product's type. */
+  sizes: { code: string; label: string; active: boolean }[];
 }
 
 export interface UrnSummary {
@@ -87,18 +97,28 @@ export interface UrnSummary {
   sku_differs: number;
 }
 
-export interface SkuFormat {
+/** A kind of product with its own SKU format and sizes; without sizes it's sold as one item. */
+export interface ProductType {
+  id: number;
+  name: string;
+  code: string | null;
   template: string;
   size_format: string;
   separator: string;
-  etsy_push_enabled: boolean;
-  problems: string[];
+  position: number;
+  active: boolean;
+  sizes: UrnSize[];
+  products: number;
   examples: string[];
+  problems: string[];
 }
+
+export type TypeInput = Partial<Pick<ProductType, "name" | "code" | "template" | "size_format" | "separator" | "position" | "active">>;
 
 export interface SkuRow {
   urn_id: number;
   urn_name: string;
+  type_name: string | null;
   variation_id: number;
   label: string;
   etsy_sku: string | null;
@@ -114,14 +134,16 @@ const json = (method: string, body: unknown) => ({ method, body: JSON.stringify(
 
 export const urnsApi = {
   summary: () => apiFetch<UrnSummary>("/urns/summary"),
-  list: (f: { q?: string; supplier_id?: number | ""; needs?: Needs; page?: number; page_size?: number }) =>
-    apiFetch<Page<Urn>>(`/urns${qs({ q: f.q || undefined, supplier_id: f.supplier_id || undefined, needs: f.needs || undefined, page: f.page, page_size: f.page_size })}`),
+  list: (f: { q?: string; supplier_id?: number | ""; type_id?: number | ""; needs?: Needs; page?: number; page_size?: number }) =>
+    apiFetch<Page<Urn>>(`/urns${qs({ q: f.q || undefined, supplier_id: f.supplier_id || undefined, type_id: f.type_id || undefined, needs: f.needs || undefined, page: f.page, page_size: f.page_size })}`),
   get: (id: number) => apiFetch<UrnDetail>(`/urns/${id}`),
-  update: (id: number, data: { name?: string; supplier_id?: number | null; notes?: string | null }) =>
+  update: (id: number, data: { name?: string; supplier_id?: number | null; notes?: string | null; type_id?: number }) =>
     apiFetch<UrnDetail>(`/urns/${id}`, json("PATCH", data)),
   remove: (id: number) => apiFetch<void>(`/urns/${id}`, { method: "DELETE" }),
   refresh: (id: number) => apiFetch<UrnDetail>(`/urns/${id}/refresh`, { method: "POST" }),
   setup: () => apiFetch<{ created: number; variations_added: number }>("/urns/setup", { method: "POST" }),
+  assignType: (urnIds: number[], typeId: number) =>
+    apiFetch<{ updated: number }>("/urns/assign-type", json("POST", { urn_ids: urnIds, type_id: typeId })),
   assignSupplier: (urnIds: number[], supplierId: number | null) =>
     apiFetch<{ updated: number }>("/urns/assign-supplier", json("POST", { urn_ids: urnIds, supplier_id: supplierId })),
   review: (state: string, page = 1) => apiFetch<Page<ReviewRow>>(`/urns/review${qs({ state, page, page_size: 100 })}`),
@@ -132,15 +154,17 @@ export const urnsApi = {
   setPrice: (urnId: number, data: { size_code: string; amount: string; effective_from?: string | null }) =>
     apiFetch<void>(`/urns/${urnId}/prices`, json("POST", data)),
   removePrice: (urnId: number, priceId: number) => apiFetch<void>(`/urns/${urnId}/prices/${priceId}`, { method: "DELETE" }),
-  sizes: () => apiFetch<UrnSize[]>("/urns/sizes"),
-  addSize: (data: Partial<UrnSize>) => apiFetch<UrnSize>("/urns/sizes", json("POST", data)),
+  sizes: (typeId?: number) => apiFetch<UrnSize[]>(`/urns/sizes${qs({ type_id: typeId })}`),
+  addSize: (data: Partial<UrnSize> & { type_id: number }) => apiFetch<UrnSize>("/urns/sizes", json("POST", data)),
   editSize: (id: number, data: Partial<UrnSize>) => apiFetch<UrnSize>(`/urns/sizes/${id}`, json("PATCH", data)),
-  format: () => apiFetch<SkuFormat>("/urns/sku-format"),
-  checkFormat: (data: Partial<SkuFormat>) => apiFetch<SkuFormat>("/urns/sku-format/check", json("POST", data)),
-  saveFormat: (data: Partial<SkuFormat>) => apiFetch<{ changed: number }>("/urns/sku-format", json("PUT", data)),
+  types: () => apiFetch<ProductType[]>("/urns/types"),
+  addType: (data: TypeInput) => apiFetch<ProductType>("/urns/types", json("POST", data)),
+  editType: (id: number, data: TypeInput) => apiFetch<ProductType>(`/urns/types/${id}`, json("PATCH", data)),
+  checkType: (id: number, data: { template?: string; size_format?: string; separator?: string; code?: string }) =>
+    apiFetch<{ problems: string[]; examples: string[] }>(`/urns/types/${id}/check`, json("POST", data)),
   skuPreview: (onlyDifferent: boolean) =>
     apiFetch<{ items: SkuRow[]; etsy_push_enabled: boolean }>(`/urns/sku-preview${qs({ only_different: onlyDifferent || undefined })}`),
-  sharedExtras: () => apiFetch<CostExtra[]>("/urns/extras"),
+  sharedExtras: (typeId?: number) => apiFetch<CostExtra[]>(`/urns/extras${qs({ type_id: typeId })}`),
   addExtra: (data: ExtraInput) => apiFetch<CostExtra>("/urns/extras", json("POST", data)),
   editExtra: (id: number, data: Partial<ExtraInput>) => apiFetch<CostExtra>(`/urns/extras/${id}`, json("PATCH", data)),
   endExtra: (id: number) => apiFetch<void>(`/urns/extras/${id}/end`, json("POST", {})),
@@ -196,7 +220,8 @@ export const orderCostsApi = {
 };
 
 /** "10″ × 1 + 3″ × 4" from {"10": 1, "3": 4}, in the sizes list's order. */
-export function quantitiesText(q: Record<string, number>, sizes: UrnSize[]): string {
+export function quantitiesText(q: Record<string, number>, sizes: { code: string; label: string }[]): string {
+  if (q.item) return q.item === 1 ? "1 item" : `${q.item} items`;
   const parts = sizes.filter((s) => (q[s.code] ?? 0) > 0).map((s) => `${s.label} × ${q[s.code]}`);
   const unknown = Object.keys(q).filter((c) => !sizes.some((s) => s.code === c) && q[c] > 0).map((c) => `${c} × ${q[c]}`);
   return [...parts, ...unknown].join(" + ") || "—";

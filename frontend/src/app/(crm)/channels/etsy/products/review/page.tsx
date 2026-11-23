@@ -23,7 +23,8 @@ export default function ReviewPage() {
   const { can } = useAuth();
   const toast = useToast();
   const canEdit = can("channels:edit");
-  const sizes = useSizes().filter((s) => s.active);
+  const allSizes = useSizes().filter((s) => s.active);
+  const sizesOf = (r: ReviewRow) => allSizes.filter((s) => s.type_id === r.type_id);
   const [tab, setTab] = useState<Tab>("open");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<Page<ReviewRow> | null>(null);
@@ -43,7 +44,7 @@ export default function ReviewPage() {
   useEffect(() => { void load(); }, [load]);
 
   const draftFor = (r: ReviewRow) =>
-    drafts[r.id] ?? Object.fromEntries(sizes.map((s) => [s.code, r.quantities[s.code] ? String(r.quantities[s.code]) : ""]));
+    drafts[r.id] ?? Object.fromEntries((sizesOf(r).length ? sizesOf(r).map((s) => s.code) : ["item"]).map((c) => [c, r.quantities[c] ? String(r.quantities[c]) : ""]));
   const quantities = (r: ReviewRow) =>
     Object.fromEntries(Object.entries(draftFor(r)).filter(([, q]) => Number(q) > 0).map(([c, q]) => [c, Number(q)]));
 
@@ -101,7 +102,7 @@ export default function ReviewPage() {
                 )}
                 <th scope="col" className="px-2 py-2 font-semibold">Product</th>
                 <th scope="col" className="px-2 py-2 font-semibold">Etsy variation</th>
-                {sizes.map((s) => <th key={s.code} scope="col" className="px-2 py-2 text-right font-semibold">{s.label}</th>)}
+                <th scope="col" className="px-2 py-2 font-semibold">Pieces</th>
                 <th scope="col" className="px-2 py-2 font-semibold">State</th>
                 <th scope="col" className="px-2 py-2 font-semibold">SKU</th>
                 {canEdit && <th scope="col" className="px-4 py-2"><span className="sr-only">Save</span></th>}
@@ -120,25 +121,29 @@ export default function ReviewPage() {
                   )}
                   <td className="px-2 py-2">
                     <Link href={`/channels/etsy/products/${r.urn_id}`} className="font-medium hover:text-accent-strong hover:underline">{r.urn_name}</Link>
-                    <div className="text-xs text-muted">#{r.urn_id}{r.supplier_name ? ` · ${r.supplier_name}` : " · no supplier"}</div>
+                    <div className="text-xs text-muted">#{r.urn_id}{r.type_name ? ` · ${r.type_name}` : ""}{r.supplier_name ? ` · ${r.supplier_name}` : " · no supplier"}</div>
                   </td>
                   <td className="px-2 py-2">
                     {r.label}
                     {r.note && <div className="text-xs text-danger">{r.note}</div>}
                   </td>
-                  {sizes.map((s) => (
-                    <td key={s.code} className="px-2 py-2 text-right">
-                      {canEdit ? (
-                        <>
-                          <label className="sr-only" htmlFor={`r-${r.id}-${s.code}`}>{s.label} pieces in {r.urn_name}, {r.label}</label>
-                          <input id={`r-${r.id}-${s.code}`} type="number" min={0} max={500} inputMode="numeric"
-                            className="num w-16 rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1 text-right focus-visible:outline-2 focus-visible:outline-accent"
-                            value={draftFor(r)[s.code] ?? ""}
-                            onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: { ...draftFor(r), [s.code]: e.target.value } }))} />
-                        </>
-                      ) : <span className="num">{r.quantities[s.code] ?? "—"}</span>}
-                    </td>
-                  ))}
+                  <td className="px-2 py-2">
+                    {sizesOf(r).length === 0 ? <span className="text-xs text-muted">1 item</span> : (
+                      <div className="flex flex-wrap gap-2">
+                        {sizesOf(r).map((s) => (
+                          <label key={s.code} className="flex items-center gap-1 text-xs text-muted">
+                            {s.label}
+                            {canEdit ? (
+                              <input type="number" min={0} max={500} inputMode="numeric" aria-label={`${s.label} pieces in ${r.urn_name}, ${r.label}`}
+                                className="num w-14 rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1 text-right text-ink focus-visible:outline-2 focus-visible:outline-accent"
+                                value={draftFor(r)[s.code] ?? ""}
+                                onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: { ...draftFor(r), [s.code]: e.target.value } }))} />
+                            ) : <span className="num text-ink">{r.quantities[s.code] ?? "—"}</span>}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-2 py-2"><Badge variant={STATE_BADGE[r.state]}>{STATE_LABEL[r.state]}</Badge></td>
                   <td className="px-2 py-2 font-mono text-xs">{r.sku ?? <span className="font-sans text-muted">{r.supplier_id ? "After approval" : "Needs a supplier"}</span>}</td>
                   {canEdit && (
@@ -155,7 +160,7 @@ export default function ReviewPage() {
                 </tr>
               ))}
               {data && rows.length === 0 && (
-                <tr><td colSpan={sizes.length + 6} className="px-4 py-8 text-center text-muted">
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">
                   {tab === "open" ? "Nothing to check — every variation is approved." : "Nothing here."}
                 </td></tr>
               )}
