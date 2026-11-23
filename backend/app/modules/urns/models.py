@@ -17,13 +17,30 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.shared.models import AuthorMixin, Base, IdMixin, SoftDeleteMixin, TimestampMixin
 
 
+class ProductType(IdMixin, TimestampMixin, Base):
+    """A kind of product (Urn, Jewelry…) with its own SKU format and its own sizes. A type without sizes is sold as
+    one item at one price. `code` is what `{type}` writes in a SKU."""
+
+    __tablename__ = "product_types"
+
+    name: Mapped[str] = mapped_column(String(60), unique=True)
+    code: Mapped[str | None] = mapped_column(String(10))
+    template: Mapped[str] = mapped_column(String(80))
+    size_format: Mapped[str] = mapped_column(String(20), default="{code}x{qty}", server_default="{code}x{qty}")
+    separator: Mapped[str] = mapped_column(String(3), default="-", server_default="-")
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
+
+
 class UrnSize(IdMixin, TimestampMixin, Base):
-    """A size urns come in (10 inch, 3 inch…). `code` is what the SKU writes; `aliases` are the words that mean
-    this size in Etsy variation names ("large", "keepsake")."""
+    """A size a product type comes in (10 inch, 3 inch…). `code` is what the SKU writes; `aliases` are the words
+    that mean this size in Etsy variation names ("large", "keepsake")."""
 
     __tablename__ = "urn_sizes"
+    __table_args__ = (Index("uq_urn_sizes_type_code", "type_id", "code", unique=True),)
 
-    code: Mapped[str] = mapped_column(String(10), unique=True)
+    type_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("product_types.id", ondelete="CASCADE"), index=True)
+    code: Mapped[str] = mapped_column(String(10))
     label: Mapped[str] = mapped_column(String(40))
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     aliases: Mapped[list[Any]] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
@@ -39,6 +56,7 @@ class Urn(IdMixin, TimestampMixin, AuthorMixin, SoftDeleteMixin, Base):
     )
 
     name: Mapped[str] = mapped_column(String(120), index=True)
+    type_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("product_types.id", ondelete="RESTRICT"), index=True)
     supplier_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("suppliers.id", ondelete="SET NULL"),
                                                     index=True)
     listing_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("channel_listings.id", ondelete="SET NULL"))
@@ -62,13 +80,14 @@ class UrnPrice(IdMixin, AuthorMixin, Base):
 class CostExtra(IdMixin, TimestampMixin, AuthorMixin, Base):
     """A cost that adds (packaging, a box) or subtracts (a supplier discount) on top of the supplier price.
 
-    `urn_id` empty = every urn. `mode`: a fixed `amount` or a `percent` of the supplier price. `applies`: once per
+    `urn_id` = one product; else `type_id` = every product of a type; both empty = every product. `mode`: a fixed `amount` or a `percent` of the supplier price. `applies`: once per
     `piece` (of `size_code`, or of any size when empty) or once per `order`. `party`: `supplier` = part of what the
     supplier is owed; `ours` = our own cost, in profit only. Dated like prices."""
 
     __tablename__ = "cost_extras"
 
     urn_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("urns.id", ondelete="CASCADE"), index=True)
+    type_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("product_types.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(80))
     mode: Mapped[str] = mapped_column(String(10), default="amount", server_default="amount")
     value: Mapped[Decimal] = mapped_column(Numeric(12, 4))

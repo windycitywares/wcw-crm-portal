@@ -100,16 +100,19 @@ class UrnTests(unittest.TestCase):
         urn = c.get(f"{API}/urns/{urn_id}", headers=self.sales_h).json()
         self.assertEqual(urn["prices"]["10"], "40.00")
         self.assertEqual(len(urn["price_history"]), 2)
-        # A different template changes the CRM's SKUs (and only those).
-        bad = c.post(f"{API}/urns/sku-format/check", headers=h, json={"template": "WCW-{urn:4}"}).json()
+        # A different template for the product's type changes the CRM's SKUs (and only those).
+        urn_type = next(t for t in c.get(f"{API}/urns/types", headers=self.sales_h).json() if t["id"] == urn["type_id"])
+        tid = urn_type["id"]
+        bad = c.post(f"{API}/urns/types/{tid}/check", headers=h, json={"template": "WCW-{urn:4}"}).json()
         self.assertTrue(bad["problems"])
-        self.assertEqual(c.put(f"{API}/urns/sku-format", headers=h, json={"template": "WCW-{urn:4}"}).status_code, 422)
-        res = c.put(f"{API}/urns/sku-format", headers=h, json={"template": "U{product:5}-S{supplier:4}-{sizes}{-option}"})
+        self.assertEqual(c.patch(f"{API}/urns/types/{tid}", headers=h, json={"template": "WCW-{urn:4}"}).status_code, 422)
+        self.assertEqual(c.patch(f"{API}/urns/types/{tid}", headers=self.support_h, json={"name": "x"}).status_code, 403)
+        res = c.patch(f"{API}/urns/types/{tid}", headers=h, json={"template": "U{product:5}-S{supplier:4}-{sizes}{-option}"})
         self.assertEqual(res.status_code, 200, res.text)
         urn = c.get(f"{API}/urns/{urn_id}", headers=self.sales_h).json()
         large = next(v for v in urn["variations"] if v["label"] == "10 inch Large")
         self.assertEqual(large["sku"], f"U{str(urn_id).zfill(5)}-S{str(self.supplier['id']).zfill(4)}-10x1")
-        c.put(f"{API}/urns/sku-format", headers=h, json={"template": "WCW-{supplier:3}-{product:4}-{sizes}{-option}"})
+        c.patch(f"{API}/urns/types/{tid}", headers=h, json={"template": urn_type["template"]})
 
     def test_listing_without_variations_and_extras(self):
         c, h = self.w.client, self.h
@@ -130,3 +133,87 @@ class UrnTests(unittest.TestCase):
         self.assertGreaterEqual(summary["no_supplier"], 1)
         listed = c.get(f"{API}/urns", headers=self.sales_h, params={"needs": "supplier", "q": "Rose"}).json()
         self.assertIn(urn_id, [u["id"] for u in listed["items"]])
+
+
+@skip_unless_db
+class ProductTypeTests(unittest.TestCase):
+    """A type per kind of product: its own SKU format and sizes; one sold as one item has a single price."""
+
+    @classmethod
+    def setUpClass(cls):
+        from app.modules.lookups.service import LookupService
+
+        cls.w = World()
+        reset_limits()
+        run(lambda s: LookupService(s).seed())
+        cls.admin, cls.h = cls.w.user_with_token("admin")
+        cls.support, cls.support_h = cls.w.user_with_token("support")
+        types = cls.w.client.get(f"{API}/lookups/supplier_type", headers=cls.h).json()
+        cls.supplier = cls.w.client.post(f"{API}/suppliers", headers=cls.h, json={
+            "name": cls.w.email("type-sup"), "supplier_type": next(t["key"] for t in types if t["is_active"])}).json()
+        cls.ext = int(cls.w.sfx, 16) % 10_000_000 * 100 + 6_000_000_000
+
+        async def listing(session):
+            from app.modules.channels.models import ChannelListing
+
+            session.add(ChannelListing(channel="etsy", external_id=cls.ext, title="Silver Heart Pendant - Engraved",
+                                       variations=[{"options": {"Chain": "18 inch"}}, {"options": {"Chain": "20 inch"}}]))
+            await session.commit()
+
+        run(listing)
+        cls.w.client.post(f"{API}/urns/setup", headers=cls.support_h)
+
+        async def urn_id(session):
+            from sqlalchemy import select
+
+            from app.modules.channels.models import ChannelListing
+            from app.modules.urns.models import Urn
+
+            return (await session.execute(select(Urn.id).join(ChannelListing, ChannelListing.id == Urn.listing_id)
+                                          .where(ChannelListing.external_id == cls.ext))).scalar_one()
+
+        cls.urn_id = run(urn_id)
+
+    def setUp(self):
+        reset_limits()
+
+    def test_single_item_type(self):
+        c, h = self.w.client, self.h
+        name = f"Jewelry {self.w.sfx}"
+        res = c.post(f"{API}/urns/types", headers=h, json={"name": name, "code": "j"})
+        self.assertEqual(res.status_code, 201, res.text)
+        jt = res.json()
+        self.assertEqual((jt["code"], jt["sizes"]), ("J", []))
+        self.assertNotIn("{sizes}", jt["template"])
+        self.assertEqual(c.post(f"{API}/urns/types", headers=h, json={"name": name}).status_code, 422)
+        bad = c.post(f"{API}/urns/types/{jt['id']}/check", headers=h, json={"template": "WCW-{supplier:3}-{product:4}-{sizes}"}).json()
+        self.assertIn("no sizes", bad["problems"][0])
+        c.patch(f"{API}/urns/types/{jt['id']}", headers=h, json={"template": "WCW-{type}-{supplier:3}-{product:4}{-option}"})
+        # Moving the pendant to Jewelry: every variation is one item, approved as read, and gets the type's SKU.
+        res = c.post(f"{API}/urns/assign-type", headers=self.support_h, json={"urn_ids": [self.urn_id], "type_id": jt["id"]})
+        self.assertEqual(res.status_code, 200, res.text)
+        c.patch(f"{API}/urns/{self.urn_id}", headers=self.support_h, json={"supplier_id": self.supplier["id"]})
+        c.post(f"{API}/urns/approve", headers=self.support_h, json={"urn_ids": [self.urn_id]})
+        urn = c.get(f"{API}/urns/{self.urn_id}", headers=h).json()
+        self.assertEqual((urn["type_name"], urn["has_sizes"]), (name, False))
+        self.assertTrue(all(v["quantities"] == {"item": 1} and v["state"] == "approved" for v in urn["variations"]))
+        want = f"WCW-J-{str(self.supplier['id']).zfill(3)}-{str(self.urn_id).zfill(4)}"
+        self.assertEqual({v["sku"] for v in urn["variations"]}, {want})  # one SKU for both chain lengths
+        self.assertEqual(c.post(f"{API}/urns/{self.urn_id}/prices", headers=h, json={"size_code": "10", "amount": "5"}).status_code, 422)
+        self.assertEqual(c.post(f"{API}/urns/{self.urn_id}/prices", headers=h,
+                                json={"size_code": "item", "amount": "12.00"}).status_code, 204)
+        self.assertEqual(c.get(f"{API}/urns/{self.urn_id}", headers=h).json()["prices"], {"item": "12.00"})
+        # An extra for the type reaches its products and nobody else.
+        res = c.post(f"{API}/urns/extras", headers=h, json={"type_id": jt["id"], "name": "Gift pouch", "value": "1.25"})
+        self.assertEqual(res.status_code, 201, res.text)
+        self.assertEqual([e["name"] for e in c.get(f"{API}/urns/extras", headers=h, params={"type_id": jt["id"]}).json()], ["Gift pouch"])
+        self.assertIn("Gift pouch", [e["name"] for e in c.get(f"{API}/urns/{self.urn_id}", headers=h).json()["extras"]])
+        self.assertNotIn("Gift pouch", [e["name"] for e in c.get(f"{API}/urns/extras", headers=h).json()])
+        self.assertEqual(c.post(f"{API}/urns/extras", headers=h, json={
+            "urn_id": self.urn_id, "type_id": jt["id"], "name": "x", "value": "1"}).status_code, 422)
+        # A type can get sizes later: its template gains {sizes}.
+        res = c.post(f"{API}/urns/sizes", headers=h, json={"type_id": jt["id"], "code": "18", "label": "18 inch chain"})
+        self.assertEqual(res.status_code, 201, res.text)
+        jt = next(t for t in c.get(f"{API}/urns/types", headers=h).json() if t["id"] == jt["id"])
+        self.assertIn("{sizes}", jt["template"])
+        self.assertEqual(jt["products"], 1)
