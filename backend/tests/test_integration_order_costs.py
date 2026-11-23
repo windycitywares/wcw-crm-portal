@@ -56,7 +56,7 @@ class OrderCostTests(unittest.TestCase):
             {"urn_id": cls.urn_id, "name": "Pouch", "value": "0.50", "size_code": "3", "party": "supplier"},
             {"urn_id": cls.urn_id, "name": "Gift box", "value": "4.00", "applies": "order", "party": "ours"},
         ):
-            res = c.post(f"{API}/urns/extras", headers=cls.h, json=extra)
+            res = c.post(f"{API}/urns/extras", headers=cls.h, json=extra | {"effective_from": old})  # in force for the orders
             assert res.status_code == 201, res.text
 
     def setUp(self):
