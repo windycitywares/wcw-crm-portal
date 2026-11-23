@@ -26,6 +26,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.entities import EntityType, check_entity_access, entity_labels, register_entity
+from app.core.trash import ensure_no_children
 from app.core.exceptions import NotFoundError, PermissionDeniedError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.core.permissions import Permission, has_permission
@@ -389,6 +390,7 @@ class TicketService:
 
     async def delete(self, ticket_id: int, actor) -> None:
         ticket = await self._get(ticket_id)
+        await ensure_no_children(self.session, "ticket", ticket)
         await self.repo.soft_delete(ticket)
         await self.audit.record("ticket.delete", actor=actor, entity_type=ENTITY, entity_id=ticket.id,
                                 changes={"number": ticket.number})

@@ -3,6 +3,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.entities import EntityType, register_entity
+from app.core.trash import ensure_no_children
 from app.core.exceptions import ConflictError, NotFoundError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.core.permissions import Permission
@@ -201,6 +202,7 @@ class SupplierService:
 
     async def delete(self, supplier_id: int, actor) -> None:
         supplier = await self._get(supplier_id)
+        await ensure_no_children(self.session, "supplier", supplier)
         await self.repo.soft_delete(supplier)
         account = await self._account(supplier)
         if account is not None and account.deleted_at is None:

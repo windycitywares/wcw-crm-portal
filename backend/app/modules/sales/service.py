@@ -26,6 +26,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.entities import EntityType, check_entity_access, entity_labels, register_entity
+from app.core.trash import ensure_no_children
 from app.core.exceptions import NotFoundError, PermissionDeniedError, ValidationFailedError
 from app.core.pagination import PageParams
 from app.core.permissions import Permission, has_permission
@@ -356,6 +357,7 @@ class SalesService:
         deal = await self._get(deal_id)
         if not _may_change(actor, deal):
             raise PermissionDeniedError("You can only delete deals you own")
+        await ensure_no_children(self.session, "deal", deal)
         await self.repo.soft_delete(deal)
         await self.audit.record("deal.delete", actor=actor, entity_type=ENTITY, entity_id=deal.id,
                                 changes={"title": deal.title})
