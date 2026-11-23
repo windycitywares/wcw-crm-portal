@@ -516,7 +516,6 @@ class SalesService:
         pipeline = await self._get_pipeline(pipeline_id)
         if await self.repo.count_in_pipeline(pipeline.id, status="open"):
             raise ValidationFailedError("Move this pipeline's open deals to another pipeline first")
-        await ensure_no_children(self.session, "pipeline", pipeline)  # won/lost deals too: they'd go with it
         await self.pipelines.soft_delete(pipeline)
         await self.audit.record("pipeline.delete", actor=actor, entity_type="pipeline", entity_id=pipeline.id,
                                 changes={"name": pipeline.name})

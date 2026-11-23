@@ -62,8 +62,8 @@ def register() -> None:
         TrashType("lead", "Lead", Lead, _lead_title, children=(("open task", "open tasks", open_tasks("lead")),)),
         TrashType("deal", "Deal", Deal, lambda x: x.title, order=50,
                   children=(("open task", "open tasks", open_tasks("deal")),)),
-        TrashType("pipeline", "Pipeline", Pipeline, lambda x: x.name, order=250,
-                  children=(("deal", "deals", count_in("deals", "pipeline_id")),)),
+        # A pipeline keeps its own rule (no open deals); closed deals just lose their stage if it is purged.
+        TrashType("pipeline", "Pipeline", Pipeline, lambda x: x.name, order=250),
         TrashType("task", "Task", Task, lambda x: x.title, order=10),
         TrashType("ticket", "Ticket", Ticket, lambda x: f"{x.number or ''} {x.subject}".strip(), order=50,
                   children=(("open task", "open tasks", open_tasks("ticket")),)),
