@@ -15,8 +15,9 @@ import { LiveProvider } from "@/lib/live";
 import { applyTheme, readTheme, saveTheme, type Theme } from "@/lib/theme";
 import { ROLE_LABEL } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { NavAccordion } from "./NavAccordion";
 import { NotificationBell } from "./NotificationBell";
-import { NAV, SETTINGS_NAV, SUPPLIER_NAV, activeHref, inSettings, titleFor, withChannels, type NavGroup } from "./nav";
+import { NAV, SETTINGS_NAV, SUPPLIER_NAV, inSettings, titleFor, withChannels } from "./nav";
 import { channelsApi } from "@/modules/channels/api";
 
 /*
@@ -54,54 +55,6 @@ function useTheme() {
   return { theme, toggle };
 }
 
-function NavGroups({ groups, onNavigate, collapsed }: { groups: NavGroup[]; onNavigate?: () => void; collapsed: boolean }) {
-  const { can } = useAuth();
-  const pathname = usePathname();
-  const current = activeHref(pathname, groups);
-  return (
-    <>
-      {groups.map((group, gi) => {
-        const items = group.items.filter((i) => !i.hidden && (!i.permission || can(i.permission)));
-        if (items.length === 0) return null;
-        return (
-          <div key={group.label ?? gi} className={gi > 0 ? "mt-4" : ""}>
-            {group.label &&
-              (collapsed ? (
-                <hr className="mx-2 mb-2 border-line" />
-              ) : (
-                <p className="font-admin px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-muted">{group.label}</p>
-              ))}
-            <ul className="space-y-0.5">
-              {items.map((item) => {
-                const active = item.href === current;
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={onNavigate}
-                      aria-current={active ? "page" : undefined}
-                      title={collapsed ? item.label : undefined}
-                      className={cn(
-                        "font-admin group relative flex items-center gap-3 rounded-[var(--radius-control)] py-2 text-[0.95rem] transition-[color,background-color,transform] duration-150 focus-visible:outline-offset-0",
-                        collapsed ? "justify-center px-2" : item.child ? "ml-4 px-3 text-[0.875rem]" : "px-3",
-                        active ? "bg-sand font-bold text-ink" : "text-ink hover:bg-sand/60 hover:text-accent motion-safe:hover:translate-x-0.5",
-                      )}
-                    >
-                      {active && <span aria-hidden="true" className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-accent" />}
-                      <Icon name={item.icon} className={cn("size-[1.15rem] shrink-0", active ? "text-accent" : "text-muted group-hover:text-accent")} />
-                      {collapsed ? <span className="sr-only">{item.label}</span> : <span>{item.label}</span>}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
 /** The main menu; in Settings it becomes a way back plus the settings sections (as in the shop admin). */
 function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collapsed: boolean }) {
   const pathname = usePathname();
@@ -119,7 +72,7 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
   return (
     <nav aria-label={settings ? "Settings" : "CRM"} className={cn("flex-1 overflow-y-auto pb-6 pt-2", collapsed ? "px-2" : "px-4")}>
       {supplier ? (
-        <NavGroups groups={SUPPLIER_NAV} onNavigate={onNavigate} collapsed={collapsed} />
+        <NavAccordion groups={SUPPLIER_NAV} onNavigate={onNavigate} collapsed={collapsed} />
       ) : settings ? (
         <>
           <Link
@@ -134,10 +87,10 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
             <Icon name="chevronLeft" className="size-4 shrink-0" />
             {collapsed ? <span className="sr-only">Back to dashboard</span> : "Back to dashboard"}
           </Link>
-          <NavGroups groups={[{ items: [{ href: "/settings", label: "All settings", icon: "dashboard" }] }, ...SETTINGS_NAV]} onNavigate={onNavigate} collapsed={collapsed} />
+          <NavAccordion groups={[{ items: [{ href: "/settings", label: "All settings", icon: "dashboard" }] }, ...SETTINGS_NAV]} onNavigate={onNavigate} collapsed={collapsed} />
         </>
       ) : (
-        <NavGroups groups={withChannels(NAV, connected)} onNavigate={onNavigate} collapsed={collapsed} />
+        <NavAccordion groups={withChannels(NAV, connected)} onNavigate={onNavigate} collapsed={collapsed} />
       )}
     </nav>
   );
