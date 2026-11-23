@@ -1,4 +1,4 @@
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, column, func, or_, select, table
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.shared.repository import BaseRepository
@@ -66,8 +66,10 @@ class ContactRepository(BaseRepository[Contact]):
             stmt = stmt.where(Contact.status == status)
         if owner_id is not None:
             stmt = stmt.where(Contact.owner_id == owner_id)
-        if account_id is not None:
-            stmt = stmt.where(Contact.account_id == account_id)
+        if account_id is not None:  # anyone currently at the account, main account or not
+            links = table("account_contacts", column("contact_id"), column("account_id"), column("ended_on"))
+            stmt = stmt.where(or_(Contact.account_id == account_id, Contact.id.in_(
+                select(links.c.contact_id).where(links.c.account_id == account_id, links.c.ended_on.is_(None)))))
         if subscription == "subscribed":
             stmt = stmt.where(Contact.subscribed_at.is_not(None), Contact.unsubscribed_at.is_(None),
                               Contact.paused_at.is_(None))

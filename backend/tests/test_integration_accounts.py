@@ -87,3 +87,107 @@ class AccountTests(unittest.TestCase):
         note = self.w.client.post(f"{API}/entities/account/{a['id']}/notes", headers=self.sales_h,
                                   json={"body": "Ships from Lahore"})
         self.assertIn(note.status_code, (200, 201), note.text)
+
+
+@skip_unless_db
+class AccountPeopleTests(unittest.TestCase):
+    """A person at several organisations, with a role and dates; moving company keeps the history."""
+
+    @classmethod
+    def setUpClass(cls):
+        from app.modules.lookups.service import LookupService
+
+        cls.w = World()
+        reset_limits()
+        run(lambda s: LookupService(s).seed())
+        cls.sales, cls.h = cls.w.user_with_token("sales")
+        cls.other, cls.other_h = cls.w.user_with_token("sales")
+        cls.ro, cls.ro_h = cls.w.user_with_token("read_only")
+
+    def setUp(self):
+        reset_limits()
+
+    def account(self, **data):
+        data.setdefault("name", f"Org {self.w.email('org').split('@')[0]}")
+        data.setdefault("account_type", "customer")
+        res = self.w.client.post(f"{API}/accounts", headers=self.h, json=data)
+        self.assertEqual(res.status_code, 201, res.text)
+        return res.json()
+
+    def person(self, account_id=None):
+        body = {"first_name": "Sam", "email": self.w.email("sam"), "types": ["vendor"]}
+        if account_id:
+            body["account_id"] = account_id
+        res = self.w.client.post(f"{API}/contacts", headers=self.h, json=body)
+        self.assertEqual(res.status_code, 201, res.text)
+        return res.json()
+
+    def people(self, account_id, **params):
+        res = self.w.client.get(f"{API}/accounts/{account_id}/people", headers=self.ro_h, params=params)
+        self.assertEqual(res.status_code, 200, res.text)
+        return res.json()
+
+    def test_a_new_contact_gets_a_main_link(self):
+        a = self.account()
+        c = self.person(a["id"])
+        rows = self.people(a["id"])
+        self.assertEqual([(r["contact_id"], r["is_primary"], r["active"]) for r in rows], [(c["id"], True, True)])
+
+    def test_moving_company_ends_the_old_link(self):
+        a, b = self.account(), self.account()
+        c = self.person(a["id"])
+        res = self.w.client.patch(f"{API}/contacts/{c['id']}", headers=self.h, json={"account_id": b["id"]})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(self.people(a["id"]), [])
+        past = self.people(a["id"], include_ended="true")
+        self.assertEqual(len(past), 1)
+        self.assertFalse(past[0]["active"])
+        self.assertIsNotNone(past[0]["ended_on"])
+        self.assertTrue(self.people(b["id"])[0]["is_primary"])
+        mine = self.w.client.get(f"{API}/accounts/links", headers=self.ro_h, params={"contact_id": c["id"]}).json()
+        self.assertEqual([(m["account_id"], m["active"]) for m in mine], [(b["id"], True), (a["id"], False)])
+
+    def test_several_accounts_with_roles(self):
+        a, b = self.account(), self.account(account_type="partner")
+        c = self.person(a["id"])
+        res = self.w.client.post(f"{API}/accounts/{b['id']}/people", headers=self.h,
+                                 json={"contact_id": c["id"], "role": "Board advisor"})
+        self.assertEqual(res.status_code, 201, res.text)
+        link = res.json()
+        self.assertEqual((link["role"], link["is_primary"]), ("Board advisor", False))
+        dup = self.w.client.post(f"{API}/accounts/{b['id']}/people", headers=self.h, json={"contact_id": c["id"]})
+        self.assertEqual(dup.status_code, 422)
+        # Both accounts count and list them; the main account stays A.
+        self.assertEqual(self.w.client.get(f"{API}/accounts/{b['id']}", headers=self.ro_h).json()["contacts_count"], 1)
+        listed = self.w.client.get(f"{API}/accounts/{b['id']}/contacts", headers=self.ro_h).json()
+        self.assertEqual([x["id"] for x in listed["items"]], [c["id"]])
+        self.assertEqual(self.w.client.get(f"{API}/contacts/{c['id']}", headers=self.ro_h).json()["account_id"], a["id"])
+        # Make B the main account: A stays a current link, just not the main one.
+        res = self.w.client.patch(f"{API}/accounts/links/{link['id']}", headers=self.h, json={"is_primary": True})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertTrue(res.json()["is_primary"])
+        self.assertEqual(self.w.client.get(f"{API}/contacts/{c['id']}", headers=self.ro_h).json()["account_id"], b["id"])
+        a_rows = self.people(a["id"])
+        self.assertEqual([(r["active"], r["is_primary"]) for r in a_rows], [(True, False)])
+        # Ending the main link hands "main" to the other current one.
+        self.assertEqual(self.w.client.delete(f"{API}/accounts/links/{link['id']}", headers=self.h).status_code, 204)
+        self.assertEqual(self.w.client.get(f"{API}/contacts/{c['id']}", headers=self.ro_h).json()["account_id"], a["id"])
+        self.assertTrue(self.people(a["id"])[0]["is_primary"])
+        self.assertEqual(self.people(b["id"]), [])
+        self.assertEqual(len(self.people(b["id"], include_ended="true")), 1)
+
+    def test_first_link_becomes_main_and_permissions(self):
+        a = self.account()
+        c = self.person()
+        self.assertEqual(self.w.client.post(f"{API}/accounts/{a['id']}/people", headers=self.other_h,
+                                            json={"contact_id": c["id"]}).status_code, 403)
+        self.assertEqual(self.w.client.post(f"{API}/accounts/{a['id']}/people", headers=self.ro_h,
+                                            json={"contact_id": c["id"]}).status_code, 403)
+        res = self.w.client.post(f"{API}/accounts/{a['id']}/people", headers=self.h,
+                                 json={"contact_id": c["id"], "role": "Buyer"})
+        self.assertEqual(res.status_code, 201, res.text)
+        self.assertTrue(res.json()["is_primary"])
+        self.assertEqual(self.w.client.get(f"{API}/contacts/{c['id']}", headers=self.ro_h).json()["account_id"], a["id"])
+        bad = self.w.client.patch(f"{API}/accounts/links/{res.json()['id']}", headers=self.h,
+                                  json={"ended_on": "2000-01-01"})
+        self.assertEqual(bad.status_code, 422)
