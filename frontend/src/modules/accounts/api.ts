@@ -18,12 +18,39 @@ export interface Account {
   notes: string | null;
   owner_id: number | null;
   primary_contact_id: number | null;
+  /** The parent organisation (a group above its companies, a head office above its branches). */
+  parent_id: number | null;
+  parent_name: string | null;
+  children_count: number;
   custom_fields: Record<string, unknown>;
   contacts_count: number;
   created_by: number | null;
   updated_by: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AccountTreeNode {
+  id: number;
+  name: string;
+  account_type: string;
+  status: AccountStatus;
+  /** 0 = the account the group was asked for; 1 = its sub-accounts; … */
+  depth: number;
+  parent_id: number | null;
+  contacts_count: number;
+  open_deals: number;
+  open_value: number;
+}
+
+/** An account's place in its group and the totals of everything under it. */
+export interface AccountGroup {
+  ancestors: AccountOption[];
+  tree: AccountTreeNode[];
+  accounts: number;
+  people: number;
+  open_deals: number;
+  open_value: number;
 }
 
 export interface AccountInput {
@@ -37,6 +64,7 @@ export interface AccountInput {
   address?: Address | null;
   notes?: string | null;
   owner_id?: number | null;
+  parent_id?: number | null;
 }
 
 export interface AccountOption {
@@ -87,6 +115,7 @@ export const accountsApi = {
   options: (q = "", type = "") => apiFetch<AccountOption[]>(`/accounts/options${qs({ q: q || undefined, type: type || undefined })}`),
   get: (id: number) => apiFetch<Account>(`/accounts/${id}`),
   contacts: (id: number, page = 1) => apiFetch<Page<Contact>>(`/accounts/${id}/contacts${qs({ page, page_size: 50 })}`),
+  group: (id: number) => apiFetch<AccountGroup>(`/accounts/${id}/group`),
   people: (id: number, includeEnded = false) =>
     apiFetch<AccountLink[]>(`/accounts/${id}/people${qs({ include_ended: includeEnded || undefined })}`),
   link: (id: number, data: { contact_id: number; role?: string | null; is_primary?: boolean }) =>

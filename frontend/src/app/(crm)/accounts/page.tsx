@@ -64,7 +64,7 @@ export default function AccountsPage() {
       cell: (a) => (
         <div className="min-w-0">
           <Link href={`/accounts/${a.id}`} className="font-medium text-ink hover:text-accent-strong hover:underline">{a.name}</Link>
-          <div className="truncate text-xs text-muted">{[a.industry, a.address?.city, a.address?.country].filter(Boolean).join(" · ")}</div>
+          <div className="truncate text-xs text-muted">{[a.parent_name && `Part of ${a.parent_name}`, a.children_count ? `${a.children_count} sub-account${a.children_count === 1 ? "" : "s"}` : null, a.industry, a.address?.city, a.address?.country].filter(Boolean).join(" · ")}</div>
         </div>
       ),
     },
