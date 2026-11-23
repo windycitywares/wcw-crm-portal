@@ -215,3 +215,34 @@ class ShopProductOut(BaseModel):
     currency: str = "USD"
     stock_status: str | None = None
     image: str | None = None
+
+
+class DealContactIn(BaseModel):
+    contact_id: int
+    role: str | None = Field(default=None, max_length=60)  # a `deal_role` key
+    is_primary: bool = False
+    notes: str | None = Field(default=None, max_length=300)
+
+
+class DealContactUpdate(BaseModel):
+    role: str | None = Field(default=None, max_length=60)
+    is_primary: bool | None = None
+    notes: str | None = Field(default=None, max_length=300)
+
+
+class DealContactOut(BaseModel):
+    """A person on a deal and the part they play. `is_primary` = the main contact for this deal."""
+
+    id: int
+    deal_id: int
+    deal_title: str
+    deal_status: str
+    contact_id: int
+    contact_name: str | None
+    email: str | None
+    phone: str | None
+    title: str | None
+    account_id: int | None
+    role: str | None
+    is_primary: bool
+    notes: str | None

@@ -11,6 +11,8 @@ from .schemas import (
     Board, DealCreate, DealItemIn, DealItemOut, DealItems, DealItemUpdate, DealOut, DealPage, DealUpdate,
     PipelineIn, PipelineOut, PipelineUpdate, SalesSummary, ShopProductOut, StageIn, StageOut, StageUpdate,
 )
+from .roles import DealRoleService
+from .schemas import DealContactIn, DealContactOut, DealContactUpdate
 from .service import SalesService
 
 router = APIRouter(prefix="/sales", tags=["sales"], dependencies=[Depends(require(Permission.SALES_VIEW))])
@@ -135,3 +137,32 @@ async def update_deal_item(session: SessionDep, actor: CurrentUser, deal_id: int
 @router.delete("/deals/{deal_id}/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deal_item(session: SessionDep, actor: CurrentUser, deal_id: int, item_id: int) -> None:
     await SalesService(session).remove_item(deal_id, item_id, actor)
+
+
+@router.get("/deals/{deal_id}/contacts", response_model=list[DealContactOut])
+async def deal_contacts(session: SessionDep, deal_id: int) -> list[DealContactOut]:
+    """The people on a deal and the part each plays; the main contact first."""
+    return [DealContactOut(**r) for r in await DealRoleService(session).for_deal(deal_id)]
+
+
+@router.post("/deals/{deal_id}/contacts", response_model=DealContactOut, status_code=status.HTTP_201_CREATED)
+async def add_deal_contact(session: SessionDep, actor: CurrentUser, deal_id: int, data: DealContactIn) -> DealContactOut:
+    return DealContactOut(**await DealRoleService(session).add(deal_id, data.model_dump(), actor))
+
+
+@router.patch("/deals/{deal_id}/contacts/{link_id}", response_model=DealContactOut)
+async def update_deal_contact(session: SessionDep, actor: CurrentUser, deal_id: int, link_id: int,
+                              data: DealContactUpdate) -> DealContactOut:
+    return DealContactOut(**await DealRoleService(session).update(
+        deal_id, link_id, data.model_dump(exclude_unset=True), actor))
+
+
+@router.delete("/deals/{deal_id}/contacts/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_deal_contact(session: SessionDep, actor: CurrentUser, deal_id: int, link_id: int) -> None:
+    await DealRoleService(session).remove(deal_id, link_id, actor)
+
+
+@router.get("/contact-deals", response_model=list[DealContactOut])
+async def contact_deals(session: SessionDep, contact_id: int) -> list[DealContactOut]:
+    """Every deal a person is on, with their role in each."""
+    return [DealContactOut(**r) for r in await DealRoleService(session).for_contact(contact_id)]

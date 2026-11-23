@@ -103,3 +103,21 @@ class DealItem(IdMixin, TimestampMixin, AuthorMixin, SoftDeleteMixin, Base):
     @property
     def total(self) -> Decimal:
         return (self.quantity * self.unit_price).quantize(Decimal("0.01"))
+
+
+class DealContact(IdMixin, TimestampMixin, AuthorMixin, Base):
+    """A person on a deal and the part they play (decision maker, signer, champion…) — the buying committee.
+    One person is on a deal once; one of them can be the main contact. Part of the deal: removing a person here
+    removes the row (the audit log and timeline keep the history)."""
+
+    __tablename__ = "deal_contacts"
+    __table_args__ = (
+        Index("uq_deal_contacts_deal_contact", "deal_id", "contact_id", unique=True),
+        Index("ix_deal_contacts_contact", "contact_id"),
+    )
+
+    deal_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("deals.id", ondelete="CASCADE"))
+    contact_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"))
+    role: Mapped[str | None] = mapped_column(String(60))  # lookup key (kind deal_role)
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    notes: Mapped[str | None] = mapped_column(String(300))

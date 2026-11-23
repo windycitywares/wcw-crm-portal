@@ -34,6 +34,8 @@ KINDS: dict[str, Kind] = {k.key: k for k in (
     Kind("task_type", "Task types", "Kinds of to-do.", ("Call", "Email", "Follow-up", "Meeting", "To-do")),
     Kind("lead_source", "Lead sources", "Where a lead or customer came from.",
          ("Website", "Shop", "Etsy", "Amazon", "Referral", "Social media", "Trade show", "Other")),
+    Kind("deal_role", "Deal roles", "The part a person plays in a deal (the buying committee).",
+         ("Decision maker", "Economic buyer", "Champion", "Influencer", "Signer", "Technical contact", "User", "Other")),
     Kind("lost_reason", "Lost reasons", "Why a deal was lost.",
          ("Price", "Timing", "Chose competitor", "No response", "Not a fit", "Other")),
 )}
