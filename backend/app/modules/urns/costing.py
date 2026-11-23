@@ -73,7 +73,7 @@ class OrderCosting:
         for it in items:
             v = await self.urns.match(it.get("listing_external_id"), it.get("variations"), it.get("sku"))
             if v is None:
-                result.missing.append(f"“{(it.get('title') or 'An item')[:60]}” isn't matched to an approved urn variation")
+                result.missing.append(f"“{(it.get('title') or 'An item')[:60]}” isn't matched to an approved product variation")
                 continue
             urn = await self.session.get(Urn, v.urn_id)
             q = {k: int(n) for k, n in (v.quantities or {}).items() if int(n) > 0}

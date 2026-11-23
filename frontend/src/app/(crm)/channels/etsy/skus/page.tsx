@@ -20,7 +20,7 @@ const STATUS: Record<SkuRow["status"], { label: string; badge: "success" | "warn
 
 function csv(rows: SkuRow[]): string {
   const esc = (v: string | number | null) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const head = ["Urn #", "Urn", "Etsy variation", "SKU on Etsy now", "SKU from the CRM", "Status"];
+  const head = ["Product #", "Product", "Etsy variation", "SKU on Etsy now", "SKU from the CRM", "Status"];
   return [head, ...rows.map((r) => [r.urn_id, r.urn_name, r.label, r.etsy_sku, r.crm_sku, STATUS[r.status].label])]
     .map((line) => line.map(esc).join(",")).join("\n");
 }
@@ -57,9 +57,9 @@ export default function SkusPage() {
   };
 
   const columns: Column<SkuRow>[] = [
-    { key: "urn", header: "Urn", cell: (r) => (
+    { key: "product", header: "Product", cell: (r) => (
       <div className="min-w-0">
-        <Link href={`/channels/etsy/urns/${r.urn_id}`} className="font-medium hover:text-accent-strong hover:underline">{r.urn_name}</Link>
+        <Link href={`/channels/etsy/products/${r.urn_id}`} className="font-medium hover:text-accent-strong hover:underline">{r.urn_name}</Link>
         <div className="truncate text-xs text-muted">{r.label}</div>
       </div>
     ) },
@@ -73,8 +73,8 @@ export default function SkusPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="SKUs vs Etsy" description="The SKU every Etsy variation should carry, worked out from its urn, supplier and pieces, next to what Etsy has now."
-        back={{ href: "/channels/etsy/urns", label: "Urns" }}
+      <PageHeader title="SKUs vs Etsy" description="The SKU every Etsy variation should carry, worked out from its product, supplier and pieces, next to what Etsy has now."
+        back={{ href: "/channels/etsy/products", label: "Products" }}
         actions={<div className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" disabled={!rows?.length} onClick={download}>Download CSV</Button>
           <Button size="sm" disabled={!pushEnabled} title={pushEnabled ? undefined : "Switched off for now"}>Update SKUs on Etsy</Button>
@@ -91,7 +91,7 @@ export default function SkusPage() {
       )}
       {shared > 0 && (
         <p role="status" className="text-sm text-warning">
-          {shared} variations share a SKU with another one in the same urn (e.g. two colours of the same size). Etsy accepts that only when they have the same stock.
+          {shared} variations share a SKU with another one in the same product (e.g. two colours of the same size). Etsy accepts that only when they have the same stock.
         </p>
       )}
 
@@ -99,7 +99,7 @@ export default function SkusPage() {
         options={[{ value: "different", label: "Different from Etsy" }, { value: "all", label: "All variations" }]} />
       <div className="relative">
         <DataTable caption="SKUs" columns={columns} rows={rows} rowKey={(r) => r.variation_id}
-          empty={show === "different" ? "Every ready SKU already matches Etsy." : "No variations yet. Set up urns first."} />
+          empty={show === "different" ? "Every ready SKU already matches Etsy." : "No variations yet. Set up products first."} />
       </div>
     </div>
   );

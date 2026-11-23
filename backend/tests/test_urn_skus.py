@@ -25,11 +25,15 @@ class SkuTemplateTests(unittest.TestCase):
 
     def test_template_rules(self):
         self.assertTrue(skus.check(skus.SkuFormat(template="WCW-{urn:4}"), size_codes=["10"]))
+        old_name = skus.SkuFormat(template="WCW-{supplier:3}-{urn:4}-{sizes}")  # the old variable name still works
+        self.assertEqual(skus.check(old_name, size_codes=["10"]), [])
+        self.assertEqual(skus.render(old_name, supplier_id=7, urn_id=345, sizes=[("10", 1)]), "WCW-007-0345-10x1")
         self.assertTrue(skus.check(skus.SkuFormat(template="WCW-{supplier}-{urn:4}-{sizes}"), size_codes=["10"]))
         self.assertTrue(skus.check(skus.SkuFormat(template="WCW {supplier:3}-{urn:4}-{sizes}"), size_codes=["10"]))
         self.assertTrue(skus.check(skus.SkuFormat(size_format="{code}{qty}"), size_codes=["10"]))
         problems = skus.check(skus.SkuFormat(), size_codes=["10", "3"], max_supplier=1234)
         self.assertIn("raise {supplier:3}", problems[0])
+        self.assertIn("{product:N}", skus.check(skus.SkuFormat(template="WCW-{supplier:3}-{sizes}"), size_codes=["10"])[0])
         long = skus.SkuFormat(template="WINDYCITYWARES-{supplier:5}-{urn:6}-{sizes}{-option}")
         self.assertTrue(any("Etsy allows 32" in p for p in skus.check(long, size_codes=["10", "3"])))
         custom = skus.SkuFormat(template="U{urn:3}.S{supplier:2}.{sizes}", size_format="{qty}at{code}", separator="_")

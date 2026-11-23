@@ -104,12 +104,12 @@ class UrnTests(unittest.TestCase):
         bad = c.post(f"{API}/urns/sku-format/check", headers=h, json={"template": "WCW-{urn:4}"}).json()
         self.assertTrue(bad["problems"])
         self.assertEqual(c.put(f"{API}/urns/sku-format", headers=h, json={"template": "WCW-{urn:4}"}).status_code, 422)
-        res = c.put(f"{API}/urns/sku-format", headers=h, json={"template": "U{urn:5}-S{supplier:4}-{sizes}{-option}"})
+        res = c.put(f"{API}/urns/sku-format", headers=h, json={"template": "U{product:5}-S{supplier:4}-{sizes}{-option}"})
         self.assertEqual(res.status_code, 200, res.text)
         urn = c.get(f"{API}/urns/{urn_id}", headers=self.sales_h).json()
         large = next(v for v in urn["variations"] if v["label"] == "10 inch Large")
         self.assertEqual(large["sku"], f"U{str(urn_id).zfill(5)}-S{str(self.supplier['id']).zfill(4)}-10x1")
-        c.put(f"{API}/urns/sku-format", headers=h, json={"template": "WCW-{supplier:3}-{urn:4}-{sizes}{-option}"})
+        c.put(f"{API}/urns/sku-format", headers=h, json={"template": "WCW-{supplier:3}-{product:4}-{sizes}{-option}"})
 
     def test_listing_without_variations_and_extras(self):
         c, h = self.w.client, self.h

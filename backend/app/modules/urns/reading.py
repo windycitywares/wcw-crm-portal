@@ -124,7 +124,7 @@ def short_name(title: str, limit: int = 80) -> str:
     cuts = [t.find(sep) for sep in (" | ", " – ", " — ", " - ", ", ", ": ") if t.find(sep) >= 8]
     if cuts:
         t = t[:min(cuts)].strip()
-    return t[:limit].rstrip(" -,") or "Urn"
+    return t[:limit].rstrip(" -,") or "Product"
 
 
 def options_key(options: dict | list | None) -> str:

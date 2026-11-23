@@ -16,7 +16,7 @@ import { ExtrasPanel } from "@/modules/urns/ExtrasPanel";
 
 const err = (e: unknown) => (e instanceof Error ? e.message : undefined);
 
-/** Settings → Products: the sizes urns come in, the SKU format, extra costs for every urn, and bringing older
+/** Settings → Products: the sizes products come in, the SKU format, extra costs for every product, and bringing older
  *  orders' costs in line with the SKUs. */
 export default function ProductSettingsPage() {
   const { can } = useAuth();
@@ -38,11 +38,11 @@ export default function ProductSettingsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Products" description="Sizes, the SKU format, and costs that apply to every urn." />
+      <PageHeader title="Product settings" description="Sizes, the SKU format, and costs that apply to every product." />
       <SkuFormatPanel canManage={canManage} />
       <SizesPanel sizes={sizes} canManage={canManage} onChange={() => void load()} />
       <ExtrasPanel urnId={null} extras={extras} sizes={sizes} canManage={canManage} onChange={() => void load()}
-        title="Extra costs for every urn" description="E.g. packaging per piece or a box per order. A urn can add its own on its page. Minus amounts subtract." />
+        title="Extra costs for every product" description="E.g. packaging per piece or a box per order. A product can add its own on its page. Minus amounts subtract." />
       {canManage && <RecalculatePanel />}
     </div>
   );
@@ -85,7 +85,7 @@ function SkuFormatPanel({ canManage }: { canManage: boolean }) {
       <PanelHeader title="SKU format" description="How every SKU is written. Changing it changes the SKUs in the CRM only — Etsy isn't touched." />
       <PanelBody>
         <form onSubmit={save} className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)]">
-          <Field label="Template" hint="{supplier:3} supplier number · {urn:4} urn number · {sizes} the pieces · {-option} reserved for options">
+          <Field label="Template" hint="{supplier:3} supplier number · {product:4} product number · {sizes} the pieces · {-option} reserved for options">
             {(p) => <Input {...p} className="font-mono" value={draft.template} maxLength={80} disabled={!canManage} onChange={(e) => setDraft((d) => ({ ...d, template: e.target.value }))} />}
           </Field>
           <Field label="One size" hint="{code} and {qty}">
@@ -139,7 +139,7 @@ function SizesPanel({ sizes, canManage, onChange }: { sizes: UrnSize[]; canManag
 
   return (
     <Panel>
-      <PanelHeader title="Sizes" description="The sizes urns come in, in the order they appear in a SKU. Words that mean a size in Etsy variation names help the CRM read them." />
+      <PanelHeader title="Sizes" description="The sizes products come in, in the order they appear in a SKU. Words that mean a size in Etsy variation names help the CRM read them." />
       <PanelBody className="space-y-4">
         <ul className="divide-y divide-line">
           {sizes.map((s) => (

@@ -85,7 +85,7 @@ export function ExtrasPanel({ urnId, extras, sizes, canManage, onChange, title, 
                 <div className="flex flex-wrap items-center gap-2 font-medium">
                   {e.name}
                   <Badge variant={e.party === "supplier" ? "info" : "neutral"}>{e.party === "supplier" ? "Supplier's" : "Ours"}</Badge>
-                  {e.urn_id === null && urnId !== null && <Badge>Every urn</Badge>}
+                  {e.urn_id === null && urnId !== null && <Badge>Every product</Badge>}
                   {!e.active && <Badge variant="warning">Stopped</Badge>}
                 </div>
                 <div className="text-xs text-muted">
