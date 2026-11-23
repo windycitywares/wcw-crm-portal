@@ -255,3 +255,61 @@ async def supplier_stats(account_id: int, response: Response, session: SessionDe
     """A supplier account's Etsy figures for its supplier page: open orders, owed and paid, shipping speed."""
     response.headers["Cache-Control"] = "no-store"
     return await SupplierPayments(session).stats(account_id)
+
+
+# ── costs from SKUs ───────────────────────────────────────────────────────────────────────────────────────────
+class AdjustmentIn(BaseModel):
+    label: str = Field(min_length=1, max_length=120)
+    amount: Decimal = Field(max_digits=12, decimal_places=2)
+    party: Literal["supplier", "ours"] = "supplier"
+    note: str = Field(min_length=1, max_length=500)
+
+
+class BulkCostsIn(BaseModel):
+    order_ids: list[int] = Field(min_length=1, max_length=500)
+
+
+@router.get("/etsy/orders/{order_id}/costs")
+async def order_costs(session: SessionDep, order_id: int) -> dict[str, Any]:
+    """The order's cost lines: what is saved, what the SKUs say today, and its adjustments."""
+    from .order_costs import OrderCostService
+
+    return await OrderCostService(session).breakdown(order_id)
+
+
+@router.post("/etsy/orders/{order_id}/costs/recalculate")
+async def recalculate_costs(session: SessionDep, actor: Worker, order_id: int) -> dict[str, Any]:
+    """Use the SKU costs for this order (also replaces a hand-typed cost). Not after the supplier is paid."""
+    from .order_costs import OrderCostService
+
+    return await OrderCostService(session).recalculate(order_id, actor)
+
+
+@router.post("/etsy/orders/{order_id}/adjustments")
+async def add_adjustment(session: SessionDep, actor: Worker, order_id: int, data: AdjustmentIn) -> dict[str, Any]:
+    """A one-off cost on this order: plus or minus, the supplier's or ours, with a note."""
+    from .order_costs import OrderCostService
+
+    return await OrderCostService(session).add_adjustment(order_id, data.model_dump(), actor)
+
+
+@router.delete("/etsy/orders/{order_id}/adjustments/{adjustment_id}")
+async def remove_adjustment(session: SessionDep, actor: Worker, order_id: int, adjustment_id: int) -> dict[str, Any]:
+    from .order_costs import OrderCostService
+
+    return await OrderCostService(session).remove_adjustment(order_id, adjustment_id, actor)
+
+
+@router.get("/etsy/costs/recalculate")
+async def costs_preview(session: SessionDep, _: Manager) -> dict[str, Any]:
+    """Orders (not paid to the supplier, not typed by hand) whose SKU costs differ from what they show now."""
+    from .order_costs import OrderCostService
+
+    return {"items": await OrderCostService(session).bulk_preview()}
+
+
+@router.post("/etsy/costs/recalculate")
+async def costs_apply(session: SessionDep, actor: Manager, data: BulkCostsIn) -> dict[str, int]:
+    from .order_costs import OrderCostService
+
+    return {"updated": await OrderCostService(session).bulk_apply(data.order_ids, actor)}

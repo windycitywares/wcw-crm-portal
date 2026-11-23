@@ -130,11 +130,21 @@ class EtsyOrderSync:
             shipped_at=shipped_at if implied in (etsy_status.SHIPPED, etsy_status.DELIVERED) else None,
             delivered_at=now if implied == etsy_status.DELIVERED else None,
         )
+        if cost is not None:
+            row.cost_source = "listing"
         self.session.add(row)
         await self.session.flush()
         self.session.add(_event(row.id, "created", f"Order {row.external_id} arrived from Etsy", None, implied))
         for it in items:
             self.session.add(ChannelOrderItem(order_id=row.id, **it))
+        await self.session.flush()
+        from .order_costs import OrderCostService  # costs from SKUs when every line can be priced
+
+        try:
+            async with self.session.begin_nested():
+                await OrderCostService(self.session).on_new_order(row)
+        except Exception:  # noqa: BLE001 - costing must never stop an order arriving; it stays as above
+            pass
         return "created"
 
     async def _add_missing_items(self, order_id: int, items: list[dict[str, Any]]) -> None:
