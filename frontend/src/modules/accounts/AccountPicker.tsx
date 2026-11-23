@@ -5,8 +5,10 @@ import { Field, Input, Select } from "@/components/ui/Field";
 import { accountsApi, type AccountOption } from "./api";
 
 /** Pick an account by typing part of its name. `type` narrows it, e.g. "supplier" for "select supplier". */
-export function AccountPicker({ label = "Account", value, currentName, type, onChange, className }: {
+export function AccountPicker({ label = "Account", value, currentName, type, exclude, onChange, className }: {
   label?: string;
+  /** An account that can't be picked (itself, when choosing its parent). */
+  exclude?: number;
   value: number | null;
   currentName?: string | null;
   type?: string;
@@ -41,7 +43,7 @@ export function AccountPicker({ label = "Account", value, currentName, type, onC
               onChange(id, list.find((o) => o.id === id)?.name ?? null);
             }}>
               <option value="">None</option>
-              {list.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+              {list.filter((o) => o.id !== exclude).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </Select>
           )}
         </Field>

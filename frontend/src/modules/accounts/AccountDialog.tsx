@@ -6,10 +6,11 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { useLookups } from "@/modules/settings/useLookups";
+import { AccountPicker } from "./AccountPicker";
 import { accountsApi, type Account, type AccountInput, type AccountStatus } from "./api";
 
 const blank = { name: "", account_type: "", status: "active" as AccountStatus, industry: "", website: "", email: "", phone: "",
-  city: "", country: "", notes: "" };
+  city: "", country: "", notes: "", parent_id: null as number | null, parent_name: null as string | null };
 
 /** Add or edit an account. Suppliers are edited on their own page (their account follows), so this is for the rest. */
 export function AccountDialog({ open, account, defaultType, onClose, onSaved }: {
@@ -31,6 +32,7 @@ export function AccountDialog({ open, account, defaultType, onClose, onSaved }: 
       name: account.name, account_type: account.account_type, status: account.status, industry: account.industry ?? "",
       website: account.website ?? "", email: account.email ?? "", phone: account.phone ?? "",
       city: account.address?.city ?? "", country: account.address?.country ?? "", notes: account.notes ?? "",
+      parent_id: account.parent_id, parent_name: account.parent_name,
     } : { ...blank, account_type: defaultType ?? "" });
   }, [open, account, defaultType]);
 
@@ -46,7 +48,7 @@ export function AccountDialog({ open, account, defaultType, onClose, onSaved }: 
       website: draft.website.trim() || null, email: draft.email.trim() || null, phone: draft.phone.trim() || null,
       address: draft.city.trim() || draft.country.trim()
         ? { ...(account?.address ?? {}), city: draft.city.trim() || null, country: draft.country.trim() || null } : null,
-      notes: draft.notes.trim() || null,
+      notes: draft.notes.trim() || null, parent_id: draft.parent_id,
     };
     try {
       const saved = account ? await accountsApi.update(account.id, data) : await accountsApi.create(data);
@@ -84,6 +86,8 @@ export function AccountDialog({ open, account, defaultType, onClose, onSaved }: 
         <Field label="Phone">{(p) => <Input {...p} type="tel" value={draft.phone} onChange={(e) => set({ phone: e.target.value })} />}</Field>
         <Field label="City">{(p) => <Input {...p} value={draft.city} onChange={(e) => set({ city: e.target.value })} />}</Field>
         <Field label="Country">{(p) => <Input {...p} value={draft.country} onChange={(e) => set({ country: e.target.value })} />}</Field>
+        <AccountPicker label="Parent account" className="sm:col-span-2" value={draft.parent_id} currentName={draft.parent_name}
+          exclude={account?.id} onChange={(id, name) => set({ parent_id: id, parent_name: name })} />
         <Field label="Notes" className="sm:col-span-2">{(p) => <Textarea {...p} rows={3} value={draft.notes} onChange={(e) => set({ notes: e.target.value })} />}</Field>
         <div className="flex justify-end gap-2 sm:col-span-2">
           <Button type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</Button>

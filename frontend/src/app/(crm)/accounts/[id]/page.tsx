@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/auth";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { AccountDialog } from "@/modules/accounts/AccountDialog";
 import { accountsApi, type Account, type AccountLink } from "@/modules/accounts/api";
+import { GroupPanel } from "@/modules/accounts/GroupPanel";
 import { contactsApi } from "@/modules/contacts/api";
 import { NotesPanel } from "@/modules/records/NotesPanel";
 import { AccountDeals } from "@/modules/sales/AccountDeals";
@@ -232,6 +233,7 @@ export default function AccountPage() {
         description={<span className="flex flex-wrap items-center gap-2">
           <Badge variant={isSupplier ? "warning" : "neutral"}>{lookups.find("account_type", account.account_type)?.label ?? account.account_type}</Badge>
           <Badge variant={account.status === "active" ? "success" : "neutral"}>{account.status === "active" ? "Active" : "Inactive"}</Badge>
+          {account.parent_id && <span className="text-xs text-muted">Part of <Link href={`/accounts/${account.parent_id}`} className="text-accent-strong hover:underline">{account.parent_name}</Link></span>}
           <span className="text-xs text-muted">Updated {formatDateTime(account.updated_at)}</span>
         </span>}
         actions={<div className="flex flex-wrap gap-2">
@@ -256,6 +258,7 @@ export default function AccountPage() {
               {account.notes && <p className="mt-4 whitespace-pre-wrap text-sm">{account.notes}</p>}
             </PanelBody>
           </Panel>
+          <GroupPanel account={account} />
           <PeoplePanel account={account} canEdit={canEdit} onChange={changed} />
           <Panel>
             <PanelHeader title="Tags" />
@@ -271,7 +274,7 @@ export default function AccountPage() {
       <AccountDialog open={editing} account={account} onClose={() => setEditing(false)}
         onSaved={(a) => { setEditing(false); setAccount(a); changed(); }} />
       <ConfirmDialog open={archiving} title="Archive account" confirmLabel="Archive account" busy={busy}
-        message={`Archive ${account.name}? Its people stay in Contacts.`}
+        message={`Move ${account.name} to the Trash? It can be restored from Settings → Trash. Its people stay in Contacts.`}
         onConfirm={() => void archive()} onCancel={() => setArchiving(false)} />
     </div>
   );
