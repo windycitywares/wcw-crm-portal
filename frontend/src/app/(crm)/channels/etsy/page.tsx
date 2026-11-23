@@ -20,6 +20,7 @@ import { channelsApi, type EtsyConnection } from "@/modules/channels/api";
 import { STATUS_LABEL } from "@/modules/channels/orders";
 import { SupplierFilter } from "@/modules/channels/SupplierFilter";
 import { shortTitles, Stat, Thumb } from "@/modules/channels/ui";
+import { UrnSetupNotice } from "@/modules/urns/UrnSetupNotice";
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 function presetRange(days: number) {
@@ -182,7 +183,9 @@ export default function EtsyDashboard() {
           <ButtonLink href="/channels/etsy/orders?view=attention" size="sm">Orders needing attention</ButtonLink>
           <ButtonLink href="/channels/etsy/listings" size="sm" variant="secondary">Listings</ButtonLink>
           <ButtonLink href="/channels/etsy/payments" size="sm" variant="secondary">Supplier payments</ButtonLink>
+          <ButtonLink href="/channels/etsy/urns" size="sm" variant="secondary">Urns</ButtonLink>
         </div>} />
+      <UrnSetupNotice />
       {conn && (
         <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
           {conn.connected ? <Pill tone="success">Connected</Pill> : <Pill tone="warning">Not connected</Pill>}

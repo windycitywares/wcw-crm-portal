@@ -7,6 +7,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
+import { OrderCostsPanel } from "@/modules/urns/OrderCostsPanel";
 import { Pill } from "@/components/ui/Pill";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
@@ -156,7 +157,7 @@ export default function EtsyOrderPage() {
           </Panel>
 
           <Panel>
-            <PanelHeader title="Costs and tracking" description={order.costs_prefilled ? "Purchase cost was filled in from the listing's default cost. Check it." : "What you paid and how it was shipped."} />
+            <PanelHeader title="Costs and tracking" description={order.cost_source === "sku" ? "Purchase cost is the supplier's part from the SKUs (see the breakdown). Typing a cost replaces it." : order.costs_prefilled ? "Purchase cost was filled in from the listing's default cost. Check it." : "What you paid and how it was shipped."} />
             <PanelBody className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
               <Field label="Purchase cost ($)">{(f) => <Input {...f} inputMode="decimal" value={form.purchase_cost} onChange={set("purchase_cost")} />}</Field>
               <Field label="Actual shipping cost ($)">{(f) => <Input {...f} inputMode="decimal" value={form.shipping_cost} onChange={set("shipping_cost")} />}</Field>
@@ -184,6 +185,8 @@ export default function EtsyOrderPage() {
               </div>
             </PanelBody>
           </Panel>
+
+          <OrderCostsPanel orderId={order.id} canEdit={canEdit} onChanged={reload} />
 
           <Panel>
             <PanelHeader title="History" description="Every status change and edit, by Etsy or by your team." />
@@ -244,6 +247,7 @@ export default function EtsyOrderPage() {
                 <Row label="Revenue (items + shipping − discounts)">{m(p.revenue)}</Row>
                 <Row label="Purchase cost">{m(order.purchase_cost)}</Row>
                 <Row label="Shipping cost">{m(order.shipping_cost)}</Row>
+                {order.other_costs != null && Number(order.other_costs) !== 0 && <Row label="Our extra costs">{m(order.other_costs)}</Row>}
                 <Row label="Etsy fees">{order.marketplace_fees == null ? <span className="text-muted">Later phase</span> : m(order.marketplace_fees)}</Row>
                 <Row label="Total cost">{m(p.total_cost)}</Row>
                 <Row label="Net profit" strong>
