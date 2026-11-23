@@ -21,7 +21,7 @@ class UrnTests(unittest.TestCase):
         types = cls.w.client.get(f"{API}/lookups/supplier_type", headers=cls.h).json()
         cls.supplier = cls.w.client.post(f"{API}/suppliers", headers=cls.h, json={
             "name": cls.w.email("urn-sup"), "supplier_type": next(t["key"] for t in types if t["is_active"])}).json()
-        cls.base = int(cls.w.sfx) % 10_000_000 * 100 + 7_000_000_000
+        cls.base = int(cls.w.sfx, 16) % 10_000_000 * 100 + 7_000_000_000
 
         async def listings(session):
             from app.modules.channels.models import ChannelListing
