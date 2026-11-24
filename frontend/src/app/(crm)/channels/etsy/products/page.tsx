@@ -29,6 +29,10 @@ export default function UrnsPage() {
   const types = useTypes();
   const suppliers = useSupplierRecords();
   const [typeId, setTypeId] = useState<number | "">("");
+  useEffect(() => { // ?type=<id> from Settings → Types
+    const t = Number(new URLSearchParams(window.location.search).get("type"));
+    if (t) setTypeId(t);
+  }, []);
   const [bulkType, setBulkType] = useState("");
   const [summary, setSummary] = useState<UrnSummary | null>(null);
   const [needs, setNeeds] = useState<Needs>("");

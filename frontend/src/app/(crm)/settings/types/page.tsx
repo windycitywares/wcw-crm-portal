@@ -10,6 +10,8 @@ import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { ProductTypesPanel } from "@/modules/urns/ProductTypesPanel";
+import { urnsApi } from "@/modules/urns/api";
 import { errorText, lookupsApi, moved, type LookupKind, type LookupValue } from "@/modules/settings/api";
 
 function ValueRow({
@@ -122,6 +124,9 @@ function ValueRow({
   );
 }
 
+/** Not a lookup list: product types have their own table (SKU code, format, sizes), listed here beside the others. */
+const PRODUCT_TYPES = "__product_types";
+
 export default function TypesPage() {
   const { can } = useAuth();
   const toast = useToast();
@@ -131,16 +136,20 @@ export default function TypesPage() {
   const [color, setColor] = useState("");
   const [busy, setBusy] = useState(false);
   const allowed = can("lookups:manage");
+  const productTypes = can("channels:manage");
+  const [productCount, setProductCount] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
       const data = await lookupsApi.kinds();
+      if (productTypes) void urnsApi.types().then((t) => setProductCount(t.filter((x) => x.active).length)).catch(() => undefined);
       setKinds(data);
-      setSelected((s) => s || data[0]?.key || "");
+      const wanted = new URLSearchParams(window.location.search).get("list");
+      setSelected((s) => s || (wanted === "product-types" ? PRODUCT_TYPES : data.find((k) => k.key === wanted)?.key) || data[0]?.key || "");
     } catch (err) {
       toast.push({ tone: "danger", title: "Couldn't load types", description: errorText(err) });
     }
-  }, [toast]);
+  }, [toast, productTypes]);
 
   useEffect(() => {
     if (allowed) void load();
@@ -202,9 +211,26 @@ export default function TypesPage() {
                 </button>
               </li>
             ))}
+            {productTypes && kinds !== null && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setSelected(PRODUCT_TYPES)}
+                  aria-current={selected === PRODUCT_TYPES ? "true" : undefined}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-[var(--radius-control)] px-3 py-2 text-left text-sm",
+                    selected === PRODUCT_TYPES ? "bg-surface font-medium shadow-[inset_3px_0_0_var(--color-gold)]" : "hover:bg-sand",
+                  )}
+                >
+                  Product types
+                  <span className="num text-xs text-muted">{productCount ?? ""}</span>
+                </button>
+              </li>
+            )}
             {kinds === null && Array.from({ length: 6 }, (_, i) => <li key={i} className="skeleton mx-3 my-2 h-5" aria-hidden="true" />)}
           </ul>
         </nav>
+        {selected === PRODUCT_TYPES && productTypes && <ProductTypesPanel onCount={setProductCount} />}
         {kind && (
           <Panel>
             <PanelHeader title={kind.label} description={kind.description} />
