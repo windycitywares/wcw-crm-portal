@@ -126,7 +126,7 @@ export function OrderCostsPanel({ orderId, canEdit, onChanged }: { orderId: numb
             <Field label="Adds or subtracts">
               {(p) => <Select {...p} value={adj.sign} onChange={(e) => setAdj({ ...adj, sign: e.target.value })}><option value="-">Subtracts (−)</option><option value="+">Adds (+)</option></Select>}
             </Field>
-            <Field label="Amount ($)">{(p) => <Input {...p} type="number" min="0" step="0.01" inputMode="decimal" value={adj.amount} onChange={(e) => setAdj({ ...adj, amount: e.target.value })} />}</Field>
+            <Field label="Amount ($)">{(p) => <Input {...p} type="number" min="0" max="100000" step="0.01" inputMode="decimal" required value={adj.amount} onChange={(e) => setAdj({ ...adj, amount: e.target.value })} />}</Field>
             <Field label="Whose">
               {(p) => <Select {...p} value={adj.party} onChange={(e) => setAdj({ ...adj, party: e.target.value })}><option value="supplier">Supplier's (changes what they're owed)</option><option value="ours">Ours (profit only)</option></Select>}
             </Field>

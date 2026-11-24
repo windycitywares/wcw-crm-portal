@@ -334,6 +334,8 @@ export function PipelineSettings() {
                   type="number"
                   min="0"
                   max="100"
+                  step="1"
+                  required
                   value={stageForm.probability}
                   onChange={(e) => setStageForm({ ...stageForm, probability: e.target.value })}
                 />

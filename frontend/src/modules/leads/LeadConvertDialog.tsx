@@ -197,6 +197,7 @@ export function LeadConvertDialog({
                     {...p}
                     type="number"
                     min="0"
+                    max="9999999999.99"
                     step="0.01"
                     placeholder="0.00"
                     value={form.value}

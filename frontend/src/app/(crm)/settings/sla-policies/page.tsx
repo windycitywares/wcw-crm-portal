@@ -129,10 +129,10 @@ function PolicyDialog({ open, policy, onClose, onSaved }: { open: boolean; polic
           )}
         </Field>
         <Field label="First reply (hours)" hint="8 hours = one business day.">
-          {(p) => <Input {...p} type="number" min="0.25" step="0.25" value={form.response} onChange={(e) => set("response", e.target.value)} />}
+          {(p) => <Input {...p} type="number" min="0.25" max="1440" step="0.25" required value={form.response} onChange={(e) => set("response", e.target.value)} />}
         </Field>
         <Field label="Resolve within (hours)" hint="8 hours = one business day.">
-          {(p) => <Input {...p} type="number" min="0.25" step="0.25" value={form.resolve} onChange={(e) => set("resolve", e.target.value)} />}
+          {(p) => <Input {...p} type="number" min="0.25" max="1440" step="0.25" required value={form.resolve} onChange={(e) => set("resolve", e.target.value)} />}
         </Field>
         <label className="flex items-center gap-2 text-sm sm:col-span-2">
           <input type="checkbox" className="size-4 accent-[var(--color-accent)]" checked={form.is_active} onChange={(e) => set("is_active", e.target.checked)} />

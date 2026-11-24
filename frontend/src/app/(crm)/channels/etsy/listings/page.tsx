@@ -66,7 +66,7 @@ function EditDialog({ listing, onClose, onSaved }: { listing: Listing | null; on
           )}
         </Field>
         <Field label="Purchase cost (per item)" hint="What one costs us. New orders of this listing start with it.">
-          {(p) => <Input {...p} type="number" min="0" step="0.01" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} />}
+          {(p) => <Input {...p} type="number" min="0" max="100000" step="0.01" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} />}
         </Field>
         <Field label="Notes">{(p) => <Textarea {...p} maxLength={2000} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />}</Field>
         <div className="flex justify-end gap-2">

@@ -143,7 +143,7 @@ export default function EmailSettingsPage() {
               {(p) => <Input {...p} maxLength={300} value={form.footer_address} onChange={(e) => set("footer_address", e.target.value)} />}
             </Field>
             <Field label="Daily limit" hint="All emails, any rolling 24 hours. Check your host's limit.">
-              {(p) => <Input {...p} type="number" min={1} value={form.daily_limit} onChange={(e) => set("daily_limit", Number(e.target.value))} />}
+              {(p) => <Input {...p} type="number" min={1} max={100000} step={1} required value={form.daily_limit} onChange={(e) => set("daily_limit", Number(e.target.value))} />}
             </Field>
             <Field label="Per minute" hint="Pacing, so the host doesn't flag you.">
               {(p) => <Input {...p} type="number" min={1} max={600} value={form.per_minute} onChange={(e) => set("per_minute", Number(e.target.value))} />}
