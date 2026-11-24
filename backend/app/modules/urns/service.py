@@ -20,29 +20,20 @@ from app.modules.channels.models import ChannelListing
 from app.modules.suppliers.models import Supplier
 
 from . import reading, skus
-from .models import CostExtra, Urn, UrnPrice, UrnSize, UrnVariation
+from .models import CostExtra, ProductType, Urn, UrnPrice, UrnSize, UrnVariation
 
 ENTITY = "urn"
 
 
-class SkuSettings(BaseModel):
-    """Settings → Products → SKU format. Checked again against the real sizes and ids when saved."""
+ITEM = "item"  # the one "size" of a type sold as a single item
 
-    template: str = Field(default=skus.SkuFormat.template, max_length=80)
-    size_format: str = Field(default=skus.SkuFormat.size_format, max_length=20)
-    separator: str = Field(default=skus.SkuFormat.separator, max_length=3)
+
+class SkuSettings(BaseModel):
+    """What is left of the old shop-wide SKU settings: the switch for writing SKUs to Etsy. Each product type now has
+    its own SKU format (Settings → Product settings → Product types). Old keys stored here are ignored."""
+
     # Writing SKUs to Etsy stays off until the owner asks for it; nothing in the app turns it on.
     etsy_push_enabled: bool = False
-
-    @model_validator(mode="after")
-    def _shape(self) -> "SkuSettings":
-        problems = skus.check(self.fmt(), size_codes=["10", "3"], max_supplier=1, max_urn=1)
-        if problems:
-            raise ValueError(problems[0])
-        return self
-
-    def fmt(self) -> skus.SkuFormat:
-        return skus.SkuFormat(template=self.template.strip(), size_format=self.size_format, separator=self.separator)
 
 
 def _today() -> date:
@@ -66,73 +57,140 @@ class UrnService:
         self.session = session
         self.audit = AuditService(session)
 
-    # ── settings ──────────────────────────────────────────────────────────────────────────────────────────
+    # ── settings, types and sizes ─────────────────────────────────────────────────────────────────────────
     async def sku_settings(self) -> SkuSettings:
         from app.modules.settings.service import SettingsService
 
         try:
             return await SettingsService(self.session).get_model("sku", factory=SkuSettings)
-        except Exception:  # noqa: BLE001 - an unreadable group falls back to the default format
+        except Exception:  # noqa: BLE001 - an unreadable group falls back to "off"
             return SkuSettings()
 
-    async def sizes(self, *, active_only: bool = False) -> list[UrnSize]:
-        stmt = select(UrnSize).order_by(UrnSize.position, UrnSize.id)
+    async def types(self, *, active_only: bool = False) -> list[ProductType]:
+        stmt = select(ProductType).order_by(ProductType.position, ProductType.id)
+        if active_only:
+            stmt = stmt.where(ProductType.active.is_(True))
+        return list((await self.session.execute(stmt)).scalars())
+
+    async def _type(self, type_id: int) -> ProductType:
+        t = await self.session.get(ProductType, type_id)
+        if t is None:
+            raise NotFoundError("Product type not found")
+        return t
+
+    async def default_type(self) -> ProductType:
+        t = (await self.types(active_only=True)) or await self.types()
+        if not t:
+            raise ValidationFailedError("Add a product type in Settings → Product settings first")
+        return t[0]
+
+    @staticmethod
+    def fmt(t: ProductType) -> skus.SkuFormat:
+        return skus.SkuFormat(template=t.template.strip(), size_format=t.size_format, separator=t.separator)
+
+    async def sizes(self, type_id: int | None = None, *, active_only: bool = False) -> list[UrnSize]:
+        stmt = select(UrnSize).order_by(UrnSize.type_id, UrnSize.position, UrnSize.id)
+        if type_id is not None:
+            stmt = stmt.where(UrnSize.type_id == type_id)
         if active_only:
             stmt = stmt.where(UrnSize.active.is_(True))
         return list((await self.session.execute(stmt)).scalars())
 
-    async def _codes(self) -> list[str]:
-        return [s.code for s in await self.sizes()]
+    async def _codes(self, type_id: int) -> list[str]:
+        return [s.code for s in await self.sizes(type_id)]
 
-    async def check_format(self, values: dict[str, Any]) -> tuple[SkuSettings, list[str], list[str]]:
-        """(the format, problems, example SKUs) for a format someone is about to save."""
-        current = (await self.sku_settings()).model_dump()
-        merged = {**current, **{k: v for k, v in values.items() if k in ("template", "size_format", "separator")}}
-        try:
-            fmt_settings = SkuSettings.model_validate(merged)
-        except Exception as exc:  # noqa: BLE001
-            msg = str(exc).split("Value error, ")[-1].split("\n")[0]
-            return SkuSettings(), [msg], []
-        codes = await self._codes()
+    async def has_sizes(self, type_id: int) -> bool:
+        return bool(await self.sizes(type_id, active_only=True))
+
+    async def check_format(self, type_id: int | None, values: dict[str, Any]) -> tuple[skus.SkuFormat, list[str], list[str]]:
+        """(the format, problems, example SKUs) for a type's format someone is about to save."""
+        t = await self._type(type_id) if type_id else None
+        merged = {"template": t.template if t else skus.SkuFormat.template, "size_format": t.size_format if t else
+                  skus.SkuFormat.size_format, "separator": t.separator if t else skus.SkuFormat.separator,
+                  "code": t.code if t else None}
+        merged.update({k: v for k, v in values.items() if k in merged and v is not None})
+        fmt = skus.SkuFormat(template=str(merged["template"]).strip(), size_format=merged["size_format"],
+                             separator=merged["separator"])
+        codes = await self._codes(t.id) if t else []
+        with_sizes = (await self.has_sizes(t.id)) if t else bool(values.get("has_sizes", True))
         max_sup = (await self.session.execute(select(func.max(Supplier.id)))).scalar() or 1
         max_urn = max((await self.session.execute(select(func.max(Urn.id)))).scalar() or 1, 1)
-        problems = skus.check(fmt_settings.fmt(), size_codes=codes, max_supplier=max_sup, max_urn=max_urn)
-        examples = [skus.render(fmt_settings.fmt(), supplier_id=7, urn_id=345, sizes=s)
-                    for s in ([(codes[0], 1)] if codes else [], [(c, 2 if i else 1) for i, c in enumerate(codes[:2])])
-                    if s]
-        return fmt_settings, problems, examples
-
-    async def save_format(self, values: dict[str, Any], actor) -> dict[str, Any]:
-        from app.modules.settings.service import SettingsService
-
-        fmt_settings, problems, _ = await self.check_format(values)
+        problems = skus.check(fmt, size_codes=codes, max_supplier=max_sup, max_urn=max_urn, has_sizes=with_sizes,
+                              type_code=merged["code"])
         if problems:
-            raise ValidationFailedError(problems[0])
-        await SettingsService(self.session).update("sku", {
-            "template": fmt_settings.template.strip(), "size_format": fmt_settings.size_format,
-            "separator": fmt_settings.separator}, actor)
-        changed = await self.recompute_skus()
+            return fmt, problems, []
+        samples = ([[(codes[0], 1)], [(c, 2 if i else 1) for i, c in enumerate(codes[:2])]] if with_sizes and codes
+                   else [[]])
+        examples = list(dict.fromkeys(skus.render(fmt, supplier_id=7, urn_id=345, sizes=x, type_code=merged["code"])
+                                      for x in samples))
+        return fmt, problems, examples
+
+    async def save_type(self, type_id: int | None, values: dict[str, Any], actor) -> ProductType:
+        """Create or change a product type. A new format changes that type's SKUs in the CRM (never on Etsy)."""
+        name = (values.get("name") or "").strip()
+        if name:
+            clash = (await self.session.execute(select(ProductType.id).where(
+                func.lower(ProductType.name) == name.lower(), ProductType.id != (type_id or 0)))).first()
+            if clash:
+                raise ValidationFailedError(f"There is already a type called {name}")
+        if type_id is None:
+            if not name:
+                raise ValidationFailedError("Give the type a name, e.g. Jewelry")
+            t = ProductType(name=name, template=skus.SkuFormat.template, position=((await self.session.execute(
+                select(func.max(ProductType.position)))).scalar() or 0) + 10)
+            if "template" not in values or not values.get("template"):  # a new type starts as one item
+                t.template = "WCW-{supplier:3}-{product:4}{-option}"
+            self.session.add(t)
+            await self.session.flush()
+        else:
+            t = await self._type(type_id)
+        if name:
+            t.name = name[:60]
+        if "code" in values:
+            code = (values["code"] or "").strip().upper()
+            if code and not code.isalnum():
+                raise ValidationFailedError("A type code is letters or digits, e.g. J")
+            t.code = code[:10] or None
+        for f in ("position", "active"):
+            if values.get(f) is not None:
+                setattr(t, f, values[f])
+        if any(values.get(k) is not None for k in ("template", "size_format", "separator")) or "code" in values:
+            fmt, problems, _ = await self.check_format(t.id, values)
+            if problems:
+                raise ValidationFailedError(problems[0])
+            t.template, t.size_format, t.separator = fmt.template, fmt.size_format, fmt.separator
+        await self.session.flush()
+        await self.audit.record("product_type.save", actor=actor, entity_type="product_type", entity_id=t.id,
+                                changes={"name": t.name, "code": t.code, "template": t.template, "active": t.active})
+        await self.recompute_skus(t.id)
         await self.session.commit()
-        return {"changed": changed}
+        return t
 
     async def save_size(self, size_id: int | None, values: dict[str, Any], actor) -> UrnSize:
         code = str(values.get("code") or "").strip()
         if size_id is None:
-            if not code or not code.replace(".", "").isalnum():
+            t = await self._type(values.get("type_id") or (await self.default_type()).id)
+            if not code or not code.replace(".", "").isalnum() or code.lower() == ITEM:
                 raise ValidationFailedError("A size code is letters or digits, e.g. 10 or 7")
-            if (await self.session.execute(select(UrnSize).where(func.lower(UrnSize.code) == code.lower()))).first():
-                raise ValidationFailedError(f"There is already a size {code}")
-            size = UrnSize(code=code, label=values.get("label") or f"{code} inch", aliases=[], active=True,
+            if (await self.session.execute(select(UrnSize).where(
+                    UrnSize.type_id == t.id, func.lower(UrnSize.code) == code.lower()))).first():
+                raise ValidationFailedError(f"{t.name} already has a size {code}")
+            first = not await self.sizes(t.id)
+            if first and "{sizes}" not in t.template:  # a one-item type gets its first size: the SKU needs {sizes}
+                t.template = t.template.replace("{-option}", "-{sizes}{-option}") if "{-option}" in t.template \
+                    else t.template + "-{sizes}"
+            size = UrnSize(type_id=t.id, code=code, label=values.get("label") or f"{code} inch", aliases=[], active=True,
                            position=values.get("position") or ((await self.session.execute(
-                               select(func.max(UrnSize.position)))).scalar() or 0) + 10)
+                               select(func.max(UrnSize.position)).where(UrnSize.type_id == t.id))).scalar() or 0) + 10)
             self.session.add(size)
         else:
             size = await self.session.get(UrnSize, size_id)
             if size is None:
                 raise NotFoundError("Size not found")
             if code and code != size.code:
-                used = (await self.session.execute(select(func.count()).select_from(UrnPrice)
-                                                   .where(UrnPrice.size_code == size.code))).scalar_one()
+                used = (await self.session.execute(select(func.count()).select_from(UrnPrice).join(
+                    Urn, Urn.id == UrnPrice.urn_id).where(UrnPrice.size_code == size.code,
+                                                          Urn.type_id == size.type_id))).scalar_one()
                 if used:
                     raise ValidationFailedError("This size already has prices: its code can't change (SKUs use it)")
                 size.code = code
@@ -142,9 +200,14 @@ class UrnService:
         if values.get("aliases") is not None:
             size.aliases = sorted({a.strip().lower() for a in values["aliases"] if a and a.strip()})[:30]
         await self.session.flush()
+        if size_id is None and first:  # its products were "one item": read their variations again with sizes
+            for urn in (await self.session.execute(select(Urn).where(Urn.type_id == size.type_id,
+                                                                     Urn.deleted_at.is_(None)))).scalars().all():
+                await self._refresh_variations(urn, everything=True)
         await self.audit.record("urn_size.save", actor=actor, entity_type="urn_size", entity_id=size.id,
-                                changes={"code": size.code, "label": size.label, "active": size.active})
-        await self.recompute_skus()
+                                changes={"type_id": size.type_id, "code": size.code, "label": size.label,
+                                         "active": size.active})
+        await self.recompute_skus(size.type_id)
         await self.session.commit()
         return size
 
@@ -162,10 +225,11 @@ class UrnService:
         listings = (await self.session.execute(select(ChannelListing).where(
             ChannelListing.channel == "etsy", ChannelListing.state != "removed"))).scalars().all()
         created = 0
+        default = await self.default_type()
         for lst in listings:
             if lst.id in have:
                 continue
-            urn = Urn(name=reading.short_name(lst.title), listing_id=lst.id,
+            urn = Urn(name=reading.short_name(lst.title), listing_id=lst.id, type_id=default.id,
                       created_by=getattr(actor, "id", None), updated_by=getattr(actor, "id", None))
             self.session.add(urn)
             await self.session.flush()
@@ -180,13 +244,14 @@ class UrnService:
         await self.session.commit()
         return {"created": created, "variations_added": refreshed}
 
-    async def _refresh_variations(self, urn: Urn) -> int:
-        """Bring the urn's variation rows in line with its listing: new ones read, gone ones marked removed,
-        Etsy's current SKU copied. Approved quantities are never touched."""
+    async def _refresh_variations(self, urn: Urn, *, everything: bool = False) -> int:
+        """Bring the product's variation rows in line with its listing: new ones read, gone ones marked removed,
+        Etsy's current SKU copied. Approved quantities are kept unless `everything` (its type changed)."""
         lst = await self.session.get(ChannelListing, urn.listing_id) if urn.listing_id else None
         if lst is None:
             return 0
-        sizes = [reading.Size(s.code, tuple(s.aliases or ()) + (s.label,)) for s in await self.sizes(active_only=True)]
+        type_sizes = await self.sizes(urn.type_id, active_only=True)
+        sizes = [reading.Size(s.code, tuple(s.aliases or ()) + (s.label,)) for s in type_sizes]
         wanted: dict[str, tuple[str, str | None, str]] = {}
         for v in lst.variations or []:
             opts = v.get("options") or {}
@@ -200,8 +265,8 @@ class UrnService:
         added = 0
         for key, (label, etsy_sku, words) in wanted.items():
             row = rows.get(key)
-            if row is None or row.state != "approved":  # what nobody approved yet follows the latest sizes and words
-                read = reading.read(words, sizes)
+            if row is None or row.state != "approved" or everything:  # unapproved rows follow the latest sizes
+                read = reading.read(words, sizes) if type_sizes else reading.Reading({ITEM: 1}, True, None)
                 if row is None:
                     row = UrnVariation(urn_id=urn.id, key=key, label=label[:300])
                     self.session.add(row)
@@ -220,31 +285,36 @@ class UrnService:
         await self._refresh_variations(await self._urn(urn_id))
         await self.session.commit()
 
-    async def _skus_for(self, urn: Urn, fmt: skus.SkuFormat | None = None, order: list[str] | None = None) -> int:
-        fmt = fmt or (await self.sku_settings()).fmt()
-        order = order or await self._codes()
+    async def _skus_for(self, urn: Urn, t: ProductType | None = None, order: list[str] | None = None) -> int:
+        t = t or await self._type(urn.type_id)
+        fmt = self.fmt(t)
+        order = order if order is not None else await self._codes(t.id)
         changed = 0
         for row in (await self.session.execute(select(UrnVariation).where(UrnVariation.urn_id == urn.id))).scalars():
             q = _qty(row.quantities)
             new = None
             if urn.supplier_id and row.state == "approved" and q:
-                new = skus.render(fmt, supplier_id=urn.supplier_id, urn_id=urn.id,
+                new = skus.render(fmt, supplier_id=urn.supplier_id, urn_id=urn.id, type_code=t.code,
                                   sizes=[(c, q[c]) for c in order if c in q])
             if new != row.sku:
                 row.sku, changed = new, changed + 1
         return changed
 
-    async def recompute_skus(self) -> int:
-        fmt, order = (await self.sku_settings()).fmt(), await self._codes()
+    async def recompute_skus(self, type_id: int | None = None) -> int:
         n = 0
-        for urn in (await self.session.execute(select(Urn).where(Urn.deleted_at.is_(None)))).scalars().all():
-            n += await self._skus_for(urn, fmt, order)
+        for t in await self.types():
+            if type_id is not None and t.id != type_id:
+                continue
+            order = await self._codes(t.id)
+            for urn in (await self.session.execute(select(Urn).where(Urn.deleted_at.is_(None),
+                                                                     Urn.type_id == t.id))).scalars().all():
+                n += await self._skus_for(urn, t, order)
         await self.session.flush()
         return n
 
     async def update(self, urn_id: int, values: dict[str, Any], actor) -> Urn:
         urn = await self._urn(urn_id)
-        before = {"name": urn.name, "supplier_id": urn.supplier_id, "notes": urn.notes}
+        before = {"name": urn.name, "supplier_id": urn.supplier_id, "notes": urn.notes, "type_id": urn.type_id}
         if "name" in values and values["name"] is not None:
             if not values["name"].strip():
                 raise ValidationFailedError("Give the product a name")
@@ -257,9 +327,15 @@ class UrnService:
             urn.supplier_id = values["supplier_id"]
         if "notes" in values:
             urn.notes = (values["notes"] or "").strip() or None
+        retyped = values.get("type_id") is not None and values["type_id"] != urn.type_id
+        if retyped:  # another type: its variations are read again with that type's sizes; old orders keep their costs
+            await self._type(values["type_id"])
+            urn.type_id = values["type_id"]
+            await self.session.flush()
+            await self._refresh_variations(urn, everything=True)
         urn.updated_by = actor.id
         await self._skus_for(urn)
-        after = {"name": urn.name, "supplier_id": urn.supplier_id, "notes": urn.notes}
+        after = {"name": urn.name, "supplier_id": urn.supplier_id, "notes": urn.notes, "type_id": urn.type_id}
         changes = {k: [before[k], after[k]] for k in before if before[k] != after[k]}
         if changes:
             await self.audit.record("urn.update", actor=actor, entity_type=ENTITY, entity_id=urn.id, changes=changes)
@@ -271,6 +347,15 @@ class UrnService:
         n = 0
         for urn_id in dict.fromkeys(urn_ids):
             await self.update(urn_id, {"supplier_id": supplier_id}, actor)
+            n += 1
+        return n
+
+    async def assign_type(self, urn_ids: list[int], type_id: int, actor) -> int:
+        """The same type on several products at once (their variations are read again)."""
+        await self._type(type_id)
+        n = 0
+        for urn_id in dict.fromkeys(urn_ids):
+            await self.update(urn_id, {"type_id": type_id}, actor)
             n += 1
         return n
 
@@ -292,11 +377,11 @@ class UrnService:
         """A person's quantities for one variation: approved as given."""
         urn = await self._urn(urn_id)
         row = await self._variation(urn.id, variation_id)
-        codes = set(await self._codes())
+        codes = set(await self._codes(urn.type_id)) or {ITEM}
         q = _qty(quantities)
         unknown = [c for c in q if c not in codes]
         if unknown:
-            raise ValidationFailedError(f"Unknown size {unknown[0]}. Add it in Settings → Sizes first.")
+            raise ValidationFailedError(f"Unknown size {unknown[0]}. Add it to the product type in Settings → Product settings first.")
         if not q:
             raise ValidationFailedError("Give at least one size a quantity")
         before = dict(row.quantities or {})
@@ -331,8 +416,8 @@ class UrnService:
     # ── prices and extras ─────────────────────────────────────────────────────────────────────────────────
     async def set_price(self, urn_id: int, size_code: str, amount: Decimal, effective_from: date | None, actor) -> None:
         urn = await self._urn(urn_id)
-        if size_code not in await self._codes():
-            raise ValidationFailedError(f"Unknown size {size_code}")
+        if size_code not in (await self._codes(urn.type_id) or [ITEM]):
+            raise ValidationFailedError(f"Unknown size {size_code} for this product's type")
         if amount < 0:
             raise ValidationFailedError("A supplier price can't be negative; use an extra for a discount")
         on = effective_from or _today()
@@ -370,10 +455,18 @@ class UrnService:
         return next((p for p in prices if p.size_code == size_code and p.effective_from <= on), None)
 
     async def save_extra(self, extra_id: int | None, values: dict[str, Any], actor) -> CostExtra:
+        """An extra for one product (`urn_id`), every product of a type (`type_id`), or every product (neither)."""
+        if values.get("urn_id") is not None and values.get("type_id") is not None:
+            raise ValidationFailedError("An extra is for one product or one type, not both")
+        scope_type = None
         if values.get("urn_id") is not None:
-            await self._urn(values["urn_id"])
-        if values.get("size_code") and values["size_code"] not in await self._codes():
-            raise ValidationFailedError(f"Unknown size {values['size_code']}")
+            scope_type = (await self._urn(values["urn_id"])).type_id
+        elif values.get("type_id") is not None:
+            scope_type = (await self._type(values["type_id"])).id
+        if values.get("size_code"):
+            codes = set(await self._codes(scope_type)) if scope_type else {s.code for s in await self.sizes()}
+            if values["size_code"] not in codes:
+                raise ValidationFailedError(f"Unknown size {values['size_code']}")
         if extra_id is None:
             row = CostExtra(created_by=actor.id, effective_from=values.get("effective_from") or _today())
             self.session.add(row)
@@ -381,8 +474,9 @@ class UrnService:
             row = await self.session.get(CostExtra, extra_id)
             if row is None:
                 raise NotFoundError("Extra cost not found")
-        for f in ("urn_id", "name", "mode", "value", "applies", "size_code", "party", "effective_from", "effective_to"):
-            if f in values and (values[f] is not None or f in ("size_code", "effective_to", "urn_id")):
+        for f in ("urn_id", "type_id", "name", "mode", "value", "applies", "size_code", "party", "effective_from",
+                  "effective_to"):
+            if f in values and (values[f] is not None or f in ("size_code", "effective_to", "urn_id", "type_id")):
                 setattr(row, f, values[f])
         if row.mode == "percent" and row.applies == "order":
             raise ValidationFailedError("A percentage applies to the supplier price of each piece: choose 'per piece'")
@@ -406,12 +500,22 @@ class UrnService:
                                 changes={"extra": row.name, "until": str(row.effective_to)})
         await self.session.commit()
 
-    async def extras(self, urn_id: int | None, *, include_ended: bool = True) -> list[CostExtra]:
-        cond = [or_(CostExtra.urn_id.is_(None), CostExtra.urn_id == urn_id)] if urn_id else [CostExtra.urn_id.is_(None)]
+    async def extras(self, urn_id: int | None, *, type_id: int | None = None, include_ended: bool = True) -> list[CostExtra]:
+        """For a product: its own, its type's and everyone's. For a type: its own (and everyone's). Else everyone's."""
+        everyone = and_(CostExtra.urn_id.is_(None), CostExtra.type_id.is_(None))
+        if urn_id:
+            urn = await self._urn(urn_id)
+            cond = [or_(everyone, CostExtra.urn_id == urn.id,
+                        and_(CostExtra.urn_id.is_(None), CostExtra.type_id == urn.type_id))]
+        elif type_id:
+            cond = [and_(CostExtra.urn_id.is_(None), CostExtra.type_id == type_id)]
+        else:
+            cond = [everyone]
         if not include_ended:
             cond.append(or_(CostExtra.effective_to.is_(None), CostExtra.effective_to >= _today()))
         return list((await self.session.execute(select(CostExtra).where(*cond)
-                                                .order_by(CostExtra.urn_id.nulls_first(), CostExtra.id))).scalars())
+                                                .order_by(CostExtra.urn_id.nulls_first(), CostExtra.type_id.nulls_first(),
+                                                          CostExtra.id))).scalars())
 
     # ── reading out ───────────────────────────────────────────────────────────────────────────────────────
     async def summary(self) -> dict[str, int]:
@@ -443,8 +547,10 @@ class UrnService:
                 "to_review": to_review, "unclear": unclear, "no_prices": no_prices, "sku_differs": mismatched}
 
     async def list(self, *, q: str | None, supplier_id: int | None, needs: str | None, page: int,
-                   page_size: int) -> dict[str, Any]:
+                   page_size: int, type_id: int | None = None) -> dict[str, Any]:
         cond = [Urn.deleted_at.is_(None)]
+        if type_id:
+            cond.append(Urn.type_id == type_id)
         if q:
             match = Urn.name.ilike(f"%{q.strip()}%")
             if q.strip().isdigit():
@@ -478,17 +584,22 @@ class UrnService:
                                                  .order_by(UrnVariation.removed, UrnVariation.id))).scalars():
                 variations.setdefault(v.urn_id, []).append(v)
         prices = await self.prices(ids)
-        sizes = await self.sizes()
+        types = {t.id: t for t in await self.types()}
+        all_sizes = await self.sizes()
         today = _today()
         out = []
         for u in urns:
             lst = listings.get(u.listing_id) if u.listing_id else None
             vs = [v for v in variations.get(u.id, []) if detail or not v.removed]
             ps = prices.get(u.id, [])
-            current = {s.code: (str(p.amount) if (p := self.price_on(ps, s.code, today)) else None) for s in sizes}
+            sizes = [s for s in all_sizes if s.type_id == u.type_id]
+            codes = [s.code for s in sizes if s.active] or [ITEM]
+            current = {c: (str(p.amount) if (p := self.price_on(ps, c, today)) else None) for c in codes}
+            t = types.get(u.type_id)
             live = [v for v in vs if not v.removed]
             row = {
                 "id": u.id, "name": u.name, "supplier_id": u.supplier_id, "supplier_name": suppliers.get(u.supplier_id),
+                "type_id": u.type_id, "type_name": t.name if t else None, "has_sizes": codes != [ITEM],
                 "listing_id": u.listing_id, "listing_title": lst.title if lst else None,
                 "listing_url": lst.url if lst else None, "listing_state": lst.state if lst else None,
                 "image": (lst.images or [None])[0] if lst else None, "notes": u.notes,
@@ -504,6 +615,7 @@ class UrnService:
                 row["price_history"] = [{"id": p.id, "size_code": p.size_code, "amount": str(p.amount),
                                          "effective_from": p.effective_from} for p in ps]
                 row["extras"] = [self.extra_out(e) for e in await self.extras(u.id)]
+                row["sizes"] = [{"code": s.code, "label": s.label, "active": s.active} for s in sizes]
             out.append(row)
         return out
 
@@ -515,7 +627,7 @@ class UrnService:
 
     @staticmethod
     def extra_out(e: CostExtra) -> dict[str, Any]:
-        return {"id": e.id, "urn_id": e.urn_id, "name": e.name, "mode": e.mode, "value": format(e.value.normalize(), "f") if e.value is not None else None,
+        return {"id": e.id, "urn_id": e.urn_id, "type_id": e.type_id, "name": e.name, "mode": e.mode, "value": format(e.value.normalize(), "f") if e.value is not None else None,
                 "applies": e.applies, "size_code": e.size_code, "party": e.party,
                 "effective_from": e.effective_from, "effective_to": e.effective_to,
                 "active": e.effective_to is None or e.effective_to >= _today()}
@@ -537,8 +649,10 @@ class UrnService:
             .offset((page - 1) * page_size).limit(page_size))).all()
         sup = {s.id: s.name for s in (await self.session.execute(select(Supplier).where(
             Supplier.id.in_({u.supplier_id for _, u in rows if u.supplier_id})))).scalars()} if rows else {}
+        types = {t.id: t.name for t in await self.types()}
         items = [{**self.variation_out(v), "urn_name": u.name, "supplier_id": u.supplier_id,
-                  "supplier_name": sup.get(u.supplier_id)} for v, u in rows]
+                  "supplier_name": sup.get(u.supplier_id), "type_id": u.type_id, "type_name": types.get(u.type_id)}
+                 for v, u in rows]
         return {"items": items, "total": total, "page": page, "page_size": page_size}
 
     async def sku_preview(self, *, only_different: bool) -> list[dict[str, Any]]:
@@ -549,11 +663,12 @@ class UrnService:
                              or_(UrnVariation.etsy_sku.is_(None), UrnVariation.etsy_sku != UrnVariation.sku)))
         rows = (await self.session.execute(select(UrnVariation, Urn).join(Urn, Urn.id == UrnVariation.urn_id)
                                            .where(*cond).order_by(func.lower(Urn.name), UrnVariation.id))).all()
+        types = {t.id: t.name for t in await self.types()}
         dup: dict[str, int] = {}
         for v, _ in rows:
             if v.sku:
                 dup[v.sku] = dup.get(v.sku, 0) + 1
-        return [{"urn_id": u.id, "urn_name": u.name, "variation_id": v.id, "label": v.label, "etsy_sku": v.etsy_sku,
+        return [{"urn_id": u.id, "urn_name": u.name, "type_name": types.get(u.type_id), "variation_id": v.id, "label": v.label, "etsy_sku": v.etsy_sku,
                  "crm_sku": v.sku, "state": v.state,
                  "status": ("not_ready" if not v.sku else "same" if v.sku == v.etsy_sku else
                             "new" if not v.etsy_sku else "different"),

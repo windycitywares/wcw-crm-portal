@@ -13,11 +13,11 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import CostExtra, Urn, UrnSize
-from .service import UrnService
+from .service import ITEM, UrnService
 
 CENT = Decimal("0.01")
 
@@ -68,7 +68,7 @@ class OrderCosting:
     async def compute(self, items: list[dict[str, Any]], on: date) -> Costing:
         """`items`: [{"listing_external_id", "variations", "sku", "quantity", "title"}]."""
         result = Costing(on=on)
-        labels = {s.code: s.label for s in (await self.session.execute(select(UrnSize))).scalars()}
+        sizes = list((await self.session.execute(select(UrnSize))).scalars())
         matched: list[tuple[dict[str, Any], Urn, dict[str, int]]] = []
         for it in items:
             v = await self.urns.match(it.get("listing_external_id"), it.get("variations"), it.get("sku"))
@@ -83,13 +83,16 @@ class OrderCosting:
         if not matched:
             return result
         urn_ids = list({u.id for _, u, _ in matched})
+        type_of = {u.id: u.type_id for _, u, _ in matched}
         prices = await self.urns.prices(urn_ids)
-        extras = [e for e in (await self.session.execute(select(CostExtra).where(
-            or_(CostExtra.urn_id.is_(None), CostExtra.urn_id.in_(urn_ids))).order_by(CostExtra.id))).scalars()
-            if _in_force(e, on)]
+        extras = [e for e in (await self.session.execute(select(CostExtra).where(or_(
+            CostExtra.urn_id.in_(urn_ids), and_(CostExtra.urn_id.is_(None), or_(
+                CostExtra.type_id.is_(None), CostExtra.type_id.in_(set(type_of.values()))))))
+            .order_by(CostExtra.id))).scalars() if _in_force(e, on)]
         pieces_by_urn: dict[int, dict[str, int]] = {}
         price_by_urn: dict[int, dict[str, Decimal]] = {}
         for it, urn, q in matched:
+            labels = {s.code: s.label for s in sizes if s.type_id == urn.type_id} | {ITEM: "item"}
             n = max(int(it.get("quantity") or 1), 1)
             parts, amount = [], Decimal("0")
             for code, per in q.items():
@@ -110,6 +113,8 @@ class OrderCosting:
         for e in extras:
             for urn_id, pieces in pieces_by_urn.items():
                 if e.urn_id is not None and e.urn_id != urn_id:
+                    continue
+                if e.urn_id is None and e.type_id is not None and e.type_id != type_of[urn_id]:
                     continue
                 codes = [c for c in pieces if e.size_code in (None, c)]
                 if e.applies == "order":
