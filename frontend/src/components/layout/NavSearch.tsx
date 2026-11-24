@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -66,6 +66,7 @@ export function NavSearch({ sections, onNavigate, children }: {
   const { can } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const uid = useId();
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -98,16 +99,16 @@ export function NavSearch({ sections, onNavigate, children }: {
   return (
     <>
       <div className="relative mb-3">
-        <label htmlFor="nav-search" className="sr-only">Find a page</label>
+        <label htmlFor={`${uid}-q`} className="sr-only">Find a page</label>
         <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
         <input
           ref={input}
-          id="nav-search"
+          id={`${uid}-q`}
           type="search"
           role="combobox"
           aria-expanded={q.trim() !== ""}
-          aria-controls="nav-search-results"
-          aria-activedescendant={hits[active] ? `nav-hit-${active}` : undefined}
+          aria-controls={`${uid}-results`}
+          aria-activedescendant={hits[active] ? `${uid}-hit-${active}` : undefined}
           autoComplete="off"
           maxLength={60}
           placeholder="Find a page…"
@@ -133,9 +134,9 @@ export function NavSearch({ sections, onNavigate, children }: {
       </div>
       {q.trim() ? (
         <div>
-          <ul id="nav-search-results" role="listbox" aria-label="Pages" className="space-y-0.5">
+          <ul id={`${uid}-results`} role="listbox" aria-label="Pages" className="space-y-0.5">
             {hits.map((h, i) => (
-              <li key={h.item.href} id={`nav-hit-${i}`} role="option" aria-selected={i === active}>
+              <li key={h.item.href} id={`${uid}-hit-${i}`} role="option" aria-selected={i === active}>
                 <Link href={h.item.href} onClick={() => { setQ(""); onNavigate?.(); }} onMouseEnter={() => setActive(i)}
                   className={cn("flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm",
                     i === active ? "bg-sand text-ink" : "text-ink/85 hover:bg-sand")}>
