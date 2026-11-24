@@ -15,7 +15,7 @@ const err = (e: unknown) => (e instanceof Error ? e.message : undefined);
 const CODE = { pattern: "[A-Za-z0-9]+", title: "Letters and digits only, e.g. J" };
 
 /** What the Etsy products are (Urn, Jewelry, Candles…) as one of the type lists in Settings → Types. Names, codes,
- *  order and on/off live here; each type's SKU format, sizes and extra costs stay in Settings → Products, one link away. */
+ *  order and on/off live here; each type's SKU format, sizes and extra costs are in Settings → Catalog, one link away. */
 export function ProductTypesPanel({ onCount }: { onCount?: (n: number) => void }) {
   const toast = useToast();
   const [types, setTypes] = useState<ProductType[] | null>(null);
@@ -158,7 +158,7 @@ function TypeRow({ type: t, index, count, onSaved, onMove }: {
       </div>
       {!editing && (
         <div className="flex flex-wrap items-center gap-2">
-          <ButtonLink href={`/settings/products?type=${t.id}`} size="sm" variant="ghost">SKU format &amp; sizes</ButtonLink>
+          <ButtonLink href={`/settings/product-types?type=${t.id}`} size="sm" variant="ghost">SKU format &amp; sizes</ButtonLink>
           <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
             <Icon name="edit" className="size-4" />
             Edit

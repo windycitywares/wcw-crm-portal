@@ -130,6 +130,13 @@ export const SETTINGS_NAV: NavGroup[] = [
     ],
   },
   {
+    label: "Catalog",
+    items: [
+      { href: "/settings/product-types", label: "Product types & SKUs", icon: "products", permission: "channels:view", keywords: "sku, sku format, template, sizes, product settings, urn" },
+      { href: "/settings/extra-costs", label: "Extra costs", icon: "archive", permission: "channels:view", keywords: "costs, box, packing, extras, surcharge, discount" },
+    ],
+  },
+  {
     label: "Support",
     items: [
       { href: "/settings/sla-policies", label: "SLA policies", icon: "alert", permission: "lookups:manage" },
@@ -149,7 +156,6 @@ export const SETTINGS_NAV: NavGroup[] = [
     items: [
       { href: "/settings/integrations", label: "Integrations", icon: "globe", permission: "settings:manage", keywords: "shop, webhook, api, keys" },
       { href: "/settings/channels", label: "Sales channels", icon: "cart", permission: "channels:manage", keywords: "etsy, connect, amazon" },
-      { href: "/settings/products", label: "Products", icon: "products", permission: "channels:view", keywords: "product types, sku, sku format, sizes, extras, costs" },
       { href: "/settings/deployments", label: "Deployments", icon: "download", permission: "settings:manage", keywords: "deploy, update, release" },
       { href: "/settings/environment", label: "Test mode", icon: "flask", permission: "settings:manage", keywords: "sandbox, environment" },
     ],

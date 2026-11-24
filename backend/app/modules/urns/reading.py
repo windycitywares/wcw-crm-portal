@@ -66,7 +66,7 @@ def read(text: str, sizes: list[Size]) -> Reading:
         stated = {m.group(1) for m in STATED.finditer(part)}
         strange = sorted(n for n in stated if n not in known)
         if strange:  # "12 inch extra large" is not a 10 inch, whatever word follows
-            unread.append(f"{strange[0]} inch isn't one of your sizes (add it in Settings → Products)")
+            unread.append(f"{strange[0]} inch isn't one of your sizes (add it in Settings → Product types & SKUs)")
             continue
         hits = [(s, pat) for s, pats in compiled for pat in pats if pat.search(part)]
         codes = {s.code for s, _ in hits}

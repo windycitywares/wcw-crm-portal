@@ -11,16 +11,20 @@ import { Pagination } from "@/components/ui/Pagination";
 import { Panel } from "@/components/ui/Panel";
 import { Pill } from "@/components/ui/Pill";
 import { Segmented } from "@/components/ui/Segmented";
+import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/utils";
 import { ATTENTION_LABEL, EXCEPTIONS, MAIN_PATH, ordersApi, STATUS_LABEL, STATUS_TONE, type OrderFilters, type OrderPage, type OrderSummary } from "@/modules/channels/orders";
 import { SupplierFilter } from "@/modules/channels/SupplierFilter";
 import { money, Stat, Thumb } from "@/modules/channels/ui";
+import { RecalculateCostsDialog } from "@/modules/urns/RecalculateCostsDialog";
 
 type View = "attention" | "open" | "all";
 const PAGE_SIZE = 25;
 const OPEN = ["new", "purchased", "shipped", "issue", "replacement", "return_requested"];
 
 export default function EtsyOrdersPage() {
+  const { can } = useAuth();
+  const [recalc, setRecalc] = useState(false);
   const [view, setView] = useState<View>("open");
   const [status, setStatus] = useState("");
   const [supplier, setSupplier] = useState("");
@@ -98,7 +102,13 @@ export default function EtsyOrdersPage() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       <PageHeader title="Etsy orders" back={{ href: "/channels/etsy", label: "Etsy" }}
-        description="Paid Etsy orders arrive here on their own within minutes. Enter what you paid and how you shipped; profit follows." />
+        description="Paid Etsy orders arrive here on their own within minutes. Enter what you paid and how you shipped; profit follows."
+        actions={can("channels:manage") ? (
+          <Button size="sm" variant="secondary" onClick={() => setRecalc(true)}>
+            Recalculate costs
+          </Button>
+        ) : undefined} />
+      <RecalculateCostsDialog open={recalc} onClose={() => setRecalc(false)} onDone={() => void load()} />
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Needs attention" value={data ? data.attention : "—"} sub="Late, unpurchased or missing a cost" tone={data?.attention ? "danger" : undefined}
