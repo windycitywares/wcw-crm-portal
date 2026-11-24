@@ -103,11 +103,11 @@ export function ExtrasPanel({ urnId, typeId = null, extras, sizes, canManage, on
         </ul>
         {canManage && (
           <form onSubmit={add} className="grid grid-cols-[minmax(0,1fr)] gap-3 border-t border-line pt-4 sm:grid-cols-6">
-            <Field label="Name" className="sm:col-span-2">{(p) => <Input {...p} placeholder="Packaging, supplier discount…" value={draft.name} maxLength={80} onChange={(e) => set({ name: e.target.value })} />}</Field>
+            <Field label="Name" className="sm:col-span-2">{(p) => <Input {...p} placeholder="Packaging, supplier discount…" required value={draft.name} maxLength={80} onChange={(e) => set({ name: e.target.value })} />}</Field>
             <Field label="Adds or subtracts">
               {(p) => <Select {...p} value={draft.sign} onChange={(e) => set({ sign: e.target.value })}><option value="+">Adds (+)</option><option value="-">Subtracts (−)</option></Select>}
             </Field>
-            <Field label="Amount">{(p) => <Input {...p} type="number" min="0" step="0.01" inputMode="decimal" value={draft.value} onChange={(e) => set({ value: e.target.value })} />}</Field>
+            <Field label="Amount">{(p) => <Input {...p} type="number" min="0.01" max="100000" step="0.01" inputMode="decimal" required value={draft.value} onChange={(e) => set({ value: e.target.value })} />}</Field>
             <Field label="As">
               {(p) => <Select {...p} value={draft.mode} onChange={(e) => set({ mode: e.target.value, applies: e.target.value === "percent" ? "piece" : draft.applies })}><option value="amount">Dollars</option><option value="percent">% of supplier price</option></Select>}
             </Field>
@@ -133,7 +133,7 @@ export function ExtrasPanel({ urnId, typeId = null, extras, sizes, canManage, on
             </Field>
             <Field label="From" hint="Empty = today">{(p) => <Input {...p} type="date" value={draft.effective_from} onChange={(e) => set({ effective_from: e.target.value })} />}</Field>
             <div className="flex items-end sm:col-span-2">
-              <Button type="submit" size="sm" disabled={busy || !draft.name.trim() || !Number(draft.value)}>Add extra cost</Button>
+              <Button type="submit" size="sm" loading={busy}>Add extra cost</Button>
             </div>
           </form>
         )}

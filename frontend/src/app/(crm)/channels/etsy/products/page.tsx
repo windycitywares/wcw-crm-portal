@@ -175,7 +175,7 @@ export default function UrnsPage() {
 
       <Panel>
         <div className="grid grid-cols-[minmax(0,1fr)] items-end gap-3 p-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
-          <Field label="Search">{(p) => <Input {...p} type="search" placeholder="Product name or number" value={search} onChange={(e) => setSearch(e.target.value)} />}</Field>
+          <Field label="Search">{(p) => <Input {...p} maxLength={120} type="search" placeholder="Product name or number" value={search} onChange={(e) => setSearch(e.target.value)} />}</Field>
           <Field label="Type">
             {(p) => (
               <Select {...p} value={String(typeId)} onChange={(e) => { setTypeId(e.target.value ? Number(e.target.value) : ""); setPage(1); }}>

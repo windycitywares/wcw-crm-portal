@@ -120,7 +120,7 @@ export default function EtsyOrdersPage() {
         </div>
         <form className="grid grid-cols-[minmax(0,1fr)] gap-3 border-b border-line p-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] lg:items-end"
           onSubmit={(e) => { e.preventDefault(); setPage(1); setApplied({ q: q.trim(), from, to }); }}>
-          <Field label="Search">{(p) => <Input {...p} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Order #, buyer, item, SKU, tracking" />}</Field>
+          <Field label="Search">{(p) => <Input {...p} maxLength={120} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Order #, buyer, item, SKU, tracking" />}</Field>
           <Field label="Status">
             {(p) => (
               <Select {...p} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>

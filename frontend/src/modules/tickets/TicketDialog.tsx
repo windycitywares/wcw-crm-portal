@@ -254,7 +254,7 @@ export function TicketDialog({
             )}
           </Field>
           <Field label="Shop order" hint="Optional order number from the shop.">
-            {(p) => <Input {...p} inputMode="numeric" value={form.shop_order_id} onChange={(e) => set("shop_order_id", e.target.value.replace(/\D/g, ""))} />}
+            {(p) => <Input {...p} maxLength={40} inputMode="numeric" value={form.shop_order_id} onChange={(e) => set("shop_order_id", e.target.value.replace(/\D/g, ""))} />}
           </Field>
           <Field label="Details" className="sm:col-span-2" hint="What the customer asked for, in their words.">
             {(p) => <Textarea {...p} rows={4} maxLength={20000} value={form.description} onChange={(e) => set("description", e.target.value)} />}

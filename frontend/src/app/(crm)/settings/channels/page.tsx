@@ -120,7 +120,7 @@ function EtsyPanel() {
         <Panel>
           <PanelHeader title="Etsy app keys" description="From your app on Etsy's developer page. The shared secret is stored encrypted and never shown again." />
           <PanelBody className="grid grid-cols-[minmax(0,1fr)] gap-4">
-            <Field label="Keystring">{(p) => <Input {...p} value={clientId} onChange={(e) => setClientId(e.target.value)} autoComplete="off" spellCheck={false} />}</Field>
+            <Field label="Keystring">{(p) => <Input {...p} maxLength={200} value={clientId} onChange={(e) => setClientId(e.target.value)} autoComplete="off" spellCheck={false} />}</Field>
             <Field label="Shared secret" hint={conn.secret_set ? "Saved. Type a new one only to replace it." : undefined}>
               {(p) => <Input {...p} type="password" value={secret} onChange={(e) => setSecret(e.target.value)} autoComplete="new-password" />}
             </Field>

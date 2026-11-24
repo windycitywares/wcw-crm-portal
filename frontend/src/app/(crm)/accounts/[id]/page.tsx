@@ -153,9 +153,9 @@ function PeoplePanel({ account, canEdit, onChange }: { account: Account; canEdit
         </ul>
         {canEdit && !supplier && (
           <form onSubmit={add} className="grid grid-cols-[minmax(0,1fr)] gap-3 border-t border-line pt-4 sm:grid-cols-2">
-            <Field label="Name">{(p) => <Input {...p} value={name} onChange={(e) => setName(e.target.value)} />}</Field>
-            <Field label="Email" hint="An existing contact with this email is linked here too">{(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
-            <Field label="Job title">{(p) => <Input {...p} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
+            <Field label="Name">{(p) => <Input {...p} required maxLength={160} value={name} onChange={(e) => setName(e.target.value)} />}</Field>
+            <Field label="Email" hint="An existing contact with this email is linked here too">{(p) => <Input {...p} maxLength={254} autoComplete="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
+            <Field label="Job title">{(p) => <Input {...p} maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
             <Field label="Role at this account" hint="E.g. Buyer, Accounts payable, Advisor">{(p) => <Input {...p} value={role} maxLength={80} onChange={(e) => setRole(e.target.value)} />}</Field>
             <div className="sm:col-span-2">
               <Button type="submit" size="sm" disabled={busy || (!name.trim() && !email.trim())}>{busy ? "Adding…" : "Add contact"}</Button>

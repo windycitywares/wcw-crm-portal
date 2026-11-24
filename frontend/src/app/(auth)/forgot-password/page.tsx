@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
         </p>
       )}
       <Field label="Email">
-        {(p) => <Input {...p} type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />}
+        {(p) => <Input {...p} maxLength={254} type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />}
       </Field>
       <Button type="submit" className="w-full" disabled={busy || !email}>
         {busy ? "Sending…" : "Email me a link"}

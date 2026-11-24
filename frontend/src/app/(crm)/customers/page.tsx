@@ -209,7 +209,7 @@ export default function CustomersPage() {
       <Panel className="mb-4 p-4">
         <form role="search" onSubmit={(e) => e.preventDefault()} className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Search" className="sm:col-span-2">
-            {(p) => <Input {...p} type="search" placeholder="Name, company, email or phone" value={search} onChange={(e) => setSearch(e.target.value)} />}
+            {(p) => <Input {...p} maxLength={120} type="search" placeholder="Name, company, email or phone" value={search} onChange={(e) => setSearch(e.target.value)} />}
           </Field>
           <Field label="Type">
             {(p) => (

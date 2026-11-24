@@ -258,7 +258,7 @@ export function DealDialog({
             <Field label="Value">
               {(p) => (
                 <div className="flex gap-2">
-                  <Input {...p} type="number" min="0" step="0.01" placeholder="0.00" value={form.value} onChange={(e) => set("value", e.target.value)} />
+                  <Input {...p} type="number" min="0" max="9999999999.99" step="0.01" placeholder="0.00" value={form.value} onChange={(e) => set("value", e.target.value)} />
                   <Input
                     aria-label="Currency"
                     className="w-20"
@@ -276,6 +276,7 @@ export function DealDialog({
                   type="number"
                   min="0"
                   max="100"
+                  step="1"
                   value={form.probability}
                   onChange={(e) => {
                     setTouchedProbability(true);

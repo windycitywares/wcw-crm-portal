@@ -66,9 +66,9 @@ function EditDialog({ listing, onClose, onSaved }: { listing: Listing | null; on
           )}
         </Field>
         <Field label="Purchase cost (per item)" hint="What one costs us. New orders of this listing start with it.">
-          {(p) => <Input {...p} type="number" min="0" step="0.01" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} />}
+          {(p) => <Input {...p} type="number" min="0" max="100000" step="0.01" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} />}
         </Field>
-        <Field label="Notes">{(p) => <Textarea {...p} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />}</Field>
+        <Field label="Notes">{(p) => <Textarea {...p} maxLength={2000} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />}</Field>
         <div className="flex justify-end gap-2">
           <Button type="button" size="sm" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button type="submit" size="sm" disabled={busy}>{busy ? "Saving…" : "Save listing"}</Button>
@@ -157,7 +157,7 @@ export default function EtsyListingsPage() {
         actions={canEdit ? <Button size="sm" variant="secondary" disabled={syncing} onClick={() => void sync()}>{syncing ? "Syncing…" : "Sync from Etsy"}</Button> : undefined} />
       <Panel className="mb-4">
         <div className="grid grid-cols-[minmax(0,1fr)] items-end gap-3 p-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
-          <Field label="Search">{(p) => <Input {...p} type="search" placeholder="Title or SKU" value={search} onChange={(e) => setSearch(e.target.value)} />}</Field>
+          <Field label="Search">{(p) => <Input {...p} maxLength={120} type="search" placeholder="Title or SKU" value={search} onChange={(e) => setSearch(e.target.value)} />}</Field>
           <Field label="Status">
             {(p) => (
               <Select {...p} value={filters.state ?? ""} onChange={(e) => update({ state: e.target.value })}>

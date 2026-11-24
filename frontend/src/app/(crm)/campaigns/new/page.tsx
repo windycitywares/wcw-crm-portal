@@ -80,7 +80,7 @@ export default function NewCampaignPage() {
         <PanelBody>
           <form onSubmit={submit} className="grid gap-4 md:grid-cols-2">
             <Field label="Campaign name" className="md:col-span-2">
-              {(p) => <Input {...p} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />}
+              {(p) => <Input {...p} required maxLength={120} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />}
             </Field>
 
             <Field label="Template">

@@ -137,7 +137,7 @@ export function SupplierForm({ supplier, onSaved }: { supplier: Supplier | null;
             </Select>}
           </Field>
           <Field label="Website">
-            {(p) => <Input {...p} type="url" placeholder="https://" value={form.website} onChange={(e) => set("website", e.target.value)} />}
+            {(p) => <Input {...p} maxLength={300} type="url" placeholder="https://" value={form.website} onChange={(e) => set("website", e.target.value)} />}
           </Field>
           <Field label="Payment terms">
             {(p) => <Input {...p} maxLength={300} placeholder="Net 30" value={form.payment_terms} onChange={(e) => set("payment_terms", e.target.value)} />}
@@ -168,10 +168,10 @@ export function SupplierForm({ supplier, onSaved }: { supplier: Supplier | null;
       {!supplier && <Panel>
         <PanelHeader title="Primary contact" description="Optional; additional contacts can be added after saving." />
         <PanelBody className="grid gap-4 sm:grid-cols-2">
-          <Field label="Contact name">{(p) => <Input {...p} value={form.contact_name} onChange={(e) => set("contact_name", e.target.value)} />}</Field>
-          <Field label="Title">{(p) => <Input {...p} value={form.contact_title} onChange={(e) => set("contact_title", e.target.value)} />}</Field>
-          <Field label="Email">{(p) => <Input {...p} type="email" value={form.contact_email} onChange={(e) => set("contact_email", e.target.value)} />}</Field>
-          <Field label="Phone">{(p) => <Input {...p} type="tel" value={form.contact_phone} onChange={(e) => set("contact_phone", e.target.value)} />}</Field>
+          <Field label="Contact name">{(p) => <Input {...p} maxLength={160} value={form.contact_name} onChange={(e) => set("contact_name", e.target.value)} />}</Field>
+          <Field label="Title">{(p) => <Input {...p} maxLength={120} value={form.contact_title} onChange={(e) => set("contact_title", e.target.value)} />}</Field>
+          <Field label="Email">{(p) => <Input {...p} maxLength={254} autoComplete="email" type="email" value={form.contact_email} onChange={(e) => set("contact_email", e.target.value)} />}</Field>
+          <Field label="Phone">{(p) => <Input {...p} maxLength={40} autoComplete="tel" type="tel" value={form.contact_phone} onChange={(e) => set("contact_phone", e.target.value)} />}</Field>
         </PanelBody>
       </Panel>}
 
@@ -183,7 +183,7 @@ export function SupplierForm({ supplier, onSaved }: { supplier: Supplier | null;
       </Panel>}
 
       <div className="flex gap-2">
-        <Button type="submit" disabled={busy || !form.name.trim() || !form.supplier_type}>{busy ? "Saving…" : supplier ? "Save supplier" : "Create supplier"}</Button>
+        <Button type="submit" loading={busy}>{busy ? "Saving…" : supplier ? "Save supplier" : "Create supplier"}</Button>
         <ButtonLink href={supplier ? `/suppliers/${supplier.id}` : "/suppliers"} variant="secondary">Cancel</ButtonLink>
       </div>
     </form>

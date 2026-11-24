@@ -70,7 +70,7 @@ function FieldForm({
           <Button variant="secondary" size="sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="field-form" size="sm" disabled={busy || !label.trim() || (CHOICE.includes(type) && opts.length === 0)}>
+          <Button type="submit" form="field-form" size="sm" loading={busy}>
             {busy ? "Saving…" : isNew ? "Add field" : "Save field"}
           </Button>
         </>
@@ -96,7 +96,7 @@ function FieldForm({
         </Field>
         {CHOICE.includes(type) && (
           <Field label="Options" hint="One per line.">
-            {(p) => <Textarea {...p} value={options} onChange={(e) => setOptions(e.target.value)} />}
+            {(p) => <Textarea {...p} required maxLength={4000} value={options} onChange={(e) => setOptions(e.target.value)} />}
           </Field>
         )}
         <Field label="Help text" hint="Optional. Shown under the field.">

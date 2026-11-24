@@ -146,7 +146,7 @@ function TypePanel({ type, canManage, onChange }: { type: ProductType; canManage
           onClick={() => void urnsApi.editType(type.id, { active: !type.active }).then(onChange)}>{type.active ? "Turn off" : "Turn on"}</Button> : undefined} />
       <PanelBody>
         <form onSubmit={save} className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-6">
-          <Field label="Name" className="sm:col-span-2">{(p) => <Input {...p} value={draft.name} maxLength={60} disabled={!canManage} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />}</Field>
+          <Field label="Name" className="sm:col-span-2">{(p) => <Input {...p} required value={draft.name} maxLength={60} disabled={!canManage} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />}</Field>
           <Field label="Short code" hint="What {type} writes, e.g. U">{(p) => <Input {...p} className="font-mono" value={draft.code} maxLength={10} disabled={!canManage} onChange={(e) => setDraft({ ...draft, code: e.target.value.toUpperCase() })} />}</Field>
           <Field label="Template" className="sm:col-span-3"
             hint={`{supplier:3} supplier number · {product:4} product number${hasSizes ? " · {sizes} the pieces" : ""} · {type} the short code · {-option} reserved`}>
@@ -167,7 +167,7 @@ function TypePanel({ type, canManage, onChange }: { type: ProductType; canManage
           </div>
           {canManage && (
             <div className="flex gap-2 sm:col-span-6">
-              <Button type="submit" size="sm" disabled={busy || !changed || !draft.name.trim() || check.problems.length > 0}>Save type</Button>
+              <Button type="submit" size="sm" loading={busy} disabled={!changed || check.problems.length > 0}>Save type</Button>
               {changed && <Button type="button" size="sm" variant="ghost"
                 onClick={() => setDraft({ name: type.name, code: type.code ?? "", template: type.template, size_format: type.size_format, separator: type.separator })}>Undo changes</Button>}
             </div>
@@ -212,10 +212,10 @@ function SizesPanel({ type, canManage, onChange }: { type: ProductType; canManag
               {editing === s.id ? (
                 <form className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]"
                   onSubmit={(e) => { e.preventDefault(); void act(() => urnsApi.editSize(s.id, { label, aliases: aliases.split(",").map((a) => a.trim()).filter(Boolean) }), "Size saved", label); }}>
-                  <Field label="Name">{(p) => <Input {...p} value={label} maxLength={40} onChange={(e) => setLabel(e.target.value)} />}</Field>
-                  <Field label="Words that mean this size" hint="Separated by commas, e.g. large, adult">{(p) => <Input {...p} value={aliases} onChange={(e) => setAliases(e.target.value)} />}</Field>
+                  <Field label="Name">{(p) => <Input {...p} required value={label} maxLength={40} onChange={(e) => setLabel(e.target.value)} />}</Field>
+                  <Field label="Words that mean this size" hint="Separated by commas, e.g. large, adult">{(p) => <Input {...p} maxLength={200} value={aliases} onChange={(e) => setAliases(e.target.value)} />}</Field>
                   <div className="flex items-end gap-1">
-                    <Button type="submit" size="sm" disabled={busy || !label.trim()}>Save size</Button>
+                    <Button type="submit" size="sm" loading={busy}>Save size</Button>
                     <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
                   </div>
                 </form>

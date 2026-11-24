@@ -161,7 +161,7 @@ export function CustomerForm({ customer, onSaved }: { customer: Customer | null;
           <Field label="Email" error={duplicate ? "Another customer already uses this email." : undefined}>
             {(p) => (
               <Input
-                {...p}
+                {...p} maxLength={254}
                 type="email"
                 autoComplete="off"
                 value={form.email}
@@ -183,7 +183,7 @@ export function CustomerForm({ customer, onSaved }: { customer: Customer | null;
             </p>
           )}
           <Field label="Other emails" hint="Separate with commas. Used to match shop orders and replies." className="sm:col-span-2">
-            {(p) => <Input {...p} autoComplete="off" value={form.alt_emails} onChange={(e) => set("alt_emails", e.target.value)} />}
+            {(p) => <Input {...p} maxLength={2600} autoComplete="off" value={form.alt_emails} onChange={(e) => set("alt_emails", e.target.value)} />}
           </Field>
         </CardBody>
       </Card>

@@ -71,7 +71,7 @@ export default function BusinessHoursPage() {
           <PanelHeader title="Opening hours" />
           <PanelBody className="grid gap-3">
             <Field label="Time zone" hint="e.g. America/Chicago" className="max-w-xs">
-              {(p) => <Input {...p} value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />}
+              {(p) => <Input {...p} maxLength={64} value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />}
             </Field>
             <table className="text-sm">
               <caption className="sr-only">Opening hours per day</caption>

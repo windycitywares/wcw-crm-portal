@@ -50,7 +50,7 @@ function LoginForm() {
         </p>
       )}
       <Field label="Email">
-        {(p) => <Input {...p} type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />}
+        {(p) => <Input {...p} maxLength={254} type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />}
       </Field>
       <Field label="Password">
         {(p) => <Input {...p} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />}

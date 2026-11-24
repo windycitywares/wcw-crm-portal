@@ -136,7 +136,9 @@ function LineRow({
       <input
         aria-label="Quantity"
         type="number"
-        min="0"
+        min="0.01"
+        max="999999.99"
+        required
         step="0.01"
         className={cn(INPUT, "num w-20 text-right")}
         value={form.quantity}
@@ -148,6 +150,7 @@ function LineRow({
         aria-label="Unit price"
         type="number"
         min="0"
+        max="9999999999.99"
         step="0.01"
         className={cn(INPUT, "num w-24 text-right")}
         value={form.unit_price}
@@ -411,7 +414,8 @@ export function DealItemsPanel({
             <input
               aria-label="Quantity"
               type="number"
-              min="0"
+              min="0.01"
+              max="999999.99"
               step="0.01"
               className={cn(INPUT, "num w-20 border border-line text-right")}
               value={draft.quantity}
@@ -421,6 +425,7 @@ export function DealItemsPanel({
               aria-label="Unit price"
               type="number"
               min="0"
+              max="9999999999.99"
               step="0.01"
               placeholder="0.00"
               className={cn(INPUT, "num w-24 border border-line text-right")}

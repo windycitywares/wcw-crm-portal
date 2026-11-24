@@ -68,8 +68,8 @@ function ValueRow({
             <label className="sr-only" htmlFor={`label-${value.id}`}>
               Name
             </label>
-            <Input id={`label-${value.id}`} value={label} onChange={(e) => setLabel(e.target.value)} className="max-w-xs py-1.5" autoFocus />
-            <Button type="submit" size="sm" disabled={busy || !label.trim()}>
+            <Input id={`label-${value.id}`} required value={label} onChange={(e) => setLabel(e.target.value)} className="max-w-xs py-1.5" autoFocus />
+            <Button type="submit" size="sm" loading={busy}>
               Save
             </Button>
             <Button

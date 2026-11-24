@@ -218,11 +218,11 @@ export default function CampaignListsPage() {
                   </div>
                 )}
                 <Field label="Audience name">
-                  {(p) => <Input {...p} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />}
+                  {(p) => <Input {...p} required maxLength={120} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />}
                 </Field>
 
                 <Field label="Description" hint="Optional context for the team.">
-                  {(p) => <Textarea {...p} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} className="min-h-[120px]" />}
+                  {(p) => <Textarea {...p} maxLength={1000} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} className="min-h-[120px]" />}
                 </Field>
 
                 {form.kind === "segment" && (
@@ -290,7 +290,7 @@ export default function CampaignListsPage() {
                 )}
 
                 <div className="flex flex-wrap gap-2">
-                  <Button type="submit" disabled={busy || !form.name.trim() || (form.kind === "segment" && !rulesReady)}>
+                  <Button type="submit" loading={busy} disabled={form.kind === "segment" && !rulesReady}>
                     {busy ? "Saving…" : editingId ? "Save segment" : "Create audience"}
                   </Button>
                   {editingId && <Button type="button" variant="secondary" onClick={resetForm}>Cancel</Button>}

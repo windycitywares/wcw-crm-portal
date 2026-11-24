@@ -96,16 +96,16 @@ function AddUser({ open, onClose, onSaved }: { open: boolean; onClose: () => voi
             {error}
           </p>
         )}
-        <Field label="Full name">{(p) => <Input {...p} required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />}</Field>
-        <Field label="Email">{(p) => <Input {...p} type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />}</Field>
+        <Field label="Full name">{(p) => <Input {...p} maxLength={120} autoComplete="name" required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />}</Field>
+        <Field label="Email">{(p) => <Input {...p} maxLength={254} autoComplete="email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />}</Field>
         <Field label="Role" hint={ROLE_HINT[form.role]}>
           {(p) => <RoleSelect {...p} value={form.role} onChange={(role) => setForm({ ...form, role })} />}
         </Field>
         <Field label="Job title" hint="Optional.">
-          {(p) => <Input {...p} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />}
+          {(p) => <Input {...p} maxLength={120} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />}
         </Field>
         <Field label="Temporary password" hint="At least 10 characters.">
-          {(p) => <Input {...p} type="text" autoComplete="off" required minLength={10} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />}
+          {(p) => <Input {...p} maxLength={128} type="text" autoComplete="off" required minLength={10} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />}
         </Field>
       </form>
     </Modal>
@@ -170,10 +170,10 @@ function EditUser({ user, onClose, onSaved }: { user: User | null; onClose: () =
             {error}
           </p>
         )}
-        <Field label="Full name">{(p) => <Input {...p} required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />}</Field>
+        <Field label="Full name">{(p) => <Input {...p} maxLength={120} autoComplete="name" required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />}</Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Job title">{(p) => <Input {...p} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />}</Field>
-          <Field label="Phone">{(p) => <Input {...p} type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />}</Field>
+          <Field label="Job title">{(p) => <Input {...p} maxLength={120} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />}</Field>
+          <Field label="Phone">{(p) => <Input {...p} maxLength={40} autoComplete="tel" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />}</Field>
         </div>
         <Field label="Role" hint={self ? "You can't change your own role." : ROLE_HINT[form.role]}>
           {(p) => <RoleSelect {...p} value={form.role} disabled={self} onChange={(role) => setForm({ ...form, role })} />}
@@ -192,7 +192,7 @@ function EditUser({ user, onClose, onSaved }: { user: User | null; onClose: () =
           </span>
         </label>
         <Field label="Set a new password" hint="Optional. At least 10 characters; signs them out everywhere.">
-          {(p) => <Input {...p} type="text" autoComplete="off" minLength={10} value={password} onChange={(e) => setPassword(e.target.value)} />}
+          {(p) => <Input {...p} maxLength={128} type="text" autoComplete="off" minLength={10} value={password} onChange={(e) => setPassword(e.target.value)} />}
         </Field>
       </form>
     </Modal>
@@ -266,7 +266,7 @@ export default function UsersPage() {
       <Panel>
         <div className="flex flex-wrap items-end gap-3 border-b border-line px-4 py-3">
           <Field label="Search" className="min-w-0 flex-1 sm:max-w-xs">
-            {(p) => <Input {...p} type="search" placeholder="Name or email" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value, page: 1 })} />}
+            {(p) => <Input {...p} maxLength={120} type="search" placeholder="Name or email" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value, page: 1 })} />}
           </Field>
           <Field label="Role">
             {(p) => (

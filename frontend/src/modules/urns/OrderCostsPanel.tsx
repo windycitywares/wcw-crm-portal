@@ -122,17 +122,17 @@ export function OrderCostsPanel({ orderId, canEdit, onChanged }: { orderId: numb
                 if (ok) { setAdding(false); setAdj({ label: "", amount: "", sign: "-", party: "supplier", note: "" }); }
               });
             }}>
-            <Field label="What">{(p) => <Input {...p} placeholder="Supplier refund, reshipping…" value={adj.label} maxLength={120} onChange={(e) => setAdj({ ...adj, label: e.target.value })} />}</Field>
+            <Field label="What">{(p) => <Input {...p} placeholder="Supplier refund, reshipping…" required value={adj.label} maxLength={120} onChange={(e) => setAdj({ ...adj, label: e.target.value })} />}</Field>
             <Field label="Adds or subtracts">
               {(p) => <Select {...p} value={adj.sign} onChange={(e) => setAdj({ ...adj, sign: e.target.value })}><option value="-">Subtracts (−)</option><option value="+">Adds (+)</option></Select>}
             </Field>
-            <Field label="Amount ($)">{(p) => <Input {...p} type="number" min="0" step="0.01" inputMode="decimal" value={adj.amount} onChange={(e) => setAdj({ ...adj, amount: e.target.value })} />}</Field>
+            <Field label="Amount ($)">{(p) => <Input {...p} type="number" min="0.01" max="100000" step="0.01" inputMode="decimal" required value={adj.amount} onChange={(e) => setAdj({ ...adj, amount: e.target.value })} />}</Field>
             <Field label="Whose">
               {(p) => <Select {...p} value={adj.party} onChange={(e) => setAdj({ ...adj, party: e.target.value })}><option value="supplier">Supplier's (changes what they're owed)</option><option value="ours">Ours (profit only)</option></Select>}
             </Field>
-            <Field label="Why" className="sm:col-span-2">{(p) => <Input {...p} value={adj.note} maxLength={500} onChange={(e) => setAdj({ ...adj, note: e.target.value })} />}</Field>
+            <Field label="Why" className="sm:col-span-2">{(p) => <Input {...p} required value={adj.note} maxLength={500} onChange={(e) => setAdj({ ...adj, note: e.target.value })} />}</Field>
             <div className="flex gap-2 sm:col-span-2">
-              <Button type="submit" size="sm" disabled={busy || !adj.label.trim() || !amount || !adj.note.trim()}>Add adjustment</Button>
+              <Button type="submit" size="sm" loading={busy}>Add adjustment</Button>
               <Button type="button" size="sm" variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
             </div>
           </form>

@@ -223,7 +223,7 @@ export default function IntegrationsPage() {
               }
             >
               {(p) => (
-                <Input {...p} readOnly value={form.webhook_secret} placeholder={saved.webhook_secret_set ? "••••••••" : ""} className="font-mono text-xs" />
+                <Input {...p} maxLength={200} readOnly value={form.webhook_secret} placeholder={saved.webhook_secret_set ? "••••••••" : ""} className="font-mono text-xs" />
               )}
             </Field>
             <div className="flex flex-wrap gap-2">
@@ -248,7 +248,7 @@ export default function IntegrationsPage() {
           <PanelHeader title="Reading from the shop" description="Used to import customers and orders from before the connection (below). The token is CRM_API_TOKEN on the shop server." />
           <PanelBody className="grid gap-4">
             <Field label="Shop API address">
-              {(p) => <Input {...p} value={form.shop_api_url} onChange={(e) => setForm({ ...form, shop_api_url: e.target.value })} autoComplete="off" />}
+              {(p) => <Input {...p} maxLength={300} value={form.shop_api_url} onChange={(e) => setForm({ ...form, shop_api_url: e.target.value })} autoComplete="off" />}
             </Field>
             <Field label="Shop API token" hint={saved.shop_api_token_set ? "Saved and encrypted. Leave blank to keep it." : "Made in the shop's admin. Stored encrypted."}>
               {(p) => (
@@ -300,7 +300,7 @@ export default function IntegrationsPage() {
             >
               {(p) => (
                 <Input
-                  {...p}
+                  {...p} maxLength={200}
                   readOnly
                   value={inboxForm.ingest_secret}
                   placeholder={inboxSaved.ingest_secret_set ? "••••••••" : ""}

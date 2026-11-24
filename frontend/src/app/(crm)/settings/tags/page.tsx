@@ -49,7 +49,7 @@ function TagForm({ tag, onClose, onSaved }: { tag: Tag | "new"; onClose: () => v
           <Button variant="secondary" size="sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="tag-form" size="sm" disabled={busy || !name.trim()}>
+          <Button type="submit" form="tag-form" size="sm" loading={busy}>
             {busy ? "Saving…" : isNew ? "Add tag" : "Save tag"}
           </Button>
         </>
@@ -156,7 +156,7 @@ export default function TagsPage() {
       <Panel>
         <div className="border-b border-line px-4 py-3">
           <Field label="Search" className="max-w-xs">
-            {(p) => <Input {...p} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tag name" />}
+            {(p) => <Input {...p} maxLength={120} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tag name" />}
           </Field>
         </div>
         <DataTable caption="Tags" columns={columns} rows={tags} rowKey={(t) => t.id} empty="No tags yet — they appear here as people add them to records." />

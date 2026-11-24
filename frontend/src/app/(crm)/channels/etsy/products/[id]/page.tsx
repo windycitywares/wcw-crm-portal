@@ -106,7 +106,7 @@ export default function UrnPage() {
             </div>
             <form className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2"
               onSubmit={(e) => { e.preventDefault(); void run(() => urnsApi.update(urn.id, { name, notes: notes || null }), "Product saved", name); }}>
-              <Field label="Name">{(p) => <Input {...p} value={name} maxLength={120} disabled={!canEdit} onChange={(e) => setName(e.target.value)} />}</Field>
+              <Field label="Name">{(p) => <Input {...p} required value={name} maxLength={120} disabled={!canEdit} onChange={(e) => setName(e.target.value)} />}</Field>
               <Field label="Supplier" hint="Changing it changes this product's SKUs in the CRM.">
                 {(p) => (
                   <Select {...p} value={urn.supplier_id ?? ""} disabled={!canEdit || busy}
@@ -123,8 +123,8 @@ export default function UrnPage() {
                   </Select>
                 )}
               </Field>
-              <Field label="Notes" className="sm:col-span-2">{(p) => <Textarea {...p} rows={2} value={notes} disabled={!canEdit} onChange={(e) => setNotes(e.target.value)} />}</Field>
-              {canEdit && <div className="sm:col-span-2"><Button type="submit" size="sm" disabled={busy || !name.trim()}>Save product</Button></div>}
+              <Field label="Notes" className="sm:col-span-2">{(p) => <Textarea {...p} maxLength={2000} rows={2} value={notes} disabled={!canEdit} onChange={(e) => setNotes(e.target.value)} />}</Field>
+              {canEdit && <div className="sm:col-span-2"><Button type="submit" size="sm" loading={busy}>Save product</Button></div>}
             </form>
           </PanelBody>
         </Panel>
