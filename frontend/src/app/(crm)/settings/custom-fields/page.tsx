@@ -191,7 +191,7 @@ export default function CustomFieldsPage() {
           <PanelHeader
             title="Fields"
             actions={
-              <Field label="Record type" className="w-48">
+              <Field label="Record type" className="w-[calc(50%-0.375rem)] sm:w-48">
                 {(p) => (
                   <Select {...p} value={entity} onChange={(e) => setEntity(e.target.value)}>
                     {(recordTypes ?? []).map((r) => (

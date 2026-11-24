@@ -256,7 +256,7 @@ export default function ReportsPage() {
           <Panel>
             <PanelHeader title="Tickets & SLA" description={`${tickets.total.toLocaleString()} tickets.`} />
             <PanelBody>
-              <div className="mb-5 grid grid-cols-3 gap-3">
+              <div className="mb-5 grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-3">
                 <Metric label="First response breached" value={tickets.first_response_breached} />
                 <Metric label="Resolution breached" value={tickets.resolution_breached} />
                 <Metric label="Open overdue" value={tickets.open_overdue} />

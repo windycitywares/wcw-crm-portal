@@ -108,7 +108,7 @@ export default function TasksPage() {
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <Segmented label="Whose tasks" options={VIEWS} value={filters.view ?? "mine"} onChange={(view) => update({ view })} />
         <Segmented label="Due" options={DUES} value={filters.due ?? "any"} onChange={(due) => update({ due })} />
-        <Field label="Show" className="w-36">
+        <Field label="Show" className="w-[calc(50%-0.375rem)] sm:w-36">
           {(p) => (
             <Select {...p} value={filters.status} onChange={(e) => update({ status: e.target.value as TaskFilters["status"] })}>
               <option value="open">To do</option>
@@ -118,7 +118,7 @@ export default function TasksPage() {
             </Select>
           )}
         </Field>
-        <Field label="Search" className="min-w-0 flex-1 sm:max-w-xs">
+        <Field label="Search" className="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-xs">
           {(p) => <Input {...p} maxLength={120} type="search" placeholder="Title or details" value={search} onChange={(e) => setSearch(e.target.value)} />}
         </Field>
       </div>

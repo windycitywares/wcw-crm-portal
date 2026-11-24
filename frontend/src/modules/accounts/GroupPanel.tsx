@@ -43,7 +43,7 @@ export function GroupPanel({ account }: { account: Account }) {
         )}
         {subs > 0 && (
           <>
-            <dl className="grid grid-cols-3 gap-3 text-center">
+            <dl className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-3 text-center">
               <Stat label="People in this branch" value={String(group.people)} />
               <Stat label="Open deals" value={String(group.open_deals)} />
               <Stat label="Open value" value={money(group.open_value)} />
