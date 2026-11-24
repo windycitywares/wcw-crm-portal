@@ -109,7 +109,7 @@ export function Field({
   // A required control earns its marker; checked after every render because `required` can change.
   useLayoutEffect(() => {
     const el = controlOf();
-    const r = !!el && el.required && !el.disabled && !el.readOnly;
+    const r = !!el && el.required && !el.disabled && !("readOnly" in el && el.readOnly);
     if (r !== required) setRequired(r);
   });
 
