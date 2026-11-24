@@ -8,10 +8,10 @@ import { ConfirmDialog } from "@/components/ui/Modal";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { useToast } from "@/components/ui/Toast";
 import { formatDate } from "@/lib/utils";
-import { urnsApi, type CostExtra, type UrnSize } from "./api";
+import { urnsApi, type CostExtra } from "./api";
 
 /** In words: "−10% of the supplier price, per piece · supplier's" or "+$4.00 once per order · ours". */
-export function describeExtra(e: CostExtra, sizes: UrnSize[]): string {
+export function describeExtra(e: CostExtra, sizes: { code: string; label: string }[]): string {
   const v = Number(e.value);
   const sign = v < 0 ? "−" : "+";
   const amount = e.mode === "percent" ? `${sign}${Math.abs(v)}% of the supplier price` : `${sign}$${Math.abs(v).toFixed(2)}`;
@@ -22,9 +22,11 @@ export function describeExtra(e: CostExtra, sizes: UrnSize[]): string {
 
 const blank = { name: "", value: "", sign: "+", mode: "amount", applies: "piece", size_code: "", party: "supplier", effective_from: "" };
 
-/** Extra costs: what adds to or comes off the supplier price. `urnId` null = the ones for every urn. */
-export function ExtrasPanel({ urnId, extras, sizes, canManage, onChange, title, description }: {
-  urnId: number | null; extras: CostExtra[]; sizes: UrnSize[]; canManage: boolean; onChange: () => void;
+/** Extra costs: what adds to or comes off the supplier price — for one product (`urnId`), every product of a type
+ *  (`typeId`) or every product (neither). */
+export function ExtrasPanel({ urnId, typeId = null, extras, sizes, canManage, onChange, title, description }: {
+  urnId: number | null; typeId?: number | null; extras: CostExtra[]; sizes: { code: string; label: string }[];
+  canManage: boolean; onChange: () => void;
   title?: string; description?: string;
 }) {
   const toast = useToast();
@@ -42,7 +44,7 @@ export function ExtrasPanel({ urnId, extras, sizes, canManage, onChange, title, 
     setBusy(true);
     try {
       await urnsApi.addExtra({
-        urn_id: urnId, name: draft.name.trim(), mode: draft.mode as CostExtra["mode"],
+        urn_id: urnId, type_id: urnId === null ? typeId : null, name: draft.name.trim(), mode: draft.mode as CostExtra["mode"],
         value: String(draft.sign === "-" ? -Math.abs(n) : Math.abs(n)), applies: draft.applies as CostExtra["applies"],
         size_code: draft.applies === "piece" && draft.size_code ? draft.size_code : null, party: draft.party as CostExtra["party"],
         effective_from: draft.effective_from || null,
@@ -85,14 +87,14 @@ export function ExtrasPanel({ urnId, extras, sizes, canManage, onChange, title, 
                 <div className="flex flex-wrap items-center gap-2 font-medium">
                   {e.name}
                   <Badge variant={e.party === "supplier" ? "info" : "neutral"}>{e.party === "supplier" ? "Supplier's" : "Ours"}</Badge>
-                  {e.urn_id === null && urnId !== null && <Badge>Every product</Badge>}
+                  {e.urn_id === null && urnId !== null && <Badge>{e.type_id ? "Every product of its type" : "Every product"}</Badge>}
                   {!e.active && <Badge variant="warning">Stopped</Badge>}
                 </div>
                 <div className="text-xs text-muted">
                   {describeExtra(e, sizes)} · from {formatDate(e.effective_from)}{e.effective_to ? ` to ${formatDate(e.effective_to)}` : ""}
                 </div>
               </div>
-              {canManage && e.active && (e.urn_id === urnId) && (
+              {canManage && e.active && e.urn_id === urnId && (urnId !== null || (e.type_id ?? null) === typeId) && (
                 <Button size="sm" variant="ghost" disabled={busy} onClick={() => setEnding(e)}>Stop</Button>
               )}
             </li>
@@ -121,7 +123,7 @@ export function ExtrasPanel({ urnId, extras, sizes, canManage, onChange, title, 
                 {(p) => (
                   <Select {...p} value={draft.size_code} onChange={(e) => set({ size_code: e.target.value })}>
                     <option value="">Any size</option>
-                    {sizes.map((s) => <option key={s.code} value={s.code}>{s.label}</option>)}
+                    {[...new Map(sizes.map((s) => [s.code, s])).values()].map((s) => <option key={s.code} value={s.code}>{s.label}</option>)}
                   </Select>
                 )}
               </Field>

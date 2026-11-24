@@ -20,8 +20,8 @@ const STATUS: Record<SkuRow["status"], { label: string; badge: "success" | "warn
 
 function csv(rows: SkuRow[]): string {
   const esc = (v: string | number | null) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const head = ["Product #", "Product", "Etsy variation", "SKU on Etsy now", "SKU from the CRM", "Status"];
-  return [head, ...rows.map((r) => [r.urn_id, r.urn_name, r.label, r.etsy_sku, r.crm_sku, STATUS[r.status].label])]
+  const head = ["Product #", "Product", "Type", "Etsy variation", "SKU on Etsy now", "SKU from the CRM", "Status"];
+  return [head, ...rows.map((r) => [r.urn_id, r.urn_name, r.type_name, r.label, r.etsy_sku, r.crm_sku, STATUS[r.status].label])]
     .map((line) => line.map(esc).join(",")).join("\n");
 }
 
@@ -60,7 +60,7 @@ export default function SkusPage() {
     { key: "product", header: "Product", cell: (r) => (
       <div className="min-w-0">
         <Link href={`/channels/etsy/products/${r.urn_id}`} className="font-medium hover:text-accent-strong hover:underline">{r.urn_name}</Link>
-        <div className="truncate text-xs text-muted">{r.label}</div>
+        <div className="truncate text-xs text-muted">{r.type_name ? `${r.type_name} · ` : ""}{r.label}</div>
       </div>
     ) },
     { key: "etsy", header: "On Etsy now", hide: "sm", cell: (r) => <span className="font-mono text-xs">{r.etsy_sku ?? "—"}</span> },

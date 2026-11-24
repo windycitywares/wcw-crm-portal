@@ -9,72 +9,130 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { money } from "@/modules/channels/ui";
-import { orderCostsApi, urnsApi, type CostExtra, type RecalcRow, type SkuFormat, type UrnSize } from "@/modules/urns/api";
+import { orderCostsApi, urnsApi, type CostExtra, type ProductType, type RecalcRow, type UrnSize } from "@/modules/urns/api";
 import { ExtrasPanel } from "@/modules/urns/ExtrasPanel";
 
 const err = (e: unknown) => (e instanceof Error ? e.message : undefined);
 
-/** Settings → Products: the sizes products come in, the SKU format, extra costs for every product, and bringing older
- *  orders' costs in line with the SKUs. */
+/** Settings → Product settings: product types (each with its SKU format, sizes and extras), extra costs for every
+ *  product, and bringing older orders' costs in line with the SKUs. */
 export default function ProductSettingsPage() {
   const { can } = useAuth();
   const toast = useToast();
   const canManage = can("channels:manage");
-  const [sizes, setSizes] = useState<UrnSize[]>([]);
+  const [types, setTypes] = useState<ProductType[]>([]);
+  const [current, setCurrent] = useState<number | null>(null);
   const [extras, setExtras] = useState<CostExtra[]>([]);
+  const [typeExtras, setTypeExtras] = useState<CostExtra[]>([]);
+  const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [s, e] = await Promise.all([urnsApi.sizes(), urnsApi.sharedExtras()]);
-      setSizes(s);
+      const [t, e] = await Promise.all([urnsApi.types(), urnsApi.sharedExtras()]);
+      setTypes(t);
       setExtras(e);
+      setCurrent((c) => (c && t.some((x) => x.id === c) ? c : t[0]?.id ?? null));
     } catch (e) {
       toast.push({ tone: "danger", title: "Couldn't load product settings", description: err(e) });
     }
   }, [toast]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!current) return;
+    urnsApi.sharedExtras(current).then(setTypeExtras).catch(() => setTypeExtras([]));
+  }, [current, types]);
+
+  const type = types.find((t) => t.id === current) ?? null;
+  const allSizes = types.flatMap((t) => t.sizes);
+
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const t = await urnsApi.addType({ name: newName.trim() });
+      toast.push({ title: "Product type added", description: `${t.name} starts as one item, one price. Add sizes if it comes in sizes.` });
+      setNewName("");
+      await load();
+      setCurrent(t.id);
+    } catch (e2) {
+      toast.push({ tone: "danger", title: "Couldn't add the type", description: err(e2) });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Product settings" description="Sizes, the SKU format, and costs that apply to every product." />
-      <SkuFormatPanel canManage={canManage} />
-      <SizesPanel sizes={sizes} canManage={canManage} onChange={() => void load()} />
-      <ExtrasPanel urnId={null} extras={extras} sizes={sizes} canManage={canManage} onChange={() => void load()}
-        title="Extra costs for every product" description="E.g. packaging per piece or a box per order. A product can add its own on its page. Minus amounts subtract." />
+      <PageHeader title="Product settings" description="Product types with their own SKU format and sizes, and costs that apply to every product." />
+
+      <Panel>
+        <PanelHeader title="Product types" description="Each kind of product you sell has its own SKU format and sizes. A type without sizes is sold as one item at one price." />
+        <PanelBody className="space-y-4">
+          <div role="tablist" aria-label="Product types" className="flex flex-wrap gap-2">
+            {types.map((t) => (
+              <button key={t.id} type="button" role="tab" aria-selected={t.id === current} onClick={() => setCurrent(t.id)}
+                className={cn("rounded-[var(--radius-control)] border px-3 py-1.5 text-sm",
+                  t.id === current ? "border-accent bg-accent/10 font-semibold text-ink" : "border-line hover:bg-sand", !t.active && "opacity-60")}>
+                {t.name} <span className="text-xs text-muted">· {t.products}</span>
+              </button>
+            ))}
+          </div>
+          {canManage && (
+            <form onSubmit={add} className="flex flex-wrap items-end gap-2">
+              <Field label="New product type">{(p) => <Input {...p} placeholder="Jewelry, Candles…" value={newName} maxLength={60} onChange={(e) => setNewName(e.target.value)} />}</Field>
+              <Button type="submit" size="sm" disabled={busy || !newName.trim()}>Add type</Button>
+            </form>
+          )}
+        </PanelBody>
+      </Panel>
+
+      {type && (
+        <>
+          <TypePanel key={type.id} type={type} canManage={canManage} onChange={() => void load()} />
+          <SizesPanel type={type} canManage={canManage} onChange={() => void load()} />
+          <ExtrasPanel urnId={null} typeId={type.id} extras={typeExtras} sizes={type.sizes} canManage={canManage}
+            onChange={() => { void load(); }}
+            title={`Extra costs for every ${type.name.toLowerCase()}`}
+            description={`Added to or taken off the supplier price of every product of type ${type.name}. Minus amounts subtract.`} />
+        </>
+      )}
+
+      <ExtrasPanel urnId={null} extras={extras} sizes={allSizes} canManage={canManage} onChange={() => void load()}
+        title="Extra costs for every product" description="Whatever the type, e.g. a shipping box per order. Minus amounts subtract." />
       {canManage && <RecalculatePanel />}
     </div>
   );
 }
 
-function SkuFormatPanel({ canManage }: { canManage: boolean }) {
+function TypePanel({ type, canManage, onChange }: { type: ProductType; canManage: boolean; onChange: () => void }) {
   const toast = useToast();
-  const [saved, setSaved] = useState<SkuFormat | null>(null);
-  const [draft, setDraft] = useState({ template: "", size_format: "", separator: "" });
-  const [check, setCheck] = useState<SkuFormat | null>(null);
+  const [draft, setDraft] = useState({ name: type.name, code: type.code ?? "", template: type.template, size_format: type.size_format, separator: type.separator });
+  const [check, setCheck] = useState<{ problems: string[]; examples: string[] }>({ problems: type.problems, examples: type.examples });
   const [busy, setBusy] = useState(false);
+  const hasSizes = type.sizes.some((s) => s.active);
+  const changed = draft.name !== type.name || draft.code !== (type.code ?? "") || draft.template !== type.template
+    || draft.size_format !== type.size_format || draft.separator !== type.separator;
 
   useEffect(() => {
-    urnsApi.format().then((f) => { setSaved(f); setCheck(f); setDraft({ template: f.template, size_format: f.size_format, separator: f.separator }); })
-      .catch(() => undefined);
-  }, []);
-  useEffect(() => {
-    if (!saved) return;
-    const t = setTimeout(() => { urnsApi.checkFormat(draft).then(setCheck).catch(() => undefined); }, 300);
+    const t = setTimeout(() => {
+      urnsApi.checkType(type.id, { template: draft.template, size_format: draft.size_format, separator: draft.separator, code: draft.code })
+        .then(setCheck).catch(() => undefined);
+    }, 300);
     return () => clearTimeout(t);
-  }, [draft, saved]);
+  }, [draft.template, draft.size_format, draft.separator, draft.code, type.id]);
 
-  const changed = saved && (draft.template !== saved.template || draft.size_format !== saved.size_format || draft.separator !== saved.separator);
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      const r = await urnsApi.saveFormat(draft);
-      toast.push({ title: "SKU format saved", description: `${r.changed} SKUs in the CRM changed. Nothing was sent to Etsy.` });
-      setSaved({ ...(saved as SkuFormat), ...draft });
+      await urnsApi.editType(type.id, { ...draft, code: draft.code.trim() || null });
+      toast.push({ title: "Product type saved", description: `${draft.name}: its products' SKUs follow the new format in the CRM. Nothing was sent to Etsy.` });
+      onChange();
     } catch (e2) {
-      toast.push({ tone: "danger", title: "Couldn't save the format", description: err(e2) });
+      toast.push({ tone: "danger", title: "Couldn't save the type", description: err(e2) });
     } finally {
       setBusy(false);
     }
@@ -82,30 +140,36 @@ function SkuFormatPanel({ canManage }: { canManage: boolean }) {
 
   return (
     <Panel>
-      <PanelHeader title="SKU format" description="How every SKU is written. Changing it changes the SKUs in the CRM only — Etsy isn't touched." />
+      <PanelHeader title={`${type.name}: SKU format`}
+        description={`${type.products} product${type.products === 1 ? "" : "s"} · ${hasSizes ? "comes in sizes" : "sold as one item, one price"}`}
+        actions={canManage ? <Button size="sm" variant="ghost" disabled={busy}
+          onClick={() => void urnsApi.editType(type.id, { active: !type.active }).then(onChange)}>{type.active ? "Turn off" : "Turn on"}</Button> : undefined} />
       <PanelBody>
-        <form onSubmit={save} className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)]">
-          <Field label="Template" hint="{supplier:3} supplier number · {product:4} product number · {sizes} the pieces · {-option} reserved for options">
-            {(p) => <Input {...p} className="font-mono" value={draft.template} maxLength={80} disabled={!canManage} onChange={(e) => setDraft((d) => ({ ...d, template: e.target.value }))} />}
+        <form onSubmit={save} className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-6">
+          <Field label="Name" className="sm:col-span-2">{(p) => <Input {...p} value={draft.name} maxLength={60} disabled={!canManage} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />}</Field>
+          <Field label="Short code" hint="What {type} writes, e.g. U">{(p) => <Input {...p} className="font-mono" value={draft.code} maxLength={10} disabled={!canManage} onChange={(e) => setDraft({ ...draft, code: e.target.value.toUpperCase() })} />}</Field>
+          <Field label="Template" className="sm:col-span-3"
+            hint={`{supplier:3} supplier number · {product:4} product number${hasSizes ? " · {sizes} the pieces" : ""} · {type} the short code · {-option} reserved`}>
+            {(p) => <Input {...p} className="font-mono" value={draft.template} maxLength={80} disabled={!canManage} onChange={(e) => setDraft({ ...draft, template: e.target.value })} />}
           </Field>
-          <Field label="One size" hint="{code} and {qty}">
-            {(p) => <Input {...p} className="font-mono" value={draft.size_format} maxLength={20} disabled={!canManage} onChange={(e) => setDraft((d) => ({ ...d, size_format: e.target.value }))} />}
-          </Field>
-          <Field label="Between sizes">
-            {(p) => <Input {...p} className="font-mono" value={draft.separator} maxLength={3} disabled={!canManage} onChange={(e) => setDraft((d) => ({ ...d, separator: e.target.value }))} />}
-          </Field>
-          <div className="sm:col-span-3">
-            {check && check.problems.length > 0 ? (
+          {hasSizes && (
+            <>
+              <Field label="One size" hint="{code} and {qty}">{(p) => <Input {...p} className="font-mono" value={draft.size_format} maxLength={20} disabled={!canManage} onChange={(e) => setDraft({ ...draft, size_format: e.target.value })} />}</Field>
+              <Field label="Between sizes">{(p) => <Input {...p} className="font-mono" value={draft.separator} maxLength={3} disabled={!canManage} onChange={(e) => setDraft({ ...draft, separator: e.target.value })} />}</Field>
+            </>
+          )}
+          <div className="sm:col-span-6">
+            {check.problems.length > 0 ? (
               <ul role="alert" className="space-y-1 text-sm text-danger">{check.problems.map((p) => <li key={p}>{p}</li>)}</ul>
-            ) : check && (
+            ) : (
               <p className="text-sm text-muted">Examples: {check.examples.map((x) => <code key={x} className="mr-2 rounded bg-sand px-1.5 py-0.5 text-ink">{x}</code>)}</p>
             )}
           </div>
           {canManage && (
-            <div className="flex gap-2 sm:col-span-3">
-              <Button type="submit" size="sm" disabled={busy || !changed || Boolean(check?.problems.length)}>Save SKU format</Button>
-              {changed && saved && <Button type="button" size="sm" variant="ghost"
-                onClick={() => setDraft({ template: saved.template, size_format: saved.size_format, separator: saved.separator })}>Undo changes</Button>}
+            <div className="flex gap-2 sm:col-span-6">
+              <Button type="submit" size="sm" disabled={busy || !changed || !draft.name.trim() || check.problems.length > 0}>Save type</Button>
+              {changed && <Button type="button" size="sm" variant="ghost"
+                onClick={() => setDraft({ name: type.name, code: type.code ?? "", template: type.template, size_format: type.size_format, separator: type.separator })}>Undo changes</Button>}
             </div>
           )}
         </form>
@@ -114,7 +178,8 @@ function SkuFormatPanel({ canManage }: { canManage: boolean }) {
   );
 }
 
-function SizesPanel({ sizes, canManage, onChange }: { sizes: UrnSize[]; canManage: boolean; onChange: () => void }) {
+function SizesPanel({ type, canManage, onChange }: { type: ProductType; canManage: boolean; onChange: () => void }) {
+  const sizes: UrnSize[] = type.sizes;
   const toast = useToast();
   const [editing, setEditing] = useState<number | null>(null);
   const [label, setLabel] = useState("");
@@ -139,7 +204,7 @@ function SizesPanel({ sizes, canManage, onChange }: { sizes: UrnSize[]; canManag
 
   return (
     <Panel>
-      <PanelHeader title="Sizes" description="The sizes products come in, in the order they appear in a SKU. Words that mean a size in Etsy variation names help the CRM read them." />
+      <PanelHeader title={`${type.name}: sizes`} description={sizes.length ? "In the order they appear in a SKU. Words that mean a size in Etsy variation names help the CRM read them." : "None: each product of this type is one item at one price. Add a size if it comes in sizes."} />
       <PanelBody className="space-y-4">
         <ul className="divide-y divide-line">
           {sizes.map((s) => (
@@ -176,7 +241,7 @@ function SizesPanel({ sizes, canManage, onChange }: { sizes: UrnSize[]; canManag
         </ul>
         {canManage && (
           <form className="grid grid-cols-[minmax(0,1fr)] items-end gap-2 border-t border-line pt-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]"
-            onSubmit={(e) => { e.preventDefault(); void act(() => urnsApi.addSize({ code: code.trim(), label: newLabel.trim() || `${code.trim()} inch` }), "Size added", code)
+            onSubmit={(e) => { e.preventDefault(); void act(() => urnsApi.addSize({ type_id: type.id, code: code.trim(), label: newLabel.trim() || `${code.trim()} inch` }), "Size added", code)
               .then(() => { setCode(""); setNewLabel(""); }); }}>
             <Field label="Code in the SKU" hint="E.g. 7">{(p) => <Input {...p} value={code} maxLength={10} onChange={(e) => setCode(e.target.value)} />}</Field>
             <Field label="Name">{(p) => <Input {...p} placeholder="7 inch" value={newLabel} maxLength={40} onChange={(e) => setNewLabel(e.target.value)} />}</Field>

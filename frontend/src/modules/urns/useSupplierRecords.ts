@@ -17,6 +17,7 @@ export function useSupplierRecords() {
   return rows;
 }
 
+/** Every size of every product type (filter by `type_id`). */
 export function useSizes() {
   const [sizes, setSizes] = useState<import("./api").UrnSize[]>([]);
   useEffect(() => {
@@ -25,4 +26,15 @@ export function useSizes() {
     return () => { alive = false; };
   }, []);
   return sizes;
+}
+
+/** The product types, loaded once per page. */
+export function useTypes() {
+  const [types, setTypes] = useState<import("./api").ProductType[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void import("./api").then(({ urnsApi }) => urnsApi.types()).then((t) => alive && setTypes(t)).catch(() => undefined);
+    return () => { alive = false; };
+  }, []);
+  return types;
 }

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Field, Input, Select } from "@/components/ui/Field";
+import { ConfirmDialog } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Panel } from "@/components/ui/Panel";
@@ -14,7 +15,7 @@ import { useAuth } from "@/lib/auth";
 import type { Page } from "@/lib/types";
 import { money, Stat, Thumb } from "@/modules/channels/ui";
 import { urnsApi, type Needs, type Urn, type UrnSummary } from "@/modules/urns/api";
-import { useSizes, useSupplierRecords } from "@/modules/urns/useSupplierRecords";
+import { useSizes, useSupplierRecords, useTypes } from "@/modules/urns/useSupplierRecords";
 
 const PAGE_SIZE = 50;
 
@@ -25,7 +26,10 @@ export default function UrnsPage() {
   const toast = useToast();
   const canEdit = can("channels:edit");
   const sizes = useSizes();
+  const types = useTypes();
   const suppliers = useSupplierRecords();
+  const [typeId, setTypeId] = useState<number | "">("");
+  const [bulkType, setBulkType] = useState("");
   const [summary, setSummary] = useState<UrnSummary | null>(null);
   const [needs, setNeeds] = useState<Needs>("");
   const [supplier, setSupplier] = useState<number | "">("");
@@ -37,11 +41,12 @@ export default function UrnsPage() {
   const [busy, setBusy] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [bulkSupplier, setBulkSupplier] = useState("");
+  const [confirmType, setConfirmType] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, d] = await Promise.all([urnsApi.summary(), urnsApi.list({ q, supplier_id: supplier, needs, page, page_size: PAGE_SIZE })]);
+      const [s, d] = await Promise.all([urnsApi.summary(), urnsApi.list({ q, supplier_id: supplier, type_id: typeId, needs, page, page_size: PAGE_SIZE })]);
       setSummary(s);
       setData(d);
     } catch (err) {
@@ -49,7 +54,7 @@ export default function UrnsPage() {
     } finally {
       setLoading(false);
     }
-  }, [q, supplier, needs, page, toast]);
+  }, [q, supplier, typeId, needs, page, toast]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     const t = setTimeout(() => { setQ(search.trim()); setPage(1); }, 300);
@@ -87,6 +92,28 @@ export default function UrnsPage() {
     }
   };
 
+  const retype = async () => {
+    if (!picked.size || !bulkType) return;
+    setBusy(true);
+    try {
+      const r = await urnsApi.assignType([...picked], Number(bulkType));
+      toast.push({ title: "Type set", description: `${r.updated} product${r.updated === 1 ? "" : "s"} → ${types.find((t) => t.id === Number(bulkType))?.name}. Their variations were read again.` });
+      setPicked(new Set());
+      await load();
+    } catch (err) {
+      toast.push({ tone: "danger", title: "Couldn't set the type", description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const priceText = (u: Urn) => {
+    if (!u.has_sizes) return u.prices.item ? `${money(u.prices.item)} each` : null;
+    const parts = Object.entries(u.prices).filter(([, v]) => v)
+      .map(([code, v]) => `${sizes.find((s) => s.type_id === u.type_id && s.code === code)?.label ?? code} ${money(v)}`);
+    return parts.length ? parts.join(" · ") : null;
+  };
+
   const rows = data?.items ?? [];
   const allPicked = rows.length > 0 && rows.every((r) => picked.has(r.id));
   const toggle = (id: number) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -110,10 +137,8 @@ export default function UrnsPage() {
       ),
     },
     { key: "supplier", header: "Supplier", hide: "sm", cell: (u) => u.supplier_name ?? <Badge variant="warning">No supplier</Badge> },
-    ...sizes.filter((s) => s.active).map((s) => ({
-      key: `p-${s.code}`, header: `${s.label} price`, align: "right" as const, hide: "md" as const,
-      cell: (u: Urn) => u.prices[s.code] ? <span className="num">{money(u.prices[s.code])}</span> : <span className="text-xs text-muted">—</span>,
-    })),
+    { key: "type", header: "Type", hide: "md", cell: (u) => u.type_name ?? "—" },
+    { key: "prices", header: "Supplier price", hide: "md", cell: (u) => priceText(u) ?? <span className="text-xs text-muted">—</span> },
     {
       key: "vars", header: "Variations", hide: "md",
       cell: (u) => u.variations_unclear ? <Badge variant="danger">{u.variations_unclear} need you</Badge>
@@ -149,8 +174,16 @@ export default function UrnsPage() {
       )}
 
       <Panel>
-        <div className="grid grid-cols-[minmax(0,1fr)] items-end gap-3 p-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-end gap-3 p-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
           <Field label="Search">{(p) => <Input {...p} type="search" placeholder="Product name or number" value={search} onChange={(e) => setSearch(e.target.value)} />}</Field>
+          <Field label="Type">
+            {(p) => (
+              <Select {...p} value={String(typeId)} onChange={(e) => { setTypeId(e.target.value ? Number(e.target.value) : ""); setPage(1); }}>
+                <option value="">All types</option>
+                {types.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.products})</option>)}
+              </Select>
+            )}
+          </Field>
           <Field label="Supplier">
             {(p) => (
               <Select {...p} value={String(supplier)} onChange={(e) => { setSupplier(e.target.value ? Number(e.target.value) : ""); setPage(1); }}>
@@ -174,6 +207,19 @@ export default function UrnsPage() {
             )}
           </Field>
           <Button size="sm" disabled={busy} onClick={() => void assign()}>Assign supplier</Button>
+          {types.length > 1 && (
+            <>
+              <Field label="Type for the selected products">
+                {(p) => (
+                  <Select {...p} value={bulkType} onChange={(e) => setBulkType(e.target.value)}>
+                    <option value="">Choose a type</option>
+                    {types.filter((t) => t.active).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </Select>
+                )}
+              </Field>
+              <Button size="sm" variant="secondary" disabled={busy || !bulkType} onClick={() => setConfirmType(true)}>Set type</Button>
+            </>
+          )}
           <Button size="sm" variant="ghost" onClick={() => setPicked(new Set())}>Clear selection</Button>
         </div>
       )}
@@ -183,6 +229,9 @@ export default function UrnsPage() {
           empty={needs ? "Nothing here — this step is done." : "No products yet. Press “Create products” to make one for every Etsy listing."} />
       </div>
       {data && data.total > PAGE_SIZE && <Pagination page={data.page} pageSize={data.page_size} total={data.total} onPage={setPage} />}
+      <ConfirmDialog open={confirmType} title="Change the type of these products?" confirmLabel="Set type" tone="primary" busy={busy}
+        message={`${picked.size} product${picked.size === 1 ? "" : "s"} become ${types.find((t) => t.id === Number(bulkType))?.name ?? "the chosen type"}. Their variations are read again with that type's sizes (approved ones go back to “to check”) and they need prices for that type. Orders already costed keep their costs.`}
+        onConfirm={() => { setConfirmType(false); void retype(); }} onCancel={() => setConfirmType(false)} />
     </div>
   );
 }

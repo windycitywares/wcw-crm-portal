@@ -14,7 +14,7 @@ import { formatDate } from "@/lib/utils";
 import { money, Thumb } from "@/modules/channels/ui";
 import { STATE_BADGE, STATE_LABEL, urnsApi, type UrnDetail, type UrnVariation } from "@/modules/urns/api";
 import { ExtrasPanel } from "@/modules/urns/ExtrasPanel";
-import { useSizes, useSupplierRecords } from "@/modules/urns/useSupplierRecords";
+import { useSupplierRecords, useTypes } from "@/modules/urns/useSupplierRecords";
 
 const err = (e: unknown) => (e instanceof Error ? e.message : undefined);
 type Run = (fn: () => Promise<unknown>, title: string, description?: string) => Promise<boolean>;
@@ -29,8 +29,7 @@ export default function UrnPage() {
   const toast = useToast();
   const canEdit = can("channels:edit");
   const canManage = can("channels:manage");
-  const sizes = useSizes();
-  const active = sizes.filter((s) => s.active);
+  const types = useTypes();
   const suppliers = useSupplierRecords();
   const [urn, setUrn] = useState<UrnDetail | null>(null);
   const [busy, setBusy] = useState(false);
@@ -39,6 +38,7 @@ export default function UrnPage() {
   const [drafts, setDrafts] = useState<Record<number, Record<string, string>>>({});
   const [showRemoved, setShowRemoved] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [retype, setRetype] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -68,6 +68,8 @@ export default function UrnPage() {
     }
   };
 
+  const sizes = urn?.sizes ?? [];
+  const active = urn?.has_sizes ? sizes.filter((s) => s.active) : [{ code: "item", label: "Items", active: true }];
   const draftFor = (v: UrnVariation) =>
     drafts[v.id] ?? Object.fromEntries(active.map((s) => [s.code, v.quantities[s.code] ? String(v.quantities[s.code]) : ""]));
   const setDraft = (v: UrnVariation, code: string, value: string) =>
@@ -84,7 +86,7 @@ export default function UrnPage() {
   return (
     <div className="space-y-5">
       <PageHeader title={urn.name}
-        description={`Product #${urn.id}${urn.supplier_name ? ` · supplied by ${urn.supplier_name} (#${urn.supplier_id})` : ""}`}
+        description={`Product #${urn.id} · ${urn.type_name ?? "no type"}${urn.supplier_name ? ` · supplied by ${urn.supplier_name} (#${urn.supplier_id})` : ""}`}
         back={{ href: "/channels/etsy/products", label: "Products" }}
         actions={canManage ? <Button size="sm" variant="ghost" onClick={() => setDeleting(true)}>Delete product</Button> : undefined} />
 
@@ -114,6 +116,13 @@ export default function UrnPage() {
                   </Select>
                 )}
               </Field>
+              <Field label="Product type" hint="Its SKU format and sizes come from the type.">
+                {(p) => (
+                  <Select {...p} value={urn.type_id} disabled={!canEdit || busy} onChange={(e) => setRetype(Number(e.target.value))}>
+                    {types.filter((t) => t.active || t.id === urn.type_id).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </Select>
+                )}
+              </Field>
               <Field label="Notes" className="sm:col-span-2">{(p) => <Textarea {...p} rows={2} value={notes} disabled={!canEdit} onChange={(e) => setNotes(e.target.value)} />}</Field>
               {canEdit && <div className="sm:col-span-2"><Button type="submit" size="sm" disabled={busy || !name.trim()}>Save product</Button></div>}
             </form>
@@ -123,14 +132,14 @@ export default function UrnPage() {
         <Panel>
           <PanelHeader title="Supplier price per piece" description="What one piece of each size costs. A new price applies from its date; older orders keep theirs." />
           <PanelBody className="space-y-4">
-            {active.map((s) => <PriceRow key={s.code} urn={urn} code={s.code} label={s.label} canManage={canManage} busy={busy} run={run} />)}
+            {active.map((s) => <PriceRow key={s.code} urn={urn} code={s.code} label={urn.has_sizes ? s.label : "One item"} canManage={canManage} busy={busy} run={run} />)}
             {urn.price_history.length > 0 && (
               <details className="text-sm">
                 <summary className="cursor-pointer text-muted">Price history ({urn.price_history.length})</summary>
                 <ul className="mt-2 divide-y divide-line">
                   {urn.price_history.map((p) => (
                     <li key={p.id} className="flex items-center justify-between gap-2 py-1.5">
-                      <span>{sizes.find((s) => s.code === p.size_code)?.label ?? p.size_code} · {money(p.amount)} from {formatDate(p.effective_from)}</span>
+                      <span>{p.size_code === "item" ? "One item" : sizes.find((s) => s.code === p.size_code)?.label ?? p.size_code} · {money(p.amount)} from {formatDate(p.effective_from)}</span>
                       {canManage && <Button size="sm" variant="ghost" disabled={busy}
                         onClick={() => void run(() => urnsApi.removePrice(urn.id, p.id), "Price removed")}>Remove</Button>}
                     </li>
@@ -212,7 +221,12 @@ export default function UrnPage() {
       </Panel>
 
       <ExtrasPanel urnId={urn.id} extras={urn.extras} sizes={sizes} canManage={canManage} onChange={() => void load()}
-        description="Costs on top of the supplier price for this product, plus the ones for every product (Settings → Products). Minus amounts subtract." />
+        description="Costs on top of the supplier price for this product, plus the ones for its type and for every product (Settings → Product settings). Minus amounts subtract." />
+
+      <ConfirmDialog open={retype !== null} title="Change this product's type?" confirmLabel="Change type" tone="primary" busy={busy}
+        message={`${urn.name} becomes ${types.find((t) => t.id === retype)?.name ?? "another type"}. Its variations are read again with that type's sizes (approved ones go back to “to check”), its SKUs follow that type's format, and it needs prices for that type's sizes. Orders already costed keep their costs.`}
+        onConfirm={() => { const id = retype; setRetype(null); if (id) void run(() => urnsApi.update(urn.id, { type_id: id }), "Type changed", types.find((t) => t.id === id)?.name); }}
+        onCancel={() => setRetype(null)} />
 
       <ConfirmDialog open={deleting} title="Delete this product?" confirmLabel="Move to Trash" busy={busy}
         message={`${urn.name} goes to the Trash (restorable from Settings → Trash). New orders of its listing won't be costed from SKUs until it's restored.`}
