@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { COLOR_OPTIONS, ColorTag } from "@/components/ui/ColorTag";
+import { ColorPicker } from "@/components/ui/ColorPicker";
+import { ColorTag } from "@/components/ui/ColorTag";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { ConfirmDialog, Modal } from "@/components/ui/Modal";
@@ -341,17 +342,7 @@ export function PipelineSettings() {
                 />
               )}
             </Field>
-            <Field label="Colour">
-              {(p) => (
-                <Select {...p} value={stageForm.color} onChange={(e) => setStageForm({ ...stageForm, color: e.target.value })}>
-                  {COLOR_OPTIONS.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
+            <ColorPicker value={stageForm.color} onChange={(color) => setStageForm({ ...stageForm, color })} className="sm:col-span-2" />
             <Field
               label="What landing here means"
               className="sm:col-span-2"

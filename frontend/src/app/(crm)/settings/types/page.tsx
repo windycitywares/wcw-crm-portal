@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { COLOR_OPTIONS, ColorTag } from "@/components/ui/ColorTag";
-import { Field, Input, Select, FieldActions } from "@/components/ui/Field";
+import { ColorButton, ColorPicker } from "@/components/ui/ColorPicker";
+import { ColorTag } from "@/components/ui/ColorTag";
+import { Field, Input, FieldActions } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
@@ -95,22 +96,8 @@ function ValueRow({
       </div>
       {!editing && (
         <div className="flex items-center gap-2">
-          <label className="sr-only" htmlFor={`color-${value.id}`}>
-            Colour for {value.label}
-          </label>
-          <Select
-            id={`color-${value.id}`}
-            className="w-auto py-1.5"
-            value={value.color ?? ""}
-            disabled={busy}
-            onChange={(e) => void save({ color: e.target.value || null }, "Colour changed")}
-          >
-            {COLOR_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </Select>
+          <ColorButton label={`Colour for ${value.label}`} value={value.color} disabled={busy}
+            onChange={(c) => void save({ color: c || null }, "Colour changed")} />
           <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
             <Icon name="edit" className="size-4" />
             Rename
@@ -240,21 +227,11 @@ export default function TypesPage() {
               ))}
               {kind.values.length === 0 && <li className="px-5 py-8 text-center text-sm text-muted">No values yet.</li>}
             </ul>
-            <form onSubmit={add} className="flex flex-wrap items-start gap-3 border-t border-line px-5 py-4">
+            <form onSubmit={add} className="flex flex-wrap items-start gap-x-3 gap-y-4 border-t border-line px-5 py-4">
               <Field label="New value" className="min-w-0 flex-1 sm:max-w-xs">
                 {(p) => <Input {...p} value={label} onChange={(e) => setLabel(e.target.value)} required maxLength={120} />}
               </Field>
-              <Field label="Colour">
-                {(p) => (
-                  <Select {...p} value={color} onChange={(e) => setColor(e.target.value)}>
-                    {COLOR_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Field>
+              <ColorPicker value={color} onChange={setColor} className="order-last w-full" />
               <FieldActions><Button type="submit" size="sm" loading={busy}>
                 <Icon name="plus" className="size-4" />
                 Add value

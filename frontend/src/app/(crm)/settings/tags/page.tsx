@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { COLOR_OPTIONS, ColorTag } from "@/components/ui/ColorTag";
+import { ColorPicker } from "@/components/ui/ColorPicker";
+import { ColorTag } from "@/components/ui/ColorTag";
 import { DataTable, type Column } from "@/components/ui/DataTable";
-import { Field, Input, Select } from "@/components/ui/Field";
+import { Field, Input } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { ConfirmDialog, Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -62,17 +63,7 @@ function TagForm({ tag, onClose, onSaved }: { tag: Tag | "new"; onClose: () => v
           </p>
         )}
         <Field label="Name">{(p) => <Input {...p} required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />}</Field>
-        <Field label="Colour">
-          {(p) => (
-            <Select {...p} value={color} onChange={(e) => setColor(e.target.value)}>
-              {COLOR_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
+        <ColorPicker value={color} onChange={setColor} />
       </form>
     </Modal>
   );
