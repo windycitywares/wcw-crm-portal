@@ -10,6 +10,8 @@ export interface NavItem {
   hidden?: boolean;
   /** Shown indented under the item above it. */
   child?: boolean;
+  /** Other words people may type in the menu search to find this page. */
+  keywords?: string;
 }
 export interface NavGroup {
   label?: string;
@@ -42,7 +44,7 @@ export const NAV: NavGroup[] = [
     label: "Sales",
     items: [
       { href: "/leads", label: "Leads", icon: "funnel", permission: "sales:view" },
-      { href: "/sales", label: "Deals", icon: "briefcase", permission: "sales:view" },
+      { href: "/sales", label: "Deals", icon: "briefcase", permission: "sales:view", keywords: "pipeline, opportunities, sales" },
     ],
   },
   {
@@ -51,8 +53,8 @@ export const NAV: NavGroup[] = [
       { href: "/subscribers", label: "Subscribers", icon: "heart", permission: "customers:view" },
       { href: "/campaigns", label: "Campaigns", icon: "mail", permission: "campaigns:view" },
       { href: "/campaigns/templates", label: "Templates", icon: "edit", permission: "campaigns:view", child: true },
-      { href: "/campaigns/lists", label: "Audiences", icon: "users", permission: "campaigns:view", child: true },
-      { href: "/campaigns/suppressions", label: "Suppressions", icon: "shield", permission: "campaigns:view", child: true },
+      { href: "/campaigns/lists", label: "Audiences", icon: "users", permission: "campaigns:view", child: true, keywords: "lists, segments" },
+      { href: "/campaigns/suppressions", label: "Suppressions", icon: "shield", permission: "campaigns:view", child: true, keywords: "unsubscribed, do not email" },
     ],
   },
   {
@@ -93,9 +95,9 @@ export const CHANNEL_NAV: Record<string, NavItem[]> = {
     { href: "/channels/etsy", label: "Etsy", icon: "cart", permission: "channels:view" },
     { href: "/channels/etsy/orders", label: "Orders", icon: "orders", permission: "channels:view", child: true },
     { href: "/channels/etsy/listings", label: "Listings", icon: "tag", permission: "channels:view", child: true },
-    { href: "/channels/etsy/products", label: "Products", icon: "products", permission: "channels:view", child: true },
-    { href: "/channels/etsy/skus", label: "SKUs vs Etsy", icon: "inventory", permission: "channels:view", child: true },
-    { href: "/channels/etsy/payments", label: "Supplier payments", icon: "archive", permission: "channels:view", child: true },
+    { href: "/channels/etsy/products", label: "Products", icon: "products", permission: "channels:view", child: true, keywords: "urns, listings, prices" },
+    { href: "/channels/etsy/skus", label: "SKUs vs Etsy", icon: "inventory", permission: "channels:view", child: true, keywords: "sku" },
+    { href: "/channels/etsy/payments", label: "Supplier payments", icon: "archive", permission: "channels:view", child: true, keywords: "owed, settle, pay supplier" },
   ],
 };
 
@@ -112,16 +114,16 @@ export const SETTINGS_NAV: NavGroup[] = [
   {
     label: "Team",
     items: [
-      { href: "/settings/users", label: "Users", icon: "users", permission: "users:manage" },
-      { href: "/settings/supplier-logins", label: "Supplier logins", icon: "key", permission: "users:manage" },
-      { href: "/settings/audit", label: "Audit log", icon: "shield", permission: "audit:view" },
-      { href: "/settings/trash", label: "Trash", icon: "trash", permission: "trash:manage" },
+      { href: "/settings/users", label: "Users", icon: "users", permission: "users:manage", keywords: "team, staff, roles, password, invite" },
+      { href: "/settings/supplier-logins", label: "Supplier logins", icon: "key", permission: "users:manage", keywords: "supplier portal, access" },
+      { href: "/settings/audit", label: "Audit log", icon: "shield", permission: "audit:view", keywords: "history, changes, who changed" },
+      { href: "/settings/trash", label: "Trash", icon: "trash", permission: "trash:manage", keywords: "deleted, restore, recycle bin" },
     ],
   },
   {
     label: "Lists",
     items: [
-      { href: "/settings/types", label: "Types", icon: "sliders", permission: "lookups:manage" },
+      { href: "/settings/types", label: "Types", icon: "sliders", permission: "lookups:manage", keywords: "product types, lookups, lists, customer type, ticket type, priority, lead source, deal role" },
       { href: "/settings/tags", label: "Tags", icon: "tag", permission: "lookups:manage" },
       { href: "/settings/custom-fields", label: "Custom fields", icon: "edit", permission: "lookups:manage" },
       { href: "/settings/pipelines", label: "Pipelines", icon: "funnel", permission: "lookups:manage" },
@@ -138,18 +140,18 @@ export const SETTINGS_NAV: NavGroup[] = [
   {
     label: "Email",
     items: [
-      { href: "/settings/email", label: "Outgoing email", icon: "mail", permission: "settings:manage" },
-      { href: "/settings/email-accounts", label: "Email accounts", icon: "inbox", permission: "inbox:manage" },
+      { href: "/settings/email", label: "Outgoing email", icon: "mail", permission: "settings:manage", keywords: "smtp, sender, daily limit, campaign mail" },
+      { href: "/settings/email-accounts", label: "Email accounts", icon: "inbox", permission: "inbox:manage", keywords: "mailbox, imap, inbox" },
     ],
   },
   {
     label: "System",
     items: [
-      { href: "/settings/integrations", label: "Integrations", icon: "globe", permission: "settings:manage" },
-      { href: "/settings/channels", label: "Sales channels", icon: "cart", permission: "channels:manage" },
-      { href: "/settings/products", label: "Products", icon: "products", permission: "channels:view" },
-      { href: "/settings/deployments", label: "Deployments", icon: "download", permission: "settings:manage" },
-      { href: "/settings/environment", label: "Test mode", icon: "flask", permission: "settings:manage" },
+      { href: "/settings/integrations", label: "Integrations", icon: "globe", permission: "settings:manage", keywords: "shop, webhook, api, keys" },
+      { href: "/settings/channels", label: "Sales channels", icon: "cart", permission: "channels:manage", keywords: "etsy, connect, amazon" },
+      { href: "/settings/products", label: "Products", icon: "products", permission: "channels:view", keywords: "product types, sku, sku format, sizes, extras, costs" },
+      { href: "/settings/deployments", label: "Deployments", icon: "download", permission: "settings:manage", keywords: "deploy, update, release" },
+      { href: "/settings/environment", label: "Test mode", icon: "flask", permission: "settings:manage", keywords: "sandbox, environment" },
     ],
   },
 ];
