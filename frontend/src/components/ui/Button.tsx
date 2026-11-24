@@ -6,7 +6,7 @@ type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md" | "lg";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] font-medium tracking-[0.01em] transition-colors disabled:pointer-events-none disabled:opacity-50 whitespace-nowrap";
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-control)] font-medium tracking-[0.01em] transition-colors disabled:pointer-events-none disabled:opacity-50 whitespace-nowrap";
 const variants: Record<Variant, string> = {
   primary: "bg-accent text-on-accent hover:bg-accent-strong",
   secondary: "border border-ink/25 bg-transparent text-ink hover:border-ink hover:bg-surface",
@@ -30,16 +30,14 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "primary", size = "md", className, type = "button", loading, ...props },
+  { variant = "primary", size = "md", className, type = "button", loading, disabled, children, ...props },
   ref,
 ) {
   return (
-    <button ref={ref} type={type} className={cn(buttonClass(variant, size, className), loading && "opacity-70 cursor-not-allowed")}
-      disabled={loading} {...props} aria-busy={loading}>
-      {loading && <span className="flex items-center gap-1.5">
-        <span className="relative h-3.5 w-3.5 rounded-full border-2 border-current border-transparent border-t-current animate-spin" />
-      </span>}
-      {!loading && props.children}
+    <button ref={ref} type={type} className={cn(buttonClass(variant, size, className), loading && "cursor-wait")}
+      disabled={loading || disabled} aria-busy={loading || undefined} {...props}>
+      {loading && <span aria-hidden="true" className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent" />}
+      {children}
     </button>
   );
 });

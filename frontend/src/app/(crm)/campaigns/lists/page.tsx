@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { Field, Input, Textarea } from "@/components/ui/Field";
+import { Field, Input, Textarea, Select } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { useAuth } from "@/lib/auth";
@@ -16,7 +16,6 @@ type RuleDraft = { field: string; op: string; value: string | string[] };
 type ListForm = { name: string; description: string; kind: "static" | "segment" };
 
 const STATUSES = ["active", "inactive", "blocked"];
-const selectClass = "h-9 w-full rounded border border-line bg-canvas px-2 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
 
 function blankRule(fields: SegmentField[]): RuleDraft {
   const first = fields[0];
@@ -235,10 +234,10 @@ export default function CampaignListsPage() {
                       </div>
                       <label className="flex items-center gap-2 text-sm text-muted">
                         Match
-                        <select className={selectClass} value={match} onChange={(e) => setMatch(e.target.value as "all" | "any")}>
+                        <Select className="w-auto" value={match} onChange={(e) => setMatch(e.target.value as "all" | "any")}>
                           <option value="all">all rules</option>
                           <option value="any">any rule</option>
-                        </select>
+                        </Select>
                       </label>
                     </div>
 
@@ -249,36 +248,36 @@ export default function CampaignListsPage() {
                       return (
                         <div key={`${index}-${rule.field}`} className="grid gap-3 rounded border border-line bg-canvas p-3 md:grid-cols-[1fr_1fr_1.2fr_auto] md:items-end">
                           <Field label="Field">
-                            {(p) => <select {...p} className={selectClass} value={rule.field} onChange={(e) => changeField(index, e.target.value)}>
+                            {(p) => <Select {...p} value={rule.field} onChange={(e) => changeField(index, e.target.value)}>
                               {fields.map((item) => <option key={item.field} value={item.field}>{item.label}</option>)}
-                            </select>}
+                            </Select>}
                           </Field>
                           <Field label="Condition">
-                            {(p) => <select {...p} className={selectClass} value={rule.op} onChange={(e) => setDraft((current) => current.map((item, i) => i === index ? { ...item, op: e.target.value, value: e.target.value === "none" || e.target.value === "never" ? "" : item.value } : item))}>
+                            {(p) => <Select {...p} value={rule.op} onChange={(e) => setDraft((current) => current.map((item, i) => i === index ? { ...item, op: e.target.value, value: e.target.value === "none" || e.target.value === "never" ? "" : item.value } : item))}>
                               {field?.ops.map((op) => <option key={op.op} value={op.op}>{op.label}</option>)}
-                            </select>}
+                            </Select>}
                           </Field>
                           <Field label="Value">
                             {(p) => {
                               if (noValue) return <div className="flex h-9 items-center text-sm text-muted">No value needed</div>;
                               if (field?.value_kind === "customer_type" || field?.value_kind === "lead_source") {
                                 const options = lookups.options(field.value_kind);
-                                return <select {...p} className={`${selectClass} h-auto min-h-9`} multiple value={Array.isArray(rule.value) ? rule.value : []} onChange={(e) => updateValue(Array.from(e.target.selectedOptions, (option) => option.value))}>
+                                return <Select {...p} className="min-h-24" multiple value={Array.isArray(rule.value) ? rule.value : []} onChange={(e) => updateValue(Array.from(e.target.selectedOptions, (option) => option.value))}>
                                   {options.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
-                                </select>;
+                                </Select>;
                               }
-                              if (field?.value_kind === "tags") return <select {...p} className={`${selectClass} h-auto min-h-9`} multiple value={Array.isArray(rule.value) ? rule.value : []} onChange={(e) => updateValue(Array.from(e.target.selectedOptions, (option) => option.value))}>
+                              if (field?.value_kind === "tags") return <Select {...p} className="min-h-24" multiple value={Array.isArray(rule.value) ? rule.value : []} onChange={(e) => updateValue(Array.from(e.target.selectedOptions, (option) => option.value))}>
                                 {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
-                              </select>;
-                              if (field?.value_kind === "users") return <select {...p} className={`${selectClass} h-auto min-h-9`} multiple value={Array.isArray(rule.value) ? rule.value : []} onChange={(e) => updateValue(Array.from(e.target.selectedOptions, (option) => option.value))}>
+                              </Select>;
+                              if (field?.value_kind === "users") return <Select {...p} className="min-h-24" multiple value={Array.isArray(rule.value) ? rule.value : []} onChange={(e) => updateValue(Array.from(e.target.selectedOptions, (option) => option.value))}>
                                 {[...directory.people.values()].map((person) => <option key={person.id} value={person.id}>{person.full_name}</option>)}
-                              </select>;
-                              if (field?.value_kind === "status") return <select {...p} className={selectClass} value={String(rule.value)} onChange={(e) => updateValue(e.target.value)}>
+                              </Select>;
+                              if (field?.value_kind === "status") return <Select {...p} value={String(rule.value)} onChange={(e) => updateValue(e.target.value)}>
                                 <option value="">Choose a status</option>{STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
-                              </select>;
-                              if (field?.value_kind === "yesno") return <select {...p} className={selectClass} value={String(rule.value)} onChange={(e) => updateValue(e.target.value)}>
+                              </Select>;
+                              if (field?.value_kind === "yesno") return <Select {...p} value={String(rule.value)} onChange={(e) => updateValue(e.target.value)}>
                                 <option value="">Choose yes or no</option><option value="true">Yes</option><option value="false">No</option>
-                              </select>;
+                              </Select>;
                               return <Input {...p} type="number" min={field?.value_kind === "days" ? 1 : 0} step={field?.value_kind === "money" ? "0.01" : 1} value={String(rule.value)} onChange={(e) => updateValue(e.target.value)} />;
                             }}
                           </Field>

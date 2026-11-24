@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { Field, Input, Select, Textarea, FieldActions } from "@/components/ui/Field";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
@@ -249,16 +249,16 @@ function PriceRow({ urn, code, label, canManage, busy, run }: {
         <span className="num text-lg font-semibold">{current ? money(current) : <span className="text-sm font-normal text-warning">Not set</span>}</span>
       </div>
       {canManage && (
-        <form className="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2"
+        <form className="mt-2 grid grid-cols-[minmax(0,1fr)] items-start gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
           onSubmit={(e) => {
             e.preventDefault();
             void run(() => urnsApi.setPrice(urn.id, { size_code: code, amount, effective_from: from || null }),
               "Price saved", `${label}: ${money(amount)} from ${from ? formatDate(from) : "today"}`)
               .then((ok) => { if (ok) { setAmount(""); setFrom(""); } });
           }}>
-          <Field label={`New ${label} price`}>{(p) => <Input {...p} type="number" min="0" step="0.01" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />}</Field>
+          <Field label={`New ${label} price`}>{(p) => <Input {...p} type="number" min="0" max="100000" step="0.01" inputMode="decimal" required value={amount} onChange={(e) => setAmount(e.target.value)} />}</Field>
           <Field label="From" hint="Empty = today">{(p) => <Input {...p} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />}</Field>
-          <Button type="submit" size="sm" disabled={busy || amount === ""}>Save price</Button>
+          <FieldActions><Button type="submit" size="sm" loading={busy}>Save price</Button></FieldActions>
         </form>
       )}
     </div>

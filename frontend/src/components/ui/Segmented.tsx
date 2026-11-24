@@ -26,7 +26,7 @@ export function Segmented<T extends string>({
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "rounded-[calc(var(--radius-control)-2px)] px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-accent",
+            "rounded-[calc(var(--radius-control)-2px)] inline-flex h-7.5 items-center px-3 text-sm focus-visible:outline-2 focus-visible:outline-accent",
             value === o.value ? "bg-accent text-on-accent" : "text-ink hover:bg-sand",
           )}
         >

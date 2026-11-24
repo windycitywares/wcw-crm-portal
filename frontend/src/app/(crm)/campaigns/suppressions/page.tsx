@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { Field, Input, Textarea } from "@/components/ui/Field";
+import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
@@ -118,10 +118,10 @@ export default function CampaignSuppressionsPage() {
                 {(p) => <Input {...p} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Email address or note" />}
               </Field>
               <Field label="Reason">
-                {(p) => <select {...p} className="h-10 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink" value={reasonFilter} onChange={(e) => { setReasonFilter(e.target.value as "" | SuppressionReason); setPage(1); }}>
+                {(p) => <Select {...p} value={reasonFilter} onChange={(e) => { setReasonFilter(e.target.value as "" | SuppressionReason); setPage(1); }}>
                   <option value="">All reasons</option>
                   {REASONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>}
+                </Select>}
               </Field>
               <Button type="submit" size="sm" variant="secondary">Search</Button>
             </form>
@@ -169,9 +169,9 @@ export default function CampaignSuppressionsPage() {
                 {(p) => <Input {...p} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="person@example.com" />}
               </Field>
               <Field label="Reason">
-                {(p) => <select {...p} className="h-10 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink" value={reason} onChange={(e) => setReason(e.target.value as SuppressionReason)}>
+                {(p) => <Select {...p} value={reason} onChange={(e) => setReason(e.target.value as SuppressionReason)}>
                   {REASONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>}
+                </Select>}
               </Field>
               <Field label="Note" hint="Optional context for the team.">
                 {(p) => <Textarea {...p} value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />}

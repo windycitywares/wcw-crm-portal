@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Field, Input, Select } from "@/components/ui/Field";
+import { Field, Input, Select, FieldActions } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { contactsApi, type Contact } from "@/modules/contacts/api";
 import { useLookups } from "@/modules/settings/useLookups";
@@ -112,11 +112,11 @@ export function DealPeoplePanel({ dealId, canEdit }: { dealId: number; canEdit: 
         {people !== null && people.length === 0 && <li className="py-2 text-sm text-muted">Nobody added yet.</li>}
       </ul>
       {canEdit && (
-        <form onSubmit={add} className="grid grid-cols-[minmax(0,1fr)] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto]">
+        <form onSubmit={add} className="grid grid-cols-[minmax(0,1fr)] items-start gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto]">
           <Field label="Find a contact">{(p) => <Input {...p} type="search" placeholder="Name or email" value={q} onChange={(e) => setQ(e.target.value)} />}</Field>
           <Field label="Contact">
             {(p) => (
-              <Select {...p} value={pick} onChange={(e) => setPick(e.target.value)}>
+              <Select {...p} required value={pick} onChange={(e) => setPick(e.target.value)}>
                 <option value="">{q.trim().length < 2 ? "Type 2+ letters first" : matches.length ? "Choose…" : "No match"}</option>
                 {matches.filter((m) => !(people ?? []).some((r) => r.contact_id === m.id))
                   .map((m) => <option key={m.id} value={m.id}>{m.display_name}{m.email ? ` (${m.email})` : ""}</option>)}
@@ -131,7 +131,7 @@ export function DealPeoplePanel({ dealId, canEdit }: { dealId: number; canEdit: 
               </Select>
             )}
           </Field>
-          <Button type="submit" size="sm" disabled={busy || !pick}>Add person</Button>
+          <FieldActions><Button type="submit" size="sm" loading={busy}>Add person</Button></FieldActions>
         </form>
       )}
     </section>

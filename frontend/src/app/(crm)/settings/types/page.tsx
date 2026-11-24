@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { COLOR_OPTIONS, ColorTag } from "@/components/ui/ColorTag";
-import { Field, Input, Select } from "@/components/ui/Field";
+import { Field, Input, Select, FieldActions } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
@@ -214,9 +214,9 @@ export default function TypesPage() {
               ))}
               {kind.values.length === 0 && <li className="px-5 py-8 text-center text-sm text-muted">No values yet.</li>}
             </ul>
-            <form onSubmit={add} className="flex flex-wrap items-end gap-3 border-t border-line px-5 py-4">
+            <form onSubmit={add} className="flex flex-wrap items-start gap-3 border-t border-line px-5 py-4">
               <Field label="New value" className="min-w-0 flex-1 sm:max-w-xs">
-                {(p) => <Input {...p} value={label} onChange={(e) => setLabel(e.target.value)} maxLength={120} />}
+                {(p) => <Input {...p} value={label} onChange={(e) => setLabel(e.target.value)} required maxLength={120} />}
               </Field>
               <Field label="Colour">
                 {(p) => (
@@ -229,10 +229,10 @@ export default function TypesPage() {
                   </Select>
                 )}
               </Field>
-              <Button type="submit" size="sm" disabled={busy || !label.trim()}>
+              <FieldActions><Button type="submit" size="sm" loading={busy}>
                 <Icon name="plus" className="size-4" />
                 Add value
-              </Button>
+              </Button></FieldActions>
             </form>
           </Panel>
         )}

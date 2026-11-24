@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { IconButton } from "@/components/ui/IconButton";
-import { Field, Input, Textarea } from "@/components/ui/Field";
+import { Field, Input, Textarea, FieldActions, Select } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { useAuth } from "@/lib/auth";
@@ -313,10 +313,10 @@ export default function CampaignTemplatesPage() {
         <PanelBody>
           <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] sm:items-end">
             <Field label="Preview customer">
-              {(p) => <select {...p} className="h-10 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink" value={previewCustomerId ?? ""} onChange={(e) => setPreviewCustomerId(e.target.value ? Number(e.target.value) : null)}>
+              {(p) => <Select {...p} value={previewCustomerId ?? ""} onChange={(e) => setPreviewCustomerId(e.target.value ? Number(e.target.value) : null)}>
                 <option value="">Sample customer</option>
                 {previewCustomers.map((customer) => <option key={customer.id} value={customer.id}>{customer.display_name}{customer.email ? ` · ${customer.email}` : ""}</option>)}
-              </select>}
+              </Select>}
             </Field>
             <div aria-live="polite" className="text-sm text-muted">{previewLoading ? "Updating preview…" : preview ? `Subject: ${preview.subject}${preview.preheader ? ` · ${preview.preheader}` : ""}` : "Enter a subject and HTML body to preview."}</div>
           </div>
@@ -324,13 +324,13 @@ export default function CampaignTemplatesPage() {
           {preview && <iframe title="Rendered email preview" sandbox="" srcDoc={preview.html} className="h-[560px] w-full rounded border border-line bg-white" />}
 
           {editing && canSend && (
-            <form onSubmit={sendTest} className="mt-5 grid gap-3 border-t border-line pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <form onSubmit={sendTest} className="mt-5 grid gap-3 border-t border-line pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
               <Field label="Send test to" hint={isDirty ? "Save your edits before sending a test." : "The saved template version will be queued through the mail outbox."}>
-                {(p) => <Input {...p} type="email" value={testRecipient} onChange={(e) => setTestRecipient(e.target.value)} placeholder="you@example.com" />}
+                {(p) => <Input {...p} type="email" required maxLength={254} value={testRecipient} onChange={(e) => setTestRecipient(e.target.value)} placeholder="you@example.com" />}
               </Field>
-              <Button type="submit" size="sm" disabled={isDirty || testBusy || !testRecipient.trim()}>
-                {testBusy ? "Queueing…" : "Send test"}
-              </Button>
+              <FieldActions><Button type="submit" size="sm" disabled={isDirty} loading={testBusy}>
+                Send test
+              </Button></FieldActions>
             </form>
           )}
           {editing && !canSend && <p className="mt-4 border-t border-line pt-4 text-sm text-muted">You need campaign send permission to send a test email.</p>}
