@@ -171,7 +171,7 @@ export default function LeadsPage() {
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <Segmented label="Status" options={tabs} value={filters.status ?? "all"} onChange={(status) => update({ status })} />
         <Segmented label="Whose leads" options={VIEWS} value={filters.view ?? "all"} onChange={(view) => update({ view })} />
-        <Field label="Source" className="w-44">
+        <Field label="Source" className="w-[calc(50%-0.375rem)] sm:w-44">
           {(p) => (
             <Select {...p} value={filters.source ?? ""} onChange={(e) => update({ source: e.target.value || undefined })}>
               <option value="">Any source</option>
@@ -183,7 +183,7 @@ export default function LeadsPage() {
             </Select>
           )}
         </Field>
-        <Field label="Search" className="min-w-0 flex-1 sm:max-w-xs">
+        <Field label="Search" className="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-xs">
           {(p) => <Input {...p} maxLength={120} type="search" placeholder="Name, company, email or phone" value={search} onChange={(e) => setSearch(e.target.value)} />}
         </Field>
       </div>

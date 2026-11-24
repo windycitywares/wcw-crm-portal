@@ -178,7 +178,7 @@ export default function SalesPage() {
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <Segmented label="View" options={MODES} value={mode} onChange={(m) => setMode(m)} />
         {pipelines.length > 1 && (
-          <Field label="Pipeline" className="w-48">
+          <Field label="Pipeline" className="w-[calc(50%-0.375rem)] sm:w-48">
             {(p) => (
               <Select {...p} value={pipelineId ?? ""} onChange={(e) => setPipelineId(Number(e.target.value))}>
                 {pipelines.map((pl) => (
@@ -193,7 +193,7 @@ export default function SalesPage() {
         {mode === "list" && (
           <>
             <Segmented label="Whose deals" options={VIEWS} value={filters.view ?? "all"} onChange={(view) => update({ view })} />
-            <Field label="Show" className="w-36">
+            <Field label="Show" className="w-[calc(50%-0.375rem)] sm:w-36">
               {(p) => (
                 <Select {...p} value={filters.status} onChange={(e) => update({ status: e.target.value as DealStatus | "all" })}>
                   {STATUSES.map((s) => (
@@ -205,7 +205,7 @@ export default function SalesPage() {
                 </Select>
               )}
             </Field>
-            <Field label="Search" className="min-w-0 flex-1 sm:max-w-xs">
+            <Field label="Search" className="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-xs">
               {(p) => <Input {...p} maxLength={120} type="search" placeholder="Deal or customer" value={search} onChange={(e) => setSearch(e.target.value)} />}
             </Field>
           </>

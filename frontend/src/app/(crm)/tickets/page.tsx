@@ -100,7 +100,7 @@ export default function TicketsPage() {
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <Segmented label="Whose tickets" options={VIEWS} value={filters.view ?? "all"} onChange={(view) => update({ view })} />
         <Segmented label="Show" options={STATES} value={filters.state ?? "unresolved"} onChange={(state) => update({ state })} />
-        <Field label="Priority" className="w-40">
+        <Field label="Priority" className="w-[calc(50%-0.375rem)] sm:w-40">
           {(p) => (
             <Select {...p} value={filters.priority ?? ""} onChange={(e) => update({ priority: e.target.value })}>
               <option value="">Any priority</option>
@@ -112,7 +112,7 @@ export default function TicketsPage() {
             </Select>
           )}
         </Field>
-        <Field label="Type" className="w-40">
+        <Field label="Type" className="w-[calc(50%-0.375rem)] sm:w-40">
           {(p) => (
             <Select {...p} value={filters.type ?? ""} onChange={(e) => update({ type: e.target.value })}>
               <option value="">Any type</option>
@@ -124,7 +124,7 @@ export default function TicketsPage() {
             </Select>
           )}
         </Field>
-        <Field label="Channel" className="w-40">
+        <Field label="Channel" className="w-[calc(50%-0.375rem)] sm:w-40">
           {(p) => (
             <Select {...p} value={filters.channel ?? ""} onChange={(e) => update({ channel: e.target.value })}>
               <option value="">Any channel</option>
@@ -136,7 +136,7 @@ export default function TicketsPage() {
             </Select>
           )}
         </Field>
-        <Field label="Search" className="min-w-0 flex-1 sm:max-w-xs">
+        <Field label="Search" className="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-xs">
           {(p) => <Input {...p} maxLength={120} type="search" placeholder="Subject or customer" value={search} onChange={(e) => setSearch(e.target.value)} />}
         </Field>
       </div>

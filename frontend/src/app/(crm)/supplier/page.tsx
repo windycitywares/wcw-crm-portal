@@ -81,7 +81,7 @@ export default function SupplierOrders() {
           ]} />
         </div>
         <form className="flex flex-wrap items-end gap-3 border-b border-line p-4" onSubmit={(e) => { e.preventDefault(); setPage(1); setQuery(q.trim()); }}>
-          <Field label="Search" className="min-w-52 flex-1">{(p) => <Input {...p} maxLength={120} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Order #, buyer, item, your order #" />}</Field>
+          <Field label="Search" className="w-full min-w-0 sm:w-auto sm:min-w-52 sm:flex-1">{(p) => <Input {...p} maxLength={120} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Order #, buyer, item, your order #" />}</Field>
           <Button type="submit" size="sm">Search orders</Button>
         </form>
         <ul className="divide-y divide-line">

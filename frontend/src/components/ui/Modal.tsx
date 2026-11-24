@@ -45,7 +45,7 @@ export function Modal({
             </Dialog.Close>
           </div>
           <div className="overflow-y-auto px-5 py-4">{children}</div>
-          {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
+          {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-3 max-sm:[&>*]:flex-1">{footer}</div>}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
