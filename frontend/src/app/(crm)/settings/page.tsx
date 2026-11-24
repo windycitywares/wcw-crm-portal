@@ -21,6 +21,8 @@ const ABOUT: Record<string, string> = {
   "/settings/integrations": "The connection to the shop and other channels.",
   "/settings/supplier-logins": "Logins for outside suppliers: only their own orders and payments.",
   "/settings/channels": "Connect Etsy (and later Amazon, Walmart) to bring in listings and orders.",
+  "/settings/product-types": "What you sell (Urn, Jewelry…): each type's SKU code, SKU format and sizes.",
+  "/settings/extra-costs": "Costs added to or taken off the supplier price: for every product or every product of a type.",
   "/settings/deployments": "When merged changes go live, and the deploy log.",
   "/settings/environment": "Work on a copy of the data without touching the real one.",
 };

@@ -221,7 +221,7 @@ export default function UrnPage() {
       </Panel>
 
       <ExtrasPanel urnId={urn.id} extras={urn.extras} sizes={sizes} canManage={canManage} onChange={() => void load()}
-        description="Costs on top of the supplier price for this product, plus the ones for its type and for every product (Settings → Product settings). Minus amounts subtract." />
+        description="Costs on top of the supplier price for this product, plus the ones for its type and for every product (Settings → Extra costs). Minus amounts subtract." />
 
       <ConfirmDialog open={retype !== null} title="Change this product's type?" confirmLabel="Change type" tone="primary" busy={busy}
         message={`${urn.name} becomes ${types.find((t) => t.id === retype)?.name ?? "another type"}. Its variations are read again with that type's sizes (approved ones go back to “to check”), its SKUs follow that type's format, and it needs prices for that type's sizes. Orders already costed keep their costs.`}

@@ -160,6 +160,7 @@ export default function UrnsPage() {
         actions={<div className="flex flex-wrap gap-2">
           <Link href="/channels/etsy/products/review" className="inline-flex items-center rounded-[var(--radius-control)] border border-line px-3 py-1.5 text-sm hover:bg-sand">Check variations</Link>
           <Link href="/channels/etsy/skus" className="inline-flex items-center rounded-[var(--radius-control)] border border-line px-3 py-1.5 text-sm hover:bg-sand">SKUs vs Etsy</Link>
+          <Link href="/settings/product-types" className="inline-flex items-center rounded-[var(--radius-control)] border border-line px-3 py-1.5 text-sm hover:bg-sand">Product setup</Link>
         </div>} />
 
       {s && (
