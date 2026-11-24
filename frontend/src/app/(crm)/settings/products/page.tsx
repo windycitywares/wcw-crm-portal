@@ -34,7 +34,8 @@ export default function ProductSettingsPage() {
       const [t, e] = await Promise.all([urnsApi.types(), urnsApi.sharedExtras()]);
       setTypes(t);
       setExtras(e);
-      setCurrent((c) => (c && t.some((x) => x.id === c) ? c : t[0]?.id ?? null));
+      const wanted = Number(new URLSearchParams(window.location.search).get("type")); // linked from Settings → Types
+      setCurrent((c) => (c && t.some((x) => x.id === c) ? c : t.some((x) => x.id === wanted) ? wanted : t[0]?.id ?? null));
     } catch (e) {
       toast.push({ tone: "danger", title: "Couldn't load product settings", description: err(e) });
     }
