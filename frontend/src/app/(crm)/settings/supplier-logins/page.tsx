@@ -65,8 +65,8 @@ function LoginDialog({ login, open, onClose, onSaved }: { login: Login | null; o
       description="A supplier signs in to see only their own orders and payments — never your revenue, profit, other suppliers or buyers' email.">
       <form onSubmit={submit} className="grid grid-cols-[minmax(0,1fr)] gap-3">
         {!login && <>
-          <Field label="Name">{(p) => <Input {...p} required value={name} onChange={(e) => setName(e.target.value)} />}</Field>
-          <Field label="Email">{(p) => <Input {...p} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
+          <Field label="Name">{(p) => <Input {...p} maxLength={120} required value={name} onChange={(e) => setName(e.target.value)} />}</Field>
+          <Field label="Email">{(p) => <Input {...p} maxLength={254} autoComplete="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
           <Field label="Password" hint="At least 10 characters. They can change it after signing in.">
             {(p) => <Input {...p} type="password" required minLength={10} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />}
           </Field>

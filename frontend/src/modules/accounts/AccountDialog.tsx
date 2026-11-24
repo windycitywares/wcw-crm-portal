@@ -64,7 +64,7 @@ export function AccountDialog({ open, account, defaultType, onClose, onSaved }: 
   return (
     <Modal open={open} onClose={onClose} title={account ? "Edit account" : "Add account"} size="md">
       <form onSubmit={submit} className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2">
-        <Field label="Name" className="sm:col-span-2">{(p) => <Input {...p} required value={draft.name} onChange={(e) => set({ name: e.target.value })} />}</Field>
+        <Field label="Name" className="sm:col-span-2">{(p) => <Input {...p} maxLength={160} required value={draft.name} onChange={(e) => set({ name: e.target.value })} />}</Field>
         <Field label="Type">
           {(p) => (
             <Select {...p} value={type} onChange={(e) => set({ account_type: e.target.value })}>
@@ -80,15 +80,15 @@ export function AccountDialog({ open, account, defaultType, onClose, onSaved }: 
             </Select>
           )}
         </Field>
-        <Field label="Industry">{(p) => <Input {...p} value={draft.industry} onChange={(e) => set({ industry: e.target.value })} />}</Field>
-        <Field label="Website" hint="https://…">{(p) => <Input {...p} type="url" value={draft.website} onChange={(e) => set({ website: e.target.value })} />}</Field>
-        <Field label="Email">{(p) => <Input {...p} type="email" value={draft.email} onChange={(e) => set({ email: e.target.value })} />}</Field>
-        <Field label="Phone">{(p) => <Input {...p} type="tel" value={draft.phone} onChange={(e) => set({ phone: e.target.value })} />}</Field>
-        <Field label="City">{(p) => <Input {...p} value={draft.city} onChange={(e) => set({ city: e.target.value })} />}</Field>
-        <Field label="Country">{(p) => <Input {...p} value={draft.country} onChange={(e) => set({ country: e.target.value })} />}</Field>
+        <Field label="Industry">{(p) => <Input {...p} maxLength={120} value={draft.industry} onChange={(e) => set({ industry: e.target.value })} />}</Field>
+        <Field label="Website" hint="https://…">{(p) => <Input {...p} maxLength={300} type="url" value={draft.website} onChange={(e) => set({ website: e.target.value })} />}</Field>
+        <Field label="Email">{(p) => <Input {...p} maxLength={254} autoComplete="email" type="email" value={draft.email} onChange={(e) => set({ email: e.target.value })} />}</Field>
+        <Field label="Phone">{(p) => <Input {...p} maxLength={40} autoComplete="tel" type="tel" value={draft.phone} onChange={(e) => set({ phone: e.target.value })} />}</Field>
+        <Field label="City">{(p) => <Input {...p} maxLength={100} value={draft.city} onChange={(e) => set({ city: e.target.value })} />}</Field>
+        <Field label="Country">{(p) => <Input {...p} maxLength={60} value={draft.country} onChange={(e) => set({ country: e.target.value })} />}</Field>
         <AccountPicker label="Parent account" className="sm:col-span-2" value={draft.parent_id} currentName={draft.parent_name}
           exclude={account?.id} onChange={(id, name) => set({ parent_id: id, parent_name: name })} />
-        <Field label="Notes" className="sm:col-span-2">{(p) => <Textarea {...p} rows={3} value={draft.notes} onChange={(e) => set({ notes: e.target.value })} />}</Field>
+        <Field label="Notes" className="sm:col-span-2">{(p) => <Textarea {...p} maxLength={5000} rows={3} value={draft.notes} onChange={(e) => set({ notes: e.target.value })} />}</Field>
         <div className="flex justify-end gap-2 sm:col-span-2">
           <Button type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
           <Button type="submit" size="sm" disabled={saving || !draft.name.trim() || !type}>{saving ? "Saving…" : account ? "Save account" : "Add account"}</Button>

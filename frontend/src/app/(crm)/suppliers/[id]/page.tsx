@@ -103,10 +103,10 @@ function ContactsPanel({ supplier, canEdit, onChange }: { supplier: Supplier; ca
         </ul>
         {canEdit && <form onSubmit={save} className="grid gap-3 border-t border-line pt-4 sm:grid-cols-2">
           <h3 className="text-sm font-semibold sm:col-span-2">{editingId ? "Edit contact" : "Add contact"}</h3>
-          <Field label="Name">{(p) => <Input {...p} required value={draft.name} onChange={(e) => setDraft((current) => ({ ...current, name: e.target.value }))} />}</Field>
-          <Field label="Title">{(p) => <Input {...p} value={draft.title} onChange={(e) => setDraft((current) => ({ ...current, title: e.target.value }))} />}</Field>
-          <Field label="Email">{(p) => <Input {...p} type="email" value={draft.email} onChange={(e) => setDraft((current) => ({ ...current, email: e.target.value }))} />}</Field>
-          <Field label="Phone">{(p) => <Input {...p} type="tel" value={draft.phone} onChange={(e) => setDraft((current) => ({ ...current, phone: e.target.value }))} />}</Field>
+          <Field label="Name">{(p) => <Input {...p} maxLength={160} required value={draft.name} onChange={(e) => setDraft((current) => ({ ...current, name: e.target.value }))} />}</Field>
+          <Field label="Title">{(p) => <Input {...p} maxLength={120} value={draft.title} onChange={(e) => setDraft((current) => ({ ...current, title: e.target.value }))} />}</Field>
+          <Field label="Email">{(p) => <Input {...p} maxLength={254} autoComplete="email" type="email" value={draft.email} onChange={(e) => setDraft((current) => ({ ...current, email: e.target.value }))} />}</Field>
+          <Field label="Phone">{(p) => <Input {...p} maxLength={40} autoComplete="tel" type="tel" value={draft.phone} onChange={(e) => setDraft((current) => ({ ...current, phone: e.target.value }))} />}</Field>
           <label className="flex items-center gap-2 text-sm sm:col-span-2">
             <input type="checkbox" className="size-4 accent-[var(--color-accent)]" checked={draft.is_primary} onChange={(e) => setDraft((current) => ({ ...current, is_primary: e.target.checked }))} />
             Primary contact
@@ -227,14 +227,14 @@ function ProductsPanel({ supplierId, canEdit }: { supplierId: number; canEdit: b
         {total > PRODUCT_PAGE_SIZE && <Pagination page={page} pageSize={PRODUCT_PAGE_SIZE} total={total} onPage={setPage} />}
         {canEdit && <form onSubmit={save} className="grid gap-3 border-t border-line pt-4 sm:grid-cols-2">
           <h3 className="text-sm font-semibold sm:col-span-2">{editingId ? "Edit supplied product" : "Add supplied product"}</h3>
-          <Field label="Shop SKU">{(p) => <Input {...p} required value={draft.shop_sku} onChange={(e) => setDraft((current) => ({ ...current, shop_sku: e.target.value }))} />}</Field>
-          <Field label="Supplier SKU">{(p) => <Input {...p} value={draft.supplier_sku} onChange={(e) => setDraft((current) => ({ ...current, supplier_sku: e.target.value }))} />}</Field>
-          <Field label="Description">{(p) => <Input {...p} value={draft.description} onChange={(e) => setDraft((current) => ({ ...current, description: e.target.value }))} />}</Field>
+          <Field label="Shop SKU">{(p) => <Input {...p} maxLength={80} required value={draft.shop_sku} onChange={(e) => setDraft((current) => ({ ...current, shop_sku: e.target.value }))} />}</Field>
+          <Field label="Supplier SKU">{(p) => <Input {...p} maxLength={80} value={draft.supplier_sku} onChange={(e) => setDraft((current) => ({ ...current, supplier_sku: e.target.value }))} />}</Field>
+          <Field label="Description">{(p) => <Input {...p} maxLength={300} value={draft.description} onChange={(e) => setDraft((current) => ({ ...current, description: e.target.value }))} />}</Field>
           <Field label="Unit cost">{(p) => <Input {...p} type="number" min={0} step="0.01" required value={draft.unit_cost} onChange={(e) => setDraft((current) => ({ ...current, unit_cost: e.target.value }))} />}</Field>
           <Field label="Currency">{(p) => <Input {...p} minLength={3} maxLength={3} pattern="[A-Za-z]{3}" required value={draft.currency} onChange={(e) => setDraft((current) => ({ ...current, currency: e.target.value.toUpperCase() }))} />}</Field>
           <Field label="Minimum order quantity">{(p) => <Input {...p} type="number" min={0.001} step="0.001" value={draft.minimum_order_quantity} onChange={(e) => setDraft((current) => ({ ...current, minimum_order_quantity: e.target.value }))} />}</Field>
           <Field label="Lead time (days)">{(p) => <Input {...p} type="number" min={0} step={1} value={draft.lead_time_days} onChange={(e) => setDraft((current) => ({ ...current, lead_time_days: e.target.value }))} />}</Field>
-          <Field label="Notes" className="sm:col-span-2">{(p) => <Textarea {...p} value={draft.notes} onChange={(e) => setDraft((current) => ({ ...current, notes: e.target.value }))} />}</Field>
+          <Field label="Notes" className="sm:col-span-2">{(p) => <Textarea {...p} maxLength={2000} value={draft.notes} onChange={(e) => setDraft((current) => ({ ...current, notes: e.target.value }))} />}</Field>
           <div className="flex gap-2 sm:col-span-2">
             <Button type="submit" size="sm" disabled={busy || !draft.shop_sku.trim() || draft.unit_cost === ""}>{busy ? "Saving…" : editingId ? "Save product" : "Add product"}</Button>
             {editingId && <Button type="button" size="sm" variant="secondary" onClick={reset}>Cancel</Button>}

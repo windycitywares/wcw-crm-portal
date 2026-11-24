@@ -184,7 +184,7 @@ export default function LeadsPage() {
           )}
         </Field>
         <Field label="Search" className="min-w-0 flex-1 sm:max-w-xs">
-          {(p) => <Input {...p} type="search" placeholder="Name, company, email or phone" value={search} onChange={(e) => setSearch(e.target.value)} />}
+          {(p) => <Input {...p} maxLength={120} type="search" placeholder="Name, company, email or phone" value={search} onChange={(e) => setSearch(e.target.value)} />}
         </Field>
       </div>
 

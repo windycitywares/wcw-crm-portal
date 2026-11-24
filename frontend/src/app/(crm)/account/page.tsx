@@ -36,11 +36,11 @@ function Profile() {
       <PanelHeader title="Profile" description={`${user.email} · ${ROLE_LABEL[user.role]} access`} />
       <PanelBody>
         <form onSubmit={save} className="grid max-w-lg gap-4">
-          <Field label="Full name">{(p) => <Input {...p} required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />}</Field>
+          <Field label="Full name">{(p) => <Input {...p} maxLength={120} autoComplete="name" required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />}</Field>
           <Field label="Job title" hint="Shown next to your name on records.">
-            {(p) => <Input {...p} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />}
+            {(p) => <Input {...p} maxLength={120} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />}
           </Field>
-          <Field label="Phone">{(p) => <Input {...p} type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />}</Field>
+          <Field label="Phone">{(p) => <Input {...p} maxLength={40} autoComplete="tel" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />}</Field>
           <div>
             <Button type="submit" size="sm" disabled={busy || !form.full_name.trim()}>
               {busy ? "Saving…" : "Save profile"}

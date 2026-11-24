@@ -119,7 +119,7 @@ export default function TasksPage() {
           )}
         </Field>
         <Field label="Search" className="min-w-0 flex-1 sm:max-w-xs">
-          {(p) => <Input {...p} type="search" placeholder="Title or details" value={search} onChange={(e) => setSearch(e.target.value)} />}
+          {(p) => <Input {...p} maxLength={120} type="search" placeholder="Title or details" value={search} onChange={(e) => setSearch(e.target.value)} />}
         </Field>
       </div>
 

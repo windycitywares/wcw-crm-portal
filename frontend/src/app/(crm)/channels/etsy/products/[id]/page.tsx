@@ -123,7 +123,7 @@ export default function UrnPage() {
                   </Select>
                 )}
               </Field>
-              <Field label="Notes" className="sm:col-span-2">{(p) => <Textarea {...p} rows={2} value={notes} disabled={!canEdit} onChange={(e) => setNotes(e.target.value)} />}</Field>
+              <Field label="Notes" className="sm:col-span-2">{(p) => <Textarea {...p} maxLength={2000} rows={2} value={notes} disabled={!canEdit} onChange={(e) => setNotes(e.target.value)} />}</Field>
               {canEdit && <div className="sm:col-span-2"><Button type="submit" size="sm" disabled={busy || !name.trim()}>Save product</Button></div>}
             </form>
           </PanelBody>

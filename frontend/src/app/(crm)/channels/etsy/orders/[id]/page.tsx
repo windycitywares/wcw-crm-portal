@@ -159,8 +159,8 @@ export default function EtsyOrderPage() {
           <Panel>
             <PanelHeader title="Costs and tracking" description={order.cost_source === "sku" ? "Purchase cost is the supplier's part from the SKUs (see the breakdown). Typing a cost replaces it." : order.costs_prefilled ? "Purchase cost was filled in from the listing's default cost. Check it." : "What you paid and how it was shipped."} />
             <PanelBody className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
-              <Field label="Purchase cost ($)">{(f) => <Input {...f} inputMode="decimal" value={form.purchase_cost} onChange={set("purchase_cost")} />}</Field>
-              <Field label="Actual shipping cost ($)">{(f) => <Input {...f} inputMode="decimal" value={form.shipping_cost} onChange={set("shipping_cost")} />}</Field>
+              <Field label="Purchase cost ($)">{(f) => <Input {...f} pattern="\d{0,9}(\.\d{1,2})?" title="A number like 12.50 (up to 2 decimal places)." maxLength={13} inputMode="decimal" value={form.purchase_cost} onChange={set("purchase_cost")} />}</Field>
+              <Field label="Actual shipping cost ($)">{(f) => <Input {...f} pattern="\d{0,9}(\.\d{1,2})?" title="A number like 12.50 (up to 2 decimal places)." maxLength={13} inputMode="decimal" value={form.shipping_cost} onChange={set("shipping_cost")} />}</Field>
               <Field label="Supplier">
                 {(f) => (
                   <Select {...f} value={form.supplier_account_id} onChange={(e) => setForm({ ...form, supplier_account_id: e.target.value })} disabled={!canEdit}>

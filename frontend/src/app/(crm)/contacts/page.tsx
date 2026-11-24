@@ -155,7 +155,7 @@ export default function ContactsPage() {
       <Panel className="mb-4">
         <div className="flex flex-wrap items-end gap-3 p-4">
           <Field label="Search" className="min-w-0 flex-1">
-            {(p) => <Input {...p} type="search" placeholder="Name, company, email or phone" value={search} onChange={(e) => setSearch(e.target.value)} />}
+            {(p) => <Input {...p} maxLength={120} type="search" placeholder="Name, company, email or phone" value={search} onChange={(e) => setSearch(e.target.value)} />}
           </Field>
           <Field label="Type">
             {(p) => (
@@ -279,16 +279,16 @@ function ContactDialog({ open, contact, typeOptions, onClose, onSaved }: {
   return (
     <Modal open={open} onClose={onClose} title={contact ? "Edit contact" : "Add contact"} size="md">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="First name">{(p) => <Input {...p} value={first} onChange={(e) => setFirst(e.target.value)} />}</Field>
-        <Field label="Last name">{(p) => <Input {...p} value={last} onChange={(e) => setLast(e.target.value)} />}</Field>
-        <Field label="Company">{(p) => <Input {...p} value={company} onChange={(e) => setCompany(e.target.value)} />}</Field>
-        <Field label="Job title">{(p) => <Input {...p} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
+        <Field label="First name">{(p) => <Input {...p} maxLength={80} autoComplete="given-name" value={first} onChange={(e) => setFirst(e.target.value)} />}</Field>
+        <Field label="Last name">{(p) => <Input {...p} maxLength={80} autoComplete="family-name" value={last} onChange={(e) => setLast(e.target.value)} />}</Field>
+        <Field label="Company">{(p) => <Input {...p} maxLength={160} value={company} onChange={(e) => setCompany(e.target.value)} />}</Field>
+        <Field label="Job title">{(p) => <Input {...p} maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
         <AccountPicker className="sm:col-span-2" value={accountId} currentName={accountName}
           onChange={(id, name) => { setAccountId(id); setAccountName(name); if (name && !company) setCompany(name); }} />
         {contact && <Organisations contactId={contact.id} />}
         {contact && <ContactDeals contactId={contact.id} />}
-        <Field label="Email" className="sm:col-span-2">{(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
-        <Field label="Phone">{(p) => <Input {...p} value={phone} onChange={(e) => setPhone(e.target.value)} />}</Field>
+        <Field label="Email" className="sm:col-span-2">{(p) => <Input {...p} maxLength={254} autoComplete="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
+        <Field label="Phone">{(p) => <Input {...p} type="tel" maxLength={40} autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />}</Field>
         <Field label="Status">
           {(p) => (
             <Select {...p} value={status} onChange={(e) => setStatus(e.target.value as ContactStatus)}>

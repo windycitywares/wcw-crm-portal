@@ -206,7 +206,7 @@ export default function SalesPage() {
               )}
             </Field>
             <Field label="Search" className="min-w-0 flex-1 sm:max-w-xs">
-              {(p) => <Input {...p} type="search" placeholder="Deal or customer" value={search} onChange={(e) => setSearch(e.target.value)} />}
+              {(p) => <Input {...p} maxLength={120} type="search" placeholder="Deal or customer" value={search} onChange={(e) => setSearch(e.target.value)} />}
             </Field>
           </>
         )}

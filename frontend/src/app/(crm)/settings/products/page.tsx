@@ -213,7 +213,7 @@ function SizesPanel({ type, canManage, onChange }: { type: ProductType; canManag
                 <form className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]"
                   onSubmit={(e) => { e.preventDefault(); void act(() => urnsApi.editSize(s.id, { label, aliases: aliases.split(",").map((a) => a.trim()).filter(Boolean) }), "Size saved", label); }}>
                   <Field label="Name">{(p) => <Input {...p} value={label} maxLength={40} onChange={(e) => setLabel(e.target.value)} />}</Field>
-                  <Field label="Words that mean this size" hint="Separated by commas, e.g. large, adult">{(p) => <Input {...p} value={aliases} onChange={(e) => setAliases(e.target.value)} />}</Field>
+                  <Field label="Words that mean this size" hint="Separated by commas, e.g. large, adult">{(p) => <Input {...p} maxLength={200} value={aliases} onChange={(e) => setAliases(e.target.value)} />}</Field>
                   <div className="flex items-end gap-1">
                     <Button type="submit" size="sm" disabled={busy || !label.trim()}>Save size</Button>
                     <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>

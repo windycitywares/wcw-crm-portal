@@ -96,7 +96,7 @@ function FieldForm({
         </Field>
         {CHOICE.includes(type) && (
           <Field label="Options" hint="One per line.">
-            {(p) => <Textarea {...p} value={options} onChange={(e) => setOptions(e.target.value)} />}
+            {(p) => <Textarea {...p} maxLength={4000} value={options} onChange={(e) => setOptions(e.target.value)} />}
           </Field>
         )}
         <Field label="Help text" hint="Optional. Shown under the field.">

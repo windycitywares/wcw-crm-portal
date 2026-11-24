@@ -85,7 +85,7 @@ export function SettleDialog({
         <Field label="Reference" hint="Invoice, PayPal or bank reference.">{(p) => <Input {...p} value={reference} onChange={(e) => setReference(e.target.value)} maxLength={100} />}</Field>
         {single ? (
           <Field label="Amount paid ($)" hint="Change it only if you paid a different amount.">
-            {(p) => <Input {...p} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />}
+            {(p) => <Input {...p} pattern="\d{0,9}(\.\d{1,2})?" title="A number like 12.50 (up to 2 decimal places)." maxLength={13} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />}
           </Field>
         ) : null}
         <div className={single ? "" : "sm:col-span-2"}>

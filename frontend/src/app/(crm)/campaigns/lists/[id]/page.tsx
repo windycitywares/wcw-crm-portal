@@ -223,7 +223,7 @@ export default function AudienceMembersPage({ params }: { params: Promise<{ id: 
             <PanelBody className="p-0">
               <form onSubmit={searchMembers} className="flex gap-2 border-b border-line p-4">
                 <Field label="Search members" className="min-w-0 flex-1">
-                  {(p) => <Input {...p} value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} placeholder="Name, company, or email" />}
+                  {(p) => <Input {...p} maxLength={120} value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} placeholder="Name, company, or email" />}
                 </Field>
                 <Button type="submit" variant="secondary" size="sm" className="mt-auto">Search</Button>
               </form>
@@ -248,7 +248,7 @@ export default function AudienceMembersPage({ params }: { params: Promise<{ id: 
             <PanelBody className="p-0">
               <form onSubmit={searchCustomers} className="flex gap-2 border-b border-line p-4">
                 <Field label="Search CRM customers" className="min-w-0 flex-1">
-                  {(p) => <Input {...p} value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Name, company, or email" />}
+                  {(p) => <Input {...p} maxLength={120} value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Name, company, or email" />}
                 </Field>
                 <Button type="submit" variant="secondary" size="sm" className="mt-auto">Search</Button>
               </form>

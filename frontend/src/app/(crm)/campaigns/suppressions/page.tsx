@@ -115,7 +115,7 @@ export default function CampaignSuppressionsPage() {
           <PanelBody className="p-0">
             <form onSubmit={searchRows} className="grid gap-3 border-b border-line p-4 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-end">
               <Field label="Search email or note">
-                {(p) => <Input {...p} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Email address or note" />}
+                {(p) => <Input {...p} maxLength={120} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Email address or note" />}
               </Field>
               <Field label="Reason">
                 {(p) => <Select {...p} value={reasonFilter} onChange={(e) => { setReasonFilter(e.target.value as "" | SuppressionReason); setPage(1); }}>
@@ -166,7 +166,7 @@ export default function CampaignSuppressionsPage() {
           <PanelBody>
             <form onSubmit={addSuppression} className="space-y-4">
               <Field label="Email address">
-                {(p) => <Input {...p} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="person@example.com" />}
+                {(p) => <Input {...p} maxLength={254} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="person@example.com" />}
               </Field>
               <Field label="Reason">
                 {(p) => <Select {...p} value={reason} onChange={(e) => setReason(e.target.value as SuppressionReason)}>

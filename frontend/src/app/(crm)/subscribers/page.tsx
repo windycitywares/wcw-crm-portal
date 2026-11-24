@@ -325,10 +325,10 @@ function AddSubscriberDialog({ open, onClose, onSaved }: { open: boolean; onClos
       }
     >
       <form className="grid gap-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-        <Field label="Email">{(p) => <Input {...p} type="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
+        <Field label="Email">{(p) => <Input {...p} maxLength={254} type="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="First name">{(p) => <Input {...p} value={first} onChange={(e) => setFirst(e.target.value)} />}</Field>
-          <Field label="Last name">{(p) => <Input {...p} value={last} onChange={(e) => setLast(e.target.value)} />}</Field>
+          <Field label="First name">{(p) => <Input {...p} maxLength={80} autoComplete="given-name" value={first} onChange={(e) => setFirst(e.target.value)} />}</Field>
+          <Field label="Last name">{(p) => <Input {...p} maxLength={80} autoComplete="family-name" value={last} onChange={(e) => setLast(e.target.value)} />}</Field>
         </div>
       </form>
     </Modal>

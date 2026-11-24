@@ -90,7 +90,7 @@ export default function EmailSettingsPage() {
           <PanelHeader title="Mail server (SMTP)" description="From your hosting's Email Accounts → Connect Devices page." />
           <PanelBody className="grid gap-4 sm:grid-cols-2">
             <Field label="SMTP host" className="sm:col-span-2" hint="e.g. mail.windycitywares.com">
-              {(p) => <Input {...p} value={form.smtp_host} onChange={(e) => set("smtp_host", e.target.value)} autoComplete="off" />}
+              {(p) => <Input {...p} maxLength={253} value={form.smtp_host} onChange={(e) => set("smtp_host", e.target.value)} autoComplete="off" />}
             </Field>
             <Field label="Security">
               {(p) => (
@@ -112,7 +112,7 @@ export default function EmailSettingsPage() {
               {(p) => <Input {...p} type="number" min={1} max={65535} value={form.smtp_port} onChange={(e) => set("smtp_port", Number(e.target.value))} />}
             </Field>
             <Field label="Username" hint="Usually the full mailbox address.">
-              {(p) => <Input {...p} value={form.smtp_user} onChange={(e) => set("smtp_user", e.target.value)} autoComplete="off" />}
+              {(p) => <Input {...p} maxLength={254} value={form.smtp_user} onChange={(e) => set("smtp_user", e.target.value)} autoComplete="off" />}
             </Field>
             <Field label="Password" hint={passwordSet ? "Saved and encrypted. Leave blank to keep it." : "Stored encrypted; never shown again."}>
               {(p) => (
@@ -132,15 +132,15 @@ export default function EmailSettingsPage() {
         <Panel>
           <PanelHeader title="Sender and limits" />
           <PanelBody className="grid gap-4 sm:grid-cols-2">
-            <Field label="From name">{(p) => <Input {...p} value={form.from_name} onChange={(e) => set("from_name", e.target.value)} />}</Field>
+            <Field label="From name">{(p) => <Input {...p} maxLength={120} value={form.from_name} onChange={(e) => set("from_name", e.target.value)} />}</Field>
             <Field label="From address">
-              {(p) => <Input {...p} type="email" value={form.from_address} onChange={(e) => set("from_address", e.target.value)} />}
+              {(p) => <Input {...p} maxLength={254} type="email" value={form.from_address} onChange={(e) => set("from_address", e.target.value)} />}
             </Field>
             <Field label="Reply-to address" hint="Optional. Where replies go.">
-              {(p) => <Input {...p} type="email" value={form.reply_to} onChange={(e) => set("reply_to", e.target.value)} />}
+              {(p) => <Input {...p} maxLength={254} type="email" value={form.reply_to} onChange={(e) => set("reply_to", e.target.value)} />}
             </Field>
             <Field label="Postal address" hint="Required in campaign footers (CAN-SPAM).">
-              {(p) => <Input {...p} value={form.footer_address} onChange={(e) => set("footer_address", e.target.value)} />}
+              {(p) => <Input {...p} maxLength={300} value={form.footer_address} onChange={(e) => set("footer_address", e.target.value)} />}
             </Field>
             <Field label="Daily limit" hint="All emails, any rolling 24 hours. Check your host's limit.">
               {(p) => <Input {...p} type="number" min={1} value={form.daily_limit} onChange={(e) => set("daily_limit", Number(e.target.value))} />}
@@ -166,7 +166,7 @@ export default function EmailSettingsPage() {
         <PanelHeader title="Send a test email" description="Uses the saved settings (save first). Shows the mail server's answer if it fails." />
         <PanelBody className="flex flex-wrap items-end gap-3">
           <Field label="Send to" className="min-w-0 flex-1 sm:max-w-sm">
-            {(p) => <Input {...p} type="email" value={testTo} onChange={(e) => setTestTo(e.target.value)} />}
+            {(p) => <Input {...p} maxLength={254} type="email" value={testTo} onChange={(e) => setTestTo(e.target.value)} />}
           </Field>
           <Button size="sm" variant="secondary" onClick={() => void test()} disabled={testing || !testTo}>
             {testing ? "Sending…" : "Send test email"}

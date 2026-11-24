@@ -263,19 +263,19 @@ export default function CampaignTemplatesPage() {
           <PanelBody>
             <form onSubmit={submit} className="space-y-4">
               <Field label="Template name">
-                {(p) => <Input {...p} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}
+                {(p) => <Input {...p} required maxLength={120} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}
               </Field>
 
               <Field label="Subject line">
-                {(p) => <Input {...p} value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />}
+                {(p) => <Input {...p} required maxLength={300} value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />}
               </Field>
 
               <Field label="Preheader" hint="Optional line shown under the subject in many inboxes.">
-                {(p) => <Input {...p} value={form.preheader} onChange={(e) => setForm({ ...form, preheader: e.target.value })} />}
+                {(p) => <Input {...p} maxLength={200} value={form.preheader} onChange={(e) => setForm({ ...form, preheader: e.target.value })} />}
               </Field>
 
               <Field label="HTML body">
-                {(p) => <Textarea {...p} ref={htmlRef} value={form.html} onChange={(e) => setForm({ ...form, html: e.target.value })} className="min-h-[180px] font-mono" />}
+                {(p) => <Textarea {...p} required maxLength={200000} ref={htmlRef} value={form.html} onChange={(e) => setForm({ ...form, html: e.target.value })} className="min-h-[180px] font-mono" />}
               </Field>
 
               <div className="rounded border border-line bg-canvas p-3">
@@ -290,7 +290,7 @@ export default function CampaignTemplatesPage() {
               </div>
 
               <Field label="Text body" hint="Optional. If blank, it is derived from the HTML on save.">
-                {(p) => <Textarea {...p} value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} className="min-h-[120px]" />}
+                {(p) => <Textarea {...p} maxLength={100000} value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} className="min-h-[120px]" />}
               </Field>
 
               <div className="flex flex-wrap items-center gap-2">

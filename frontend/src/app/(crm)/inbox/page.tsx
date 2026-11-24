@@ -86,7 +86,7 @@ export default function InboxPage() {
         <Segmented label="Channel" options={channels} value={filters.channel ?? ""} onChange={(channel) => update({ channel: channel || undefined })} />
         <Segmented label="Show" options={SHOW} value={filters.needs_reply ? "waiting" : "all"} onChange={(show) => update({ needs_reply: show === "waiting" ? true : undefined })} />
         <Field label="Search" className="min-w-0 flex-1 sm:max-w-xs">
-          {(p) => <Input {...p} type="search" placeholder="Subject or customer" value={search} onChange={(e) => setSearch(e.target.value)} />}
+          {(p) => <Input {...p} maxLength={120} type="search" placeholder="Subject or customer" value={search} onChange={(e) => setSearch(e.target.value)} />}
         </Field>
       </div>
 
