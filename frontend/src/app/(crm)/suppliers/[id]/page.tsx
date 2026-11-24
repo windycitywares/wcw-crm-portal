@@ -112,7 +112,7 @@ function ContactsPanel({ supplier, canEdit, onChange }: { supplier: Supplier; ca
             Primary contact
           </label>
           <div className="flex gap-2 sm:col-span-2">
-            <Button type="submit" size="sm" disabled={busy || !draft.name.trim()}>{busy ? "Saving…" : editingId ? "Save contact" : "Add contact"}</Button>
+            <Button type="submit" size="sm" loading={busy}>{busy ? "Saving…" : editingId ? "Save contact" : "Add contact"}</Button>
             {editingId && <Button type="button" size="sm" variant="secondary" onClick={reset}>Cancel</Button>}
           </div>
         </form>}
@@ -236,7 +236,7 @@ function ProductsPanel({ supplierId, canEdit }: { supplierId: number; canEdit: b
           <Field label="Lead time (days)">{(p) => <Input {...p} type="number" min={0} max={3650} step={1} value={draft.lead_time_days} onChange={(e) => setDraft((current) => ({ ...current, lead_time_days: e.target.value }))} />}</Field>
           <Field label="Notes" className="sm:col-span-2">{(p) => <Textarea {...p} maxLength={2000} value={draft.notes} onChange={(e) => setDraft((current) => ({ ...current, notes: e.target.value }))} />}</Field>
           <div className="flex gap-2 sm:col-span-2">
-            <Button type="submit" size="sm" disabled={busy || !draft.shop_sku.trim() || draft.unit_cost === ""}>{busy ? "Saving…" : editingId ? "Save product" : "Add product"}</Button>
+            <Button type="submit" size="sm" loading={busy}>{busy ? "Saving…" : editingId ? "Save product" : "Add product"}</Button>
             {editingId && <Button type="button" size="sm" variant="secondary" onClick={reset}>Cancel</Button>}
           </div>
         </form>}

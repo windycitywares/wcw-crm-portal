@@ -68,8 +68,8 @@ function ValueRow({
             <label className="sr-only" htmlFor={`label-${value.id}`}>
               Name
             </label>
-            <Input id={`label-${value.id}`} value={label} onChange={(e) => setLabel(e.target.value)} className="max-w-xs py-1.5" autoFocus />
-            <Button type="submit" size="sm" disabled={busy || !label.trim()}>
+            <Input id={`label-${value.id}`} required value={label} onChange={(e) => setLabel(e.target.value)} className="max-w-xs py-1.5" autoFocus />
+            <Button type="submit" size="sm" loading={busy}>
               Save
             </Button>
             <Button
@@ -216,7 +216,7 @@ export default function TypesPage() {
             </ul>
             <form onSubmit={add} className="flex flex-wrap items-start gap-3 border-t border-line px-5 py-4">
               <Field label="New value" className="min-w-0 flex-1 sm:max-w-xs">
-                {(p) => <Input {...p} value={label} onChange={(e) => setLabel(e.target.value)} required maxLength={120} />}
+                {(p) => <Input {...p} required value={label} onChange={(e) => setLabel(e.target.value)} required maxLength={120} />}
               </Field>
               <Field label="Colour">
                 {(p) => (

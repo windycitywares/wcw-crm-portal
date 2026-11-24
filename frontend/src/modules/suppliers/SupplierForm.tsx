@@ -183,7 +183,7 @@ export function SupplierForm({ supplier, onSaved }: { supplier: Supplier | null;
       </Panel>}
 
       <div className="flex gap-2">
-        <Button type="submit" disabled={busy || !form.name.trim() || !form.supplier_type}>{busy ? "Saving…" : supplier ? "Save supplier" : "Create supplier"}</Button>
+        <Button type="submit" loading={busy}>{busy ? "Saving…" : supplier ? "Save supplier" : "Create supplier"}</Button>
         <ButtonLink href={supplier ? `/suppliers/${supplier.id}` : "/suppliers"} variant="secondary">Cancel</ButtonLink>
       </div>
     </form>

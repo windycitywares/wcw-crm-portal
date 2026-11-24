@@ -67,7 +67,7 @@ export function AccountDialog({ open, account, defaultType, onClose, onSaved }: 
         <Field label="Name" className="sm:col-span-2">{(p) => <Input {...p} maxLength={160} required value={draft.name} onChange={(e) => set({ name: e.target.value })} />}</Field>
         <Field label="Type">
           {(p) => (
-            <Select {...p} value={type} onChange={(e) => set({ account_type: e.target.value })}>
+            <Select {...p} required value={type} onChange={(e) => set({ account_type: e.target.value })}>
               {types.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
             </Select>
           )}
@@ -91,7 +91,7 @@ export function AccountDialog({ open, account, defaultType, onClose, onSaved }: 
         <Field label="Notes" className="sm:col-span-2">{(p) => <Textarea {...p} maxLength={5000} rows={3} value={draft.notes} onChange={(e) => set({ notes: e.target.value })} />}</Field>
         <div className="flex justify-end gap-2 sm:col-span-2">
           <Button type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
-          <Button type="submit" size="sm" disabled={saving || !draft.name.trim() || !type}>{saving ? "Saving…" : account ? "Save account" : "Add account"}</Button>
+          <Button type="submit" size="sm" loading={saving}>{saving ? "Saving…" : account ? "Save account" : "Add account"}</Button>
         </div>
       </form>
     </Modal>

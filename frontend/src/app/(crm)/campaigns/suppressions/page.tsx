@@ -176,7 +176,7 @@ export default function CampaignSuppressionsPage() {
               <Field label="Note" hint="Optional context for the team.">
                 {(p) => <Textarea {...p} value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />}
               </Field>
-              <Button type="submit" size="sm" disabled={busy || !email.trim()}>{busy ? "Saving…" : "Add suppression"}</Button>
+              <Button type="submit" size="sm" loading={busy}>{busy ? "Saving…" : "Add suppression"}</Button>
             </form>
           </PanelBody>
         </Panel>}

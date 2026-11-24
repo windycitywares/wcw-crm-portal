@@ -290,7 +290,7 @@ export default function CampaignListsPage() {
                 )}
 
                 <div className="flex flex-wrap gap-2">
-                  <Button type="submit" disabled={busy || !form.name.trim() || (form.kind === "segment" && !rulesReady)}>
+                  <Button type="submit" loading={busy} disabled={form.kind === "segment" && !rulesReady}>
                     {busy ? "Saving…" : editingId ? "Save segment" : "Create audience"}
                   </Button>
                   {editingId && <Button type="button" variant="secondary" onClick={resetForm}>Cancel</Button>}

@@ -49,7 +49,7 @@ function TagForm({ tag, onClose, onSaved }: { tag: Tag | "new"; onClose: () => v
           <Button variant="secondary" size="sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="tag-form" size="sm" disabled={busy || !name.trim()}>
+          <Button type="submit" form="tag-form" size="sm" loading={busy}>
             {busy ? "Saving…" : isNew ? "Add tag" : "Save tag"}
           </Button>
         </>

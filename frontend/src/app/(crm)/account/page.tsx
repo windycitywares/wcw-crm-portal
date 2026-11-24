@@ -42,7 +42,7 @@ function Profile() {
           </Field>
           <Field label="Phone">{(p) => <Input {...p} maxLength={40} autoComplete="tel" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />}</Field>
           <div>
-            <Button type="submit" size="sm" disabled={busy || !form.full_name.trim()}>
+            <Button type="submit" size="sm" loading={busy}>
               {busy ? "Saving…" : "Save profile"}
             </Button>
           </div>
@@ -90,7 +90,7 @@ function ChangePassword() {
             {(p) => <Input {...p} type="password" autoComplete="new-password" required minLength={10} value={next} onChange={(e) => setNext(e.target.value)} />}
           </Field>
           <div>
-            <Button type="submit" size="sm" disabled={busy || !current || next.length < 10}>
+            <Button type="submit" size="sm" loading={busy}>
               {busy ? "Changing…" : "Change password"}
             </Button>
           </div>

@@ -10,10 +10,13 @@ const control =
   "w-full min-w-0 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-sm text-ink placeholder:text-muted/70 transition-colors hover:border-ink/40 focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25 disabled:cursor-not-allowed disabled:bg-canvas disabled:text-muted aria-[invalid=true]:border-danger aria-[invalid=true]:focus-visible:border-danger aria-[invalid=true]:focus-visible:ring-danger/20";
 
 export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  function Input({ className, type, ...props }, ref) {
+  function Input({ className, type, pattern, ...props }, ref) {
+    // A required text box must hold more than spaces; the browser counts "   " as filled in.
+    const textLike = type === undefined || type === "text" || type === "search" || type === "tel";
+    const blankGuard = props.required && textLike && !pattern ? { pattern: ".*\\S.*", "data-pattern-message": "Enter more than spaces." } : {};
     const singleLine = type !== "checkbox" && type !== "radio" && type !== "file" && type !== "color" && type !== "range";
     return (
-      <input ref={ref} type={type}
+      <input ref={ref} type={type} pattern={pattern} {...blankGuard}
         className={cn(singleLine ? cn(control, CONTROL_HEIGHT, "py-0") : type === "file" ? cn(control, "py-2 file:mr-3 file:rounded file:border-0 file:bg-sand file:px-3 file:py-1 file:text-sm file:font-medium") : "", className)}
         {...props} />
     );
@@ -64,7 +67,7 @@ export function validityMessage(el: Control, label: string): string {
     const decimals = step.includes(".") ? step.split(".")[1].length : 0;
     return decimals ? `Use up to ${decimals} decimal place${decimals === 1 ? "" : "s"}.` : `Use steps of ${step}.`;
   }
-  if (v.patternMismatch) return el.title || "Check the format.";
+  if (v.patternMismatch) return el.dataset.patternMessage || el.title || "Check the format.";
   if (v.customError) return el.validationMessage;
   return el.validationMessage || "Check this value.";
 }
