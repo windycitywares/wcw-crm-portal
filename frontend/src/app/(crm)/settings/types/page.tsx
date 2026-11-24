@@ -216,7 +216,7 @@ export default function TypesPage() {
             </ul>
             <form onSubmit={add} className="flex flex-wrap items-start gap-3 border-t border-line px-5 py-4">
               <Field label="New value" className="min-w-0 flex-1 sm:max-w-xs">
-                {(p) => <Input {...p} required value={label} onChange={(e) => setLabel(e.target.value)} required maxLength={120} />}
+                {(p) => <Input {...p} value={label} onChange={(e) => setLabel(e.target.value)} required maxLength={120} />}
               </Field>
               <Field label="Colour">
                 {(p) => (
