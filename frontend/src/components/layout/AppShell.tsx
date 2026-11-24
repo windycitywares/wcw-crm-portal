@@ -16,6 +16,7 @@ import { applyTheme, readTheme, saveTheme, type Theme } from "@/lib/theme";
 import { ROLE_LABEL } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { NavAccordion } from "./NavAccordion";
+import { NavSearch } from "./NavSearch";
 import { NotificationBell } from "./NotificationBell";
 import { NAV, SETTINGS_NAV, SUPPLIER_NAV, inSettings, titleFor, withChannels } from "./nav";
 import { channelsApi } from "@/modules/channels/api";
@@ -69,9 +70,8 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
     void channelsApi.cached().then((items) => alive && setConnected(items.filter((c) => c.connected).map((c) => c.key)));
     return () => { alive = false; };
   }, [mayView]);
-  return (
-    <nav aria-label={settings ? "Settings" : "CRM"} className={cn("flex-1 overflow-y-auto pb-6 pt-2", collapsed ? "px-2" : "px-4")}>
-      {supplier ? (
+  const menu = (
+      supplier ? (
         <NavAccordion groups={SUPPLIER_NAV} onNavigate={onNavigate} collapsed={collapsed} />
       ) : settings ? (
         <>
@@ -91,12 +91,18 @@ function SidebarNav({ onNavigate, collapsed }: { onNavigate?: () => void; collap
         </>
       ) : (
         <NavAccordion groups={withChannels(NAV, connected)} onNavigate={onNavigate} collapsed={collapsed} />
-      )}
+      )
+  );
+  const sections = supplier
+    ? [{ groups: SUPPLIER_NAV }]
+    : [{ groups: withChannels(NAV, connected) }, { prefix: "Settings", groups: SETTINGS_NAV }];
+  return (
+    <nav aria-label={settings ? "Settings" : "CRM"} className={cn("flex-1 overflow-y-auto pb-6 pt-2", collapsed ? "px-2" : "px-4")}>
+      {collapsed ? menu : <NavSearch sections={sections} onNavigate={onNavigate}>{menu}</NavSearch>}
     </nav>
   );
 }
 
-/** The WindyCityWares logo (the same artwork as the shop and the website). `compact` is the emblem alone, for the narrow sidebar. */
 function Brand({ compact = false, className = "h-[22px] w-auto" }: { compact?: boolean; className?: string }) {
   return (
     <Link href="/dashboard" className="flex min-w-0 items-center rounded-[var(--radius-control)] px-1 py-1" aria-label="WindyCityWares CRM home">
