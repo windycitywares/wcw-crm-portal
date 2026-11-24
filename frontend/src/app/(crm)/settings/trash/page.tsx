@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
-import { Field, Input, Select } from "@/components/ui/Field";
+import { Field, Input, Select, FieldActions } from "@/components/ui/Field";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
@@ -136,11 +136,11 @@ function RetentionPanel({ days, onSaved }: { days: number; onSaved: () => void }
     <Panel>
       <PanelHeader title="How long to keep deleted records" description="After this many days the Trash empties itself." />
       <PanelBody>
-        <form onSubmit={save} className="flex flex-wrap items-end gap-3">
+        <form onSubmit={save} className="flex flex-wrap items-start gap-3">
           <Field label="Days in the Trash" hint="1 to 3650">
-            {(p) => <Input {...p} type="number" min={1} max={3650} required value={value} onChange={(e) => setValue(e.target.value)} className="w-32" />}
+            {(p) => <Input {...p} type="number" min={1} max={3650} step={1} required value={value} onChange={(e) => setValue(e.target.value)} className="w-32" />}
           </Field>
-          <Button type="submit" size="sm" disabled={busy}>{busy ? "Saving…" : "Save retention"}</Button>
+          <FieldActions><Button type="submit" size="sm" loading={busy}>Save retention</Button></FieldActions>
         </form>
       </PanelBody>
     </Panel>

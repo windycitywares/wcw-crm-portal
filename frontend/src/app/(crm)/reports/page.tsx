@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/ui/Field";
 import { useEffect, useState } from "react";
 import Papa from "papaparse";
 import { Button } from "@/components/ui/Button";
@@ -203,9 +204,9 @@ export default function ReportsPage() {
               <div className="flex items-center gap-3 mb-4">
                 <label className="flex items-center gap-2 text-sm text-muted font-medium">
                   Window
-                  <select value={campaignDays} onChange={(e) => setCampaignDays(Number(e.target.value))} className="h-9 rounded border border-line bg-surface px-2 text-sm text-ink">
+                  <Select className="w-auto" value={campaignDays} onChange={(e) => setCampaignDays(Number(e.target.value))}>
                     {windows.map((days) => <option key={days} value={days}>{days} days</option>)}
-                  </select>
+                  </Select>
                 </label>
                 <span className="mx-1 h-4 w-px bg-line" />
                 <span className="text-sm font-medium text-ink">{trend.points.reduce((sum, p) => sum + p.count, 0).toLocaleString()} orders placed</span>

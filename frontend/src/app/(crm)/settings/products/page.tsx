@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Field, Input } from "@/components/ui/Field";
+import { Field, Input, FieldActions } from "@/components/ui/Field";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
@@ -81,9 +81,9 @@ export default function ProductSettingsPage() {
             ))}
           </div>
           {canManage && (
-            <form onSubmit={add} className="flex flex-wrap items-end gap-2">
-              <Field label="New product type">{(p) => <Input {...p} placeholder="Jewelry, Candles…" value={newName} maxLength={60} onChange={(e) => setNewName(e.target.value)} />}</Field>
-              <Button type="submit" size="sm" disabled={busy || !newName.trim()}>Add type</Button>
+            <form onSubmit={add} className="flex flex-wrap items-start gap-2">
+              <Field label="New product type">{(p) => <Input {...p} placeholder="Jewelry, Candles…" value={newName} required maxLength={60} onChange={(e) => setNewName(e.target.value)} />}</Field>
+              <FieldActions><Button type="submit" size="sm" loading={busy}>Add type</Button></FieldActions>
             </form>
           )}
         </PanelBody>
@@ -240,12 +240,12 @@ function SizesPanel({ type, canManage, onChange }: { type: ProductType; canManag
           ))}
         </ul>
         {canManage && (
-          <form className="grid grid-cols-[minmax(0,1fr)] items-end gap-2 border-t border-line pt-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]"
+          <form className="grid grid-cols-[minmax(0,1fr)] items-start gap-2 border-t border-line pt-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]"
             onSubmit={(e) => { e.preventDefault(); void act(() => urnsApi.addSize({ type_id: type.id, code: code.trim(), label: newLabel.trim() || `${code.trim()} inch` }), "Size added", code)
               .then(() => { setCode(""); setNewLabel(""); }); }}>
-            <Field label="Code in the SKU" hint="E.g. 7">{(p) => <Input {...p} value={code} maxLength={10} onChange={(e) => setCode(e.target.value)} />}</Field>
+            <Field label="Code in the SKU" hint="E.g. 7">{(p) => <Input {...p} value={code} required maxLength={10} pattern="[A-Za-z0-9]+" title="Letters and numbers only, no spaces." onChange={(e) => setCode(e.target.value)} />}</Field>
             <Field label="Name">{(p) => <Input {...p} placeholder="7 inch" value={newLabel} maxLength={40} onChange={(e) => setNewLabel(e.target.value)} />}</Field>
-            <Button type="submit" size="sm" disabled={busy || !code.trim()}>Add size</Button>
+            <FieldActions><Button type="submit" size="sm" loading={busy}>Add size</Button></FieldActions>
           </form>
         )}
       </PanelBody>
