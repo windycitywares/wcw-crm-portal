@@ -71,7 +71,7 @@ export function DataTable<T>({
                   key={c.key}
                   scope="col"
                   aria-sort={c.sort && active ? (sort?.dir === "asc" ? "ascending" : "descending") : undefined}
-                  className={cn("whitespace-nowrap px-4 py-2.5 font-medium", ALIGN[c.align ?? "left"], c.hide && HIDE[c.hide], c.className)}
+                  className={cn("whitespace-nowrap px-3 py-2.5 font-medium sm:px-4", ALIGN[c.align ?? "left"], c.hide && HIDE[c.hide], c.className)}
                 >
                   {c.sort && onSort ? (
                     <button type="button" onClick={() => onSort(c.sort as string)} className={cn("inline-flex items-center gap-1 hover:text-ink", active && "text-ink")}>
@@ -102,7 +102,7 @@ export function DataTable<T>({
             : rows.map((row, i) => (
                 <tr key={rowKey(row)} className={cn("hover:bg-sand/80", rowClassName?.(row))}>
                   {columns.map((c) => (
-                    <td key={c.key} className={cn("px-4 py-3 align-middle", ALIGN[c.align ?? "left"], c.hide && HIDE[c.hide], c.className)}>
+                    <td key={c.key} className={cn("px-3 py-3 align-middle sm:px-4", ALIGN[c.align ?? "left"], c.hide && HIDE[c.hide], c.key === "actions" && "max-sm:[&>div]:flex-col max-sm:[&>div]:items-end max-sm:[&>div]:gap-1", c.className)}>
                       {c.cell(row, i)}
                     </td>
                   ))}
