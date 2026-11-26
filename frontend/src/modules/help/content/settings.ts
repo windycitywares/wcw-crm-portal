@@ -202,7 +202,7 @@ export const SETTINGS_TOPICS: HelpTopic[] = [
     match: /^\/settings\/environment/,
     title: "Test mode",
     summary: "Work on a copy of your data without touching the real thing. Good for trying things out safely.",
-    steps: ["Check Current mode to see whether you are in test mode.", "Switch on test mode to work on the copy.", "Use Test data to refresh the copy from the live data."],
+    steps: ["Press Switch to test. The live data is copied and the whole CRM works on the copy. Everyone is signed out and signs in again.", "Press Switch to live to go back to the real data. The test copy is kept until you delete it.", "Re-copy live data replaces the test copy with a fresh one. Everything done while testing is lost.", "Delete test data removes the copy. The live data is never touched."],
     affects: ["While test mode is on, a banner shows at the top of every page, and nothing you do changes the live data."],
     who: [MANAGE],
     keywords: "sandbox practice copy safe",
