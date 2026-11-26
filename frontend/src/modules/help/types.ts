@@ -26,7 +26,7 @@ export interface HelpTopic {
   keywords?: string;
 }
 
-export type FlowId = "etsy";
+export type FlowId = "etsy" | "sales" | "support";
 
 export interface FlowNode {
   id: string;

@@ -18,4 +18,30 @@ export const FLOWS: Record<FlowId, Flow> = {
       { id: "payments", label: "Supplier payments", href: "/channels/etsy/payments", note: "See what you owe each supplier and mark what you have paid." },
     ],
   },
+  sales: {
+    id: "sales",
+    title: "From a possible customer to a won deal",
+    intro: "A person starts as a lead, becomes a customer, and any sale to them is tracked as a deal on a pipeline.",
+    nodes: [
+      { id: "pipelines", label: "Pipelines", href: "/settings/pipelines", note: "Set up the stages a deal moves through. Done once." },
+      { id: "leads", label: "Leads", href: "/leads", note: "People who might buy. Contact them and mark how it went." },
+      { id: "customers", label: "Customers", href: "/customers", note: "A lead who is serious becomes a customer, with all their history in one place." },
+      { id: "deals", label: "Deals", href: "/sales", note: "Each possible sale, moved along its stages until it is won or lost." },
+      { id: "tasks", label: "Tasks", href: "/tasks", note: "Follow-ups so nobody is forgotten: calls, emails, reminders." },
+      { id: "reports", label: "Reports", href: "/reports", note: "See the forecast and what was won." },
+    ],
+  },
+  support: {
+    id: "support",
+    title: "From a customer's message to a solved ticket",
+    intro: "Every conversation is a ticket. Messages arrive by email or from the shop's contact form, and the clock starts when they arrive.",
+    nodes: [
+      { id: "mailbox", label: "Email accounts", href: "/settings/email-accounts", note: "Connect the mailbox the CRM reads. Done once." },
+      { id: "sla", label: "SLA policies", href: "/settings/sla-policies", note: "Set how fast you promise to reply and to solve." },
+      { id: "inbox", label: "Inbox", href: "/inbox", note: "New messages wait here for a reply." },
+      { id: "tickets", label: "Tickets", href: "/tickets", note: "Assign it, reply, change the status until it is solved." },
+      { id: "customers", label: "Customers", href: "/customers", note: "The customer's page shows all their tickets and orders." },
+      { id: "reports", label: "Reports", href: "/reports", note: "See response times and how many tickets were late." },
+    ],
+  },
 };
