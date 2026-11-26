@@ -7,6 +7,7 @@ import { Field, Input, FieldActions } from "@/components/ui/Field";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { useToast } from "@/components/ui/Toast";
 import { urnsApi, type ProductType, type UrnSize } from "@/modules/urns/api";
+import { TIPS } from "@/modules/help/tips";
 
 const err = (e: unknown) => (e instanceof Error ? e.message : undefined);
 
@@ -51,15 +52,15 @@ export function TypePanel({ type, canManage, onChange }: { type: ProductType; ca
       <PanelBody>
         <form onSubmit={save} className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-6">
           <Field label="Name" className="sm:col-span-2">{(p) => <Input {...p} required value={draft.name} maxLength={60} disabled={!canManage} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />}</Field>
-          <Field label="Short code" hint="What {type} writes, e.g. U">{(p) => <Input {...p} className="font-mono" value={draft.code} maxLength={10} disabled={!canManage} onChange={(e) => setDraft({ ...draft, code: e.target.value.toUpperCase() })} />}</Field>
-          <Field label="Template" className="sm:col-span-3"
+          <Field label="Short code" tip={TIPS.typeCode} hint="What {type} writes, e.g. U">{(p) => <Input {...p} className="font-mono" value={draft.code} maxLength={10} disabled={!canManage} onChange={(e) => setDraft({ ...draft, code: e.target.value.toUpperCase() })} />}</Field>
+          <Field label="Template" className="sm:col-span-3" tip={TIPS.skuTemplate}
             hint={`{supplier:3} supplier number · {product:4} product number${hasSizes ? " · {sizes} the pieces" : ""} · {type} the short code · {-option} reserved`}>
             {(p) => <Input {...p} className="font-mono" value={draft.template} maxLength={80} disabled={!canManage} onChange={(e) => setDraft({ ...draft, template: e.target.value })} />}
           </Field>
           {hasSizes && (
             <>
-              <Field label="One size" hint="{code} and {qty}">{(p) => <Input {...p} className="font-mono" value={draft.size_format} maxLength={20} disabled={!canManage} onChange={(e) => setDraft({ ...draft, size_format: e.target.value })} />}</Field>
-              <Field label="Between sizes">{(p) => <Input {...p} className="font-mono" value={draft.separator} maxLength={3} disabled={!canManage} onChange={(e) => setDraft({ ...draft, separator: e.target.value })} />}</Field>
+              <Field label="One size" tip={TIPS.sizeFormat} hint="{code} and {qty}">{(p) => <Input {...p} className="font-mono" value={draft.size_format} maxLength={20} disabled={!canManage} onChange={(e) => setDraft({ ...draft, size_format: e.target.value })} />}</Field>
+              <Field label="Between sizes" tip={TIPS.sizeSeparator}>{(p) => <Input {...p} className="font-mono" value={draft.separator} maxLength={3} disabled={!canManage} onChange={(e) => setDraft({ ...draft, separator: e.target.value })} />}</Field>
             </>
           )}
           <div className="sm:col-span-6">
@@ -117,7 +118,7 @@ export function SizesPanel({ type, canManage, onChange }: { type: ProductType; c
                 <form className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]"
                   onSubmit={(e) => { e.preventDefault(); void act(() => urnsApi.editSize(s.id, { label, aliases: aliases.split(",").map((a) => a.trim()).filter(Boolean) }), "Size saved", label); }}>
                   <Field label="Name">{(p) => <Input {...p} required value={label} maxLength={40} onChange={(e) => setLabel(e.target.value)} />}</Field>
-                  <Field label="Words that mean this size" hint="Separated by commas, e.g. large, adult">{(p) => <Input {...p} maxLength={200} value={aliases} onChange={(e) => setAliases(e.target.value)} />}</Field>
+                  <Field label="Words that mean this size" tip={TIPS.sizeWords} hint="Separated by commas, e.g. large, adult">{(p) => <Input {...p} maxLength={200} value={aliases} onChange={(e) => setAliases(e.target.value)} />}</Field>
                   <div className="flex items-end gap-1">
                     <Button type="submit" size="sm" loading={busy}>Save size</Button>
                     <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>

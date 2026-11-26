@@ -12,6 +12,7 @@ import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { Pill } from "@/components/ui/Pill";
 import { useToast } from "@/components/ui/Toast";
 import { salesApi, type DealStage, type Pipeline } from "./api";
+import { TIPS } from "@/modules/help/tips";
 
 type Outcome = "open" | "won" | "lost";
 
@@ -328,7 +329,7 @@ export function PipelineSettings() {
             <Field label="Name" className="sm:col-span-2">
               {(p) => <Input {...p} required maxLength={80} autoFocus value={stageForm.name} onChange={(e) => setStageForm({ ...stageForm, name: e.target.value })} />}
             </Field>
-            <Field label="Probability %" hint="A deal here counts this much in the forecast.">
+            <Field label="Probability %" tip={TIPS.probability} hint="A deal here counts this much in the forecast.">
               {(p) => (
                 <Input
                   {...p}

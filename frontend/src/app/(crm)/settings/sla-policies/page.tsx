@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth";
 import { errorText } from "@/modules/settings/api";
 import { useLookups } from "@/modules/settings/useLookups";
 import { formatBusinessMinutes, ticketsApi, type SlaPolicy, type SlaPolicyInput } from "@/modules/tickets/api";
+import { TIPS } from "@/modules/help/tips";
 
 interface Form {
   name: string;
@@ -104,7 +105,7 @@ function PolicyDialog({ open, policy, onClose, onSaved }: { open: boolean; polic
         <Field label="Name" className="sm:col-span-2">
           {(p) => <Input {...p} required maxLength={80} autoFocus value={form.name} onChange={(e) => set("name", e.target.value)} />}
         </Field>
-        <Field label="Priority" hint="Optional.">
+        <Field label="Priority" tip={TIPS.slaMatch} hint="Optional.">
           {(p) => (
             <Select {...p} value={form.priority} onChange={(e) => set("priority", e.target.value)}>
               <option value="">Any priority</option>
@@ -128,10 +129,10 @@ function PolicyDialog({ open, policy, onClose, onSaved }: { open: boolean; polic
             </Select>
           )}
         </Field>
-        <Field label="First reply (hours)" hint="8 hours = one business day.">
+        <Field label="First reply (hours)" tip={TIPS.slaHours} hint="8 hours = one business day.">
           {(p) => <Input {...p} type="number" min="0.25" max="1440" step="0.25" required value={form.response} onChange={(e) => set("response", e.target.value)} />}
         </Field>
-        <Field label="Resolve within (hours)" hint="8 hours = one business day.">
+        <Field label="Resolve within (hours)" tip={TIPS.slaHours} hint="8 hours = one business day.">
           {(p) => <Input {...p} type="number" min="0.25" max="1440" step="0.25" required value={form.resolve} onChange={(e) => set("resolve", e.target.value)} />}
         </Field>
         <label className="flex items-center gap-2 text-sm sm:col-span-2">

@@ -8,6 +8,7 @@ import { Pill } from "@/components/ui/Pill";
 import { useToast } from "@/components/ui/Toast";
 import { errorText } from "@/modules/settings/api";
 import { inboxApi, PORT_FOR, SECURITY_LABEL, type Mailbox, type MailboxCheck, type MailboxSecurity } from "./api";
+import { TIPS } from "@/modules/help/tips";
 
 const SECURITIES: MailboxSecurity[] = ["ssl", "starttls", "none"];
 
@@ -165,7 +166,7 @@ export function MailboxDialog({ open, mailbox, onClose, onSaved }: { open: boole
               {(p) => <Input {...p} required maxLength={255} placeholder="imap.example.com" value={form.imap_host} onChange={(e) => set({ imap_host: e.target.value })} />}
             </Field>
             <div className="grid grid-cols-[1fr_7rem] gap-3">
-              <Field label="Security">
+              <Field label="Security" tip={TIPS.imapSecurity}>
                 {(p) => (
                   <Select
                     {...p}
@@ -188,7 +189,7 @@ export function MailboxDialog({ open, mailbox, onClose, onSaved }: { open: boole
                 {(p) => <Input {...p} type="number" min={1} max={65535} required value={form.imap_port} onChange={(e) => set({ imap_port: Number(e.target.value) })} />}
               </Field>
             </div>
-            <Field label="Username" hint="Leave blank to sign in as the address itself.">
+            <Field label="Username" tip={TIPS.imapUsername} hint="Leave blank to sign in as the address itself.">
               {(p) => <Input {...p} maxLength={320} autoComplete="off" value={form.imap_user} onChange={(e) => set({ imap_user: e.target.value })} />}
             </Field>
             <Field label="Password" hint={mailbox ? "Leave blank to keep the stored one." : "Kept encrypted; the API never returns it."}>
@@ -196,7 +197,7 @@ export function MailboxDialog({ open, mailbox, onClose, onSaved }: { open: boole
                 <Input {...p} type="password" maxLength={500} autoComplete="new-password" required={!mailbox} value={form.imap_password} onChange={(e) => set({ imap_password: e.target.value })} />
               )}
             </Field>
-            <Field label="Folder" hint="Usually INBOX.">
+            <Field label="Folder" tip={TIPS.imapFolder} hint="Usually INBOX.">
               {(p) => <Input {...p} required maxLength={120} value={form.folder} onChange={(e) => set({ folder: e.target.value })} />}
             </Field>
             <div className="flex items-end pb-3">
