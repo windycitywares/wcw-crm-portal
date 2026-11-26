@@ -1,10 +1,12 @@
 import type { HelpTopic } from "../types";
 import { CATALOG_TOPICS } from "./catalog";
 import { CRM_TOPICS } from "./crm";
+import { MARKETING_TOPICS } from "./marketing";
+import { SETTINGS_TOPICS } from "./settings";
 import { ETSY_TOPICS } from "./etsy";
 
 /** Every page with a guide. The first topic whose `match` fits the address wins. */
-export const TOPICS: HelpTopic[] = [...ETSY_TOPICS, ...CATALOG_TOPICS, ...CRM_TOPICS];
+export const TOPICS: HelpTopic[] = [...ETSY_TOPICS, ...CATALOG_TOPICS, ...CRM_TOPICS, ...MARKETING_TOPICS, ...SETTINGS_TOPICS];
 
 export function topicFor(pathname: string): HelpTopic | undefined {
   return TOPICS.find((t) => t.match.test(pathname));
