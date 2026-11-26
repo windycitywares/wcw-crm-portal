@@ -9,6 +9,7 @@ import { Pill } from "@/components/ui/Pill";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import { errorText, settingsApi, type EmailSettings } from "@/modules/settings/api";
+import { TIPS } from "@/modules/help/tips";
 
 type Form = Omit<EmailSettings, "smtp_password_set"> & { smtp_password: string };
 
@@ -92,7 +93,7 @@ export default function EmailSettingsPage() {
             <Field label="SMTP host" className="sm:col-span-2" hint="e.g. mail.windycitywares.com">
               {(p) => <Input {...p} maxLength={253} value={form.smtp_host} onChange={(e) => set("smtp_host", e.target.value)} autoComplete="off" />}
             </Field>
-            <Field label="Security">
+            <Field label="Security" tip={TIPS.smtpSecurity}>
               {(p) => (
                 <Select
                   {...p}
@@ -136,16 +137,16 @@ export default function EmailSettingsPage() {
             <Field label="From address">
               {(p) => <Input {...p} maxLength={254} type="email" value={form.from_address} onChange={(e) => set("from_address", e.target.value)} />}
             </Field>
-            <Field label="Reply-to address" hint="Optional. Where replies go.">
+            <Field label="Reply-to address" tip={TIPS.replyTo} hint="Optional. Where replies go.">
               {(p) => <Input {...p} maxLength={254} type="email" value={form.reply_to} onChange={(e) => set("reply_to", e.target.value)} />}
             </Field>
-            <Field label="Postal address" hint="Required in campaign footers (CAN-SPAM).">
+            <Field label="Postal address" tip={TIPS.postalAddress} hint="Required in campaign footers (CAN-SPAM).">
               {(p) => <Input {...p} maxLength={300} value={form.footer_address} onChange={(e) => set("footer_address", e.target.value)} />}
             </Field>
-            <Field label="Daily limit" hint="All emails, any rolling 24 hours. Check your host's limit.">
+            <Field label="Daily limit" tip={TIPS.dailyLimit} hint="All emails, any rolling 24 hours. Check your host's limit.">
               {(p) => <Input {...p} type="number" min={1} max={100000} step={1} required value={form.daily_limit} onChange={(e) => set("daily_limit", Number(e.target.value))} />}
             </Field>
-            <Field label="Per minute" hint="Pacing, so the host doesn't flag you.">
+            <Field label="Per minute" tip={TIPS.perMinute} hint="Pacing, so the host doesn't flag you.">
               {(p) => <Input {...p} type="number" min={1} max={600} value={form.per_minute} onChange={(e) => set("per_minute", Number(e.target.value))} />}
             </Field>
           </PanelBody>

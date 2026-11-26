@@ -9,6 +9,7 @@ import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { useToast } from "@/components/ui/Toast";
 import { formatDate } from "@/lib/utils";
 import { urnsApi, type CostExtra } from "./api";
+import { TIPS } from "@/modules/help/tips";
 
 /** In words: "−10% of the supplier price, per piece · supplier's" or "+$4.00 once per order · ours". */
 export function describeExtra(e: CostExtra, sizes: { code: string; label: string }[]): string {
@@ -104,14 +105,14 @@ export function ExtrasPanel({ urnId, typeId = null, extras, sizes, canManage, on
         {canManage && (
           <form onSubmit={add} className="grid grid-cols-[minmax(0,1fr)] gap-3 border-t border-line pt-4 sm:grid-cols-6">
             <Field label="Name" className="sm:col-span-2">{(p) => <Input {...p} placeholder="Packaging, supplier discount…" required value={draft.name} maxLength={80} onChange={(e) => set({ name: e.target.value })} />}</Field>
-            <Field label="Adds or subtracts">
+            <Field label="Adds or subtracts" tip={TIPS.extraSign}>
               {(p) => <Select {...p} value={draft.sign} onChange={(e) => set({ sign: e.target.value })}><option value="+">Adds (+)</option><option value="-">Subtracts (−)</option></Select>}
             </Field>
             <Field label="Amount">{(p) => <Input {...p} type="number" min="0.01" max="100000" step="0.01" inputMode="decimal" required value={draft.value} onChange={(e) => set({ value: e.target.value })} />}</Field>
-            <Field label="As">
+            <Field label="As" tip={TIPS.extraMode}>
               {(p) => <Select {...p} value={draft.mode} onChange={(e) => set({ mode: e.target.value, applies: e.target.value === "percent" ? "piece" : draft.applies })}><option value="amount">Dollars</option><option value="percent">% of supplier price</option></Select>}
             </Field>
-            <Field label="Counted">
+            <Field label="Counted" tip={TIPS.extraApplies}>
               {(p) => (
                 <Select {...p} value={draft.applies} onChange={(e) => set({ applies: e.target.value })} disabled={draft.mode === "percent"}>
                   <option value="piece">Per piece</option><option value="order">Once per order</option>
@@ -119,7 +120,7 @@ export function ExtrasPanel({ urnId, typeId = null, extras, sizes, canManage, on
               )}
             </Field>
             {draft.applies === "piece" && (
-              <Field label="Pieces of">
+              <Field label="Pieces of" tip={TIPS.extraPieces}>
                 {(p) => (
                   <Select {...p} value={draft.size_code} onChange={(e) => set({ size_code: e.target.value })}>
                     <option value="">Any size</option>
@@ -128,10 +129,10 @@ export function ExtrasPanel({ urnId, typeId = null, extras, sizes, canManage, on
                 )}
               </Field>
             )}
-            <Field label="Whose">
+            <Field label="Whose" tip={TIPS.extraWhose}>
               {(p) => <Select {...p} value={draft.party} onChange={(e) => set({ party: e.target.value })}><option value="supplier">Supplier's (owed to them)</option><option value="ours">Ours (profit only)</option></Select>}
             </Field>
-            <Field label="From" hint="Empty = today">{(p) => <Input {...p} type="date" value={draft.effective_from} onChange={(e) => set({ effective_from: e.target.value })} />}</Field>
+            <Field label="From" tip={TIPS.extraFrom} hint="Empty = today">{(p) => <Input {...p} type="date" value={draft.effective_from} onChange={(e) => set({ effective_from: e.target.value })} />}</Field>
             <div className="flex items-end sm:col-span-2">
               <Button type="submit" size="sm" loading={busy}>Add extra cost</Button>
             </div>

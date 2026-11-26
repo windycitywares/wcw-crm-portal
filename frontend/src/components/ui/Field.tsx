@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { Icon } from "./Icon";
 
 /** One height for every single-line control, so a row of inputs, selects and buttons lines up. */
 export const CONTROL_HEIGHT = "h-9";
@@ -86,6 +87,7 @@ export function Field({
   children,
   className,
   hideLabel,
+  tip,
 }: {
   label: string;
   hint?: React.ReactNode;
@@ -93,12 +95,17 @@ export function Field({
   className?: string;
   /** Keep the label for screen readers but don't show it (a search box with a clear placeholder). */
   hideLabel?: boolean;
+  /** A plain-words explanation of a field that is easy to get wrong. Shows an ⓘ beside the label that opens it in place
+   *  (works with a tap as well as a mouse). Keep the wording in modules/help/tips.ts. */
+  tip?: React.ReactNode;
   children: (props: { id: string; "aria-describedby"?: string; "aria-invalid"?: boolean }) => React.ReactNode;
 }) {
   const id = useId();
   const box = useRef<HTMLDivElement>(null);
   const [own, setOwn] = useState<string | undefined>();
   const [required, setRequired] = useState(false);
+  const [tipOpen, setTipOpen] = useState(false);
+  const tipId = `${id}-tip`;
   const shown = error ?? own;
   const errorId = shown ? `${id}-error` : undefined;
   const hintId = hint && !shown ? `${id}-hint` : undefined;
@@ -147,10 +154,27 @@ export function Field({
 
   return (
     <div ref={box} className={cn("min-w-0 space-y-1", className)}>
-      <Label htmlFor={id} className={hideLabel ? "sr-only" : undefined}>
-        {label}
-        {required && <span aria-hidden="true" className="ml-0.5 text-danger">*</span>}
-      </Label>
+      {tip ? (
+        <div className={cn("mb-1 flex items-center gap-1", hideLabel && "sr-only")}>
+          <Label htmlFor={id} className="mb-0">
+            {label}
+            {required && <span aria-hidden="true" className="ml-0.5 text-danger">*</span>}
+          </Label>
+          <button type="button" onClick={() => setTipOpen((o) => !o)} aria-expanded={tipOpen} aria-controls={tipId}
+            className="grid size-5 shrink-0 place-items-center rounded-full text-muted hover:bg-sand hover:text-accent focus-visible:outline-2">
+            <Icon name="info" className="size-4" />
+            <span className="sr-only">About {label.replace(/\s*\(.*\)\s*$/, "").toLowerCase()}</span>
+          </button>
+        </div>
+      ) : (
+        <Label htmlFor={id} className={hideLabel ? "sr-only" : undefined}>
+          {label}
+          {required && <span aria-hidden="true" className="ml-0.5 text-danger">*</span>}
+        </Label>
+      )}
+      {tip && tipOpen && (
+        <div id={tipId} role="note" className="rounded-[var(--radius-control)] bg-canvas px-3 py-2 text-xs leading-relaxed text-ink/85">{tip}</div>
+      )}
       {children({ id, "aria-describedby": describedBy, "aria-invalid": shown ? true : undefined })}
       {hint && !shown && (
         <p id={hintId} className="text-xs text-muted">
