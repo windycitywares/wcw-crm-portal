@@ -72,6 +72,7 @@ export const NAV: NavGroup[] = [
       { href: "/settings/users", label: "Team", icon: "users", permission: "users:manage" },
     ],
   },
+  { items: [{ href: "/help", label: "Help center", icon: "help", keywords: "guide, how to, manual, flow chart, instructions, learn" }] },
 ];
 
 /**

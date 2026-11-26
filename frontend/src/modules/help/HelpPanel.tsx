@@ -49,7 +49,7 @@ function H({ children }: { children: React.ReactNode }) {
   return <h3 className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-muted">{children}</h3>;
 }
 
-function Guide({ topic, onNavigate }: { topic: HelpTopic; onNavigate: () => void }) {
+export function Guide({ topic, onNavigate }: { topic: HelpTopic; onNavigate: () => void }) {
   const { can } = useAuth();
   return (
     <div>
@@ -206,6 +206,9 @@ function HelpPanel() {
                   </Link>
                 )}
                 <div className="mt-3"><Guide topic={topic} onNavigate={() => setViewing(null)} /></div>
+                <p className="mt-8 border-t border-line pt-4 text-sm">
+                  <Link href={`/help?topic=${topic.id}`} onClick={() => setViewing(null)} className="text-accent hover:underline">Read this in the Help center</Link>
+                </p>
               </div>
             ) : (
               <div className="text-sm leading-relaxed">
@@ -216,6 +219,7 @@ function HelpPanel() {
                   <li>Press <kbd className="rounded border border-line px-1.5 text-xs">/</kbd> to find any page by name in the menu.</li>
                   <li>Press <kbd className="rounded border border-line px-1.5 text-xs">?</kbd> on any page to open this help again.</li>
                 </ul>
+                <p className="mt-3"><Link href="/help" className="text-accent hover:underline">Open the Help center</Link></p>
                 <H>Pages with a guide</H>
                 <ul className="space-y-1">
                   {TOPICS.map((t) => (

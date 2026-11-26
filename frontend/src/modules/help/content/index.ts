@@ -29,3 +29,18 @@ export function searchTopics(q: string): HelpTopic[] {
     .sort((a, b) => a.score - b.score || a.t.title.localeCompare(b.t.title))
     .map((x) => x.t);
 }
+
+/** The Help center groups guides by area, found from the page each one describes. */
+export const GROUPS: { label: string; test: (href: string) => boolean }[] = [
+  { label: "Overview", test: (h) => ["/dashboard", "/reports", "/account"].includes(h) },
+  { label: "Customers and sales", test: (h) => /^\/(customers|contacts|accounts|leads|sales)/.test(h) },
+  { label: "Support and tasks", test: (h) => /^\/(inbox|tickets|tasks)/.test(h) },
+  { label: "Campaigns", test: (h) => /^\/(campaigns|subscribers)/.test(h) },
+  { label: "Suppliers", test: (h) => /^\/suppliers/.test(h) },
+  { label: "Etsy", test: (h) => /^\/channels\/etsy/.test(h) },
+  { label: "Settings", test: (h) => /^\/settings/.test(h) },
+];
+
+export function groupedTopics(list: HelpTopic[] = TOPICS): { label: string; topics: HelpTopic[] }[] {
+  return GROUPS.map((g) => ({ label: g.label, topics: list.filter((t) => g.test(t.href)) })).filter((g) => g.topics.length > 0);
+}
