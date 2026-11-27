@@ -5,6 +5,30 @@ const LOOKUPS = { permission: "lookups:manage", text: "Change these lists (manag
 
 export const SETTINGS_TOPICS: HelpTopic[] = [
   {
+    id: "roles",
+    href: "/settings/users",
+    match: /^\/never-matches-a-page$/,
+    title: "Who can do what (roles)",
+    summary: "Every person has one role. The role decides which pages they see and what they may change. If you cannot see a page or a button, your role does not include it. Ask an admin to change your role.",
+    meanings: [
+      { term: "Admin", text: "Can do everything: users and roles, settings and integrations, connecting Etsy, paying suppliers, exporting, deleting for good, the audit log and the Trash." },
+      { term: "Manager", text: "Runs the team day to day. Can see and change everyone's customers, deals, tasks and tickets, assign work, merge customers, edit suppliers, manage the shared inbox and the type lists, export data, read the audit log and restore from the Trash. Cannot manage users, connect Etsy, pay suppliers or change system settings." },
+      { term: "Sales", text: "Can see customers, deals, tasks, tickets, suppliers and Etsy orders. Can add and edit their own customers, deals and tasks. Cannot edit other people's records, work tickets, send campaigns, or see reports." },
+      { term: "Support", text: "Works the tickets and the inbox, edits any customer, handles Etsy orders (buying from the supplier, shipping, tracking) and does their own tasks. Can see deals but not change them. Cannot send campaigns or see suppliers or reports." },
+      { term: "Marketing", text: "Builds and sends campaigns: templates, lists, segments. Can see customers and reports and do their own tasks. Cannot edit customers, deals or tickets." },
+      { term: "Read-only", text: "Can look at customers, deals, tasks, tickets, campaigns, suppliers and reports, and change nothing." },
+      { term: "Supplier", text: "An outside supplier's login. Sees only their own marketplace orders and payments in the supplier portal, and nothing else in the CRM." },
+      { term: "Own vs any", text: "“Own” means records you are the owner of. “Any” means everyone's." },
+    ],
+    tips: [
+      { q: "Why is a button greyed out or missing?", a: "Your role does not allow that action. The Who can use this part of each guide says which role may." },
+      { q: "Who can see the audit log, export data or empty the Trash?", a: "Managers and admins can read the audit log, export and restore from the Trash. Only admins delete for good." },
+    ],
+    who: [{ permission: "users:manage", text: "Change someone's role (admins)." }],
+    related: [{ href: "/settings/users", label: "Users" }, { href: "/settings/supplier-logins", label: "Supplier logins" }],
+    keywords: "roles permissions access allowed admin manager sales support marketing read-only supplier can cannot",
+  },
+  {
     id: "settings-users",
     href: "/settings/users",
     match: /^\/settings\/users/,
