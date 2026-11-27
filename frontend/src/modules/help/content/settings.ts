@@ -197,6 +197,18 @@ export const SETTINGS_TOPICS: HelpTopic[] = [
     keywords: "deploy update release live version",
   },
   {
+    id: "settings-help-feedback",
+    href: "/settings/help-feedback",
+    match: /^\/settings\/help-feedback/,
+    title: "Help feedback",
+    summary: "What people said when they were asked “Was this helpful?” at the end of a guide. The guides people found least helpful are at the top, so you know which to rewrite first.",
+    steps: ["Read the list: each row is a guide, with how many people said yes and no.", "Press Show answers on a row to read the comments people left.", "Use “Only not helpful” to read just the thumbs-down answers."],
+    tips: [{ q: "Who sees my feedback?", a: "Admins can read the answers, along with the name of the person who sent them." }],
+    who: [MANAGE],
+    related: [{ href: "/help", label: "Help center" }],
+    keywords: "feedback thumbs comments guide helpful rewrite",
+  },
+  {
     id: "settings-environment",
     href: "/settings/environment",
     match: /^\/settings\/environment/,
