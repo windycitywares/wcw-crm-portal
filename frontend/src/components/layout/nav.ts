@@ -158,6 +158,7 @@ export const SETTINGS_NAV: NavGroup[] = [
       { href: "/settings/integrations", label: "Integrations", icon: "globe", permission: "settings:manage", keywords: "shop, webhook, api, keys" },
       { href: "/settings/channels", label: "Sales channels", icon: "cart", permission: "channels:manage", keywords: "etsy, connect, amazon" },
       { href: "/settings/deployments", label: "Deployments", icon: "download", permission: "settings:manage", keywords: "deploy, update, release" },
+      { href: "/settings/help-feedback", label: "Help feedback", icon: "help", permission: "settings:manage", keywords: "guide, was this helpful, thumbs, comments, confusing" },
       { href: "/settings/environment", label: "Test mode", icon: "flask", permission: "settings:manage", keywords: "sandbox, environment" },
     ],
   },

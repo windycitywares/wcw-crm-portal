@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth";
 const ABOUT: Record<string, string> = {
   "/settings/users": "Who can sign in, and their role.",
   "/settings/audit": "Every change, who made it and when.",
+  "/settings/help-feedback": "Which help guides people found useful, and what they found confusing.",
   "/settings/types": "Customer, ticket, task and supplier types, sources and more.",
   "/settings/tags": "The labels you put on customers and other records.",
   "/settings/custom-fields": "Extra fields your team fills in on records.",

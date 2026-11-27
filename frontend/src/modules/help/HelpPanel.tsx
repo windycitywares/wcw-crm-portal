@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { searchTopics, topicFor, TOPICS } from "./content";
 import { TOURS } from "./content/tours";
 import { TourHost } from "./Tour";
+import { Feedback } from "./Feedback";
 import { FlowChart } from "./FlowChart";
 import type { HelpTopic } from "./types";
 
@@ -147,6 +148,8 @@ export function Guide({ topic, onNavigate }: { topic: HelpTopic; onNavigate: () 
           ))}
         </ul>
       </>}
+
+      <Feedback topicId={topic.id} page={pathname} />
     </div>
   );
 }
