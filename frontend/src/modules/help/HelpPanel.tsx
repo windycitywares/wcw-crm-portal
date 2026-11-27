@@ -8,15 +8,18 @@ import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { searchTopics, topicFor, TOPICS } from "./content";
+import { TOURS } from "./content/tours";
+import { TourHost } from "./Tour";
 import { FlowChart } from "./FlowChart";
 import type { HelpTopic } from "./types";
 
-const Ctx = createContext<{ open: boolean; setOpen: (v: boolean) => void }>({ open: false, setOpen: () => {} });
+const Ctx = createContext<{ open: boolean; setOpen: (v: boolean) => void; startTour: (topicId: string) => void }>({ open: false, setOpen: () => {}, startTour: () => {} });
 export const useHelp = () => useContext(Ctx);
 
 /** Holds whether the help panel is open, and opens it when "?" is pressed anywhere that isn't a text box. */
 export function HelpProvider({ children, enabled = true }: { children: React.ReactNode; enabled?: boolean }) {
   const [open, setOpen] = useState(false);
+  const [tour, setTour] = useState<string | null>(null);
   useEffect(() => {
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
@@ -29,8 +32,14 @@ export function HelpProvider({ children, enabled = true }: { children: React.Rea
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [enabled]);
-  const value = useMemo(() => ({ open, setOpen }), [open]);
-  return <Ctx.Provider value={value}>{children}{enabled && <HelpPanel />}</Ctx.Provider>;
+  const value = useMemo(() => ({ open, setOpen, startTour: (id: string) => { setOpen(false); setTour(id); } }), [open]);
+  return (
+    <Ctx.Provider value={value}>
+      {children}
+      {enabled && <HelpPanel />}
+      {enabled && <TourHost running={tour} onStop={() => setTour(null)} onStart={(id) => setTour(id)} panelOpen={open} />}
+    </Ctx.Provider>
+  );
 }
 
 /** The round "?" in the top bar. */
@@ -51,9 +60,18 @@ function H({ children }: { children: React.ReactNode }) {
 
 export function Guide({ topic, onNavigate }: { topic: HelpTopic; onNavigate: () => void }) {
   const { can } = useAuth();
+  const { startTour } = useHelp();
+  const pathname = usePathname();
   return (
     <div>
       <p className="text-sm leading-relaxed text-ink">{topic.summary}</p>
+      {TOURS[topic.id] && topicFor(pathname)?.id === topic.id && (
+        <button type="button" onClick={() => startTour(topic.id)}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-accent px-3 py-1 text-sm font-medium text-accent hover:bg-accent/5">
+          <Icon name="help" className="size-4" />
+          Show me around this page
+        </button>
+      )}
 
       {topic.steps && <>
         <H>How to use it</H>

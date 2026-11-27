@@ -41,3 +41,12 @@ export interface Flow {
   intro: string;
   nodes: FlowNode[];
 }
+
+/** One stop on a page tour. The target is found by `selector`, or by the first button, link, heading or label whose text contains `text`.
+ *  If nothing is found the step is still shown, without a highlight. */
+export interface TourStep {
+  selector?: string;
+  text?: string;
+  title: string;
+  body: string;
+}
