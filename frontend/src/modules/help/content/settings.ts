@@ -176,7 +176,7 @@ export const SETTINGS_TOPICS: HelpTopic[] = [
     before: ["The mailbox's IMAP details from your email provider."],
     affects: ["The CRM reads unread mail about once a minute. A customer's reply lands in the same ticket."],
     tips: [{ q: "Is the password safe?", a: "It is stored encrypted and is never shown again. Leave the password blank when editing to keep the one saved." }],
-    who: [{ permission: "inbox:manage", text: "Add, test and remove mailboxes (admins)." }],
+    who: [{ permission: "inbox:manage", text: "Add, test and remove mailboxes (managers and admins)." }],
     related: [{ href: "/inbox", label: "Inbox" }, { href: "/settings/email", label: "Outgoing email" }],
     keywords: "imap mailbox inbox support email read",
   },

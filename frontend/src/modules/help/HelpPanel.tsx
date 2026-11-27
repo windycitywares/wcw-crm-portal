@@ -136,6 +136,11 @@ export function Guide({ topic, onNavigate }: { topic: HelpTopic; onNavigate: () 
             );
           })}
         </ul>
+        {topic.id !== "roles" && (
+          <p className="mt-2 text-xs text-muted">
+            Not sure which role you have? <Link href="/help?topic=roles" onClick={onNavigate} className="text-accent underline">See what each role can do</Link>.
+          </p>
+        )}
       </>}
 
       {topic.related && <>
