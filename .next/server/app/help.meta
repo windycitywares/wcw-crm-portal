@@ -1,0 +1,40 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/help/layout,_N_T_/(crm)/help/page,_N_T_/help"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/_index",
+    "/!KGNybSk/help/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 0,
+    "slots": {
+      "children": {
+        "hints": 64,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/308d4b17abccef28c73333bd24e1fecd6b0fab7b1bbee457d1e1a912daddf205/$/help",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/help/page"
+    },
+    "isFallback": false
+  }
+}

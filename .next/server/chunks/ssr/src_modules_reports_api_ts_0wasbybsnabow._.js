@@ -1,0 +1,3 @@
+module.exports=[93473,a=>{"use strict";var b=a.i(88780);a.s(["f",0,{overview:(a=30)=>(0,b.i)(`/reports/overview${(0,b.v)({campaign_days:a})}`),customers:()=>(0,b.i)("/reports/customers"),tickets:()=>(0,b.i)("/reports/tickets"),suppliers:()=>(0,b.i)("/reports/suppliers"),trend:(a=30)=>(0,b.i)(`/reports/trend${(0,b.v)({days:a})}`),supplierList:(a=1,c=25)=>(0,b.i)(`/suppliers${(0,b.v)({page:a,page_size:c})}`)}])}];
+
+//# sourceMappingURL=src_modules_reports_api_ts_0wasbybsnabow._.js.map

@@ -1,0 +1,40 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/supplier/layout,_N_T_/(crm)/supplier/page,_N_T_/supplier"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/_index",
+    "/!KGNybSk/supplier/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 0,
+    "slots": {
+      "children": {
+        "hints": 64,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/47441b24770b43a62416ccef8ddbaf1b73c49c624a40429f909761e18689f000/$/supplier",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/supplier/page"
+    },
+    "isFallback": false
+  }
+}

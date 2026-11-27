@@ -1,0 +1,3 @@
+module.exports=[55486,a=>{"use strict";var b=a.i(87924),c=a.i(68114);a.s(["f",0,function({variant:a="neutral",className:d,children:e}){return(0,b.jsx)("span",{className:(0,c.c)("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold",{neutral:"bg-sand text-ink",accent:"bg-accent-soft text-accent-strong",success:"bg-success/12 text-success",warning:"bg-warning/14 text-warning",danger:"bg-danger/12 text-danger",info:"bg-accent-soft text-accent-strong"}[a],d),children:e})}])}];
+
+//# sourceMappingURL=src_components_ui_Badge_tsx_1xmd0ft046cg1._.js.map

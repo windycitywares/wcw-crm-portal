@@ -1,0 +1,50 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/channels/layout,_N_T_/(crm)/channels/etsy/layout,_N_T_/(crm)/channels/etsy/payments/layout,_N_T_/(crm)/channels/etsy/payments/page,_N_T_/channels/etsy/payments"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/_index",
+    "/!KGNybSk/channels/etsy/payments/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 0,
+    "slots": {
+      "children": {
+        "hints": 64,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 96,
+                "slots": {
+                  "children": {
+                    "hints": 96,
+                    "slots": {
+                      "children": {
+                        "hints": 160,
+                        "slots": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/c68e9815564f53237a5f286878eb31bad0798508ada30a71bd6ed1331de7eb8d/$/channels/etsy/payments",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/channels/etsy/payments/page"
+    },
+    "isFallback": false
+  }
+}

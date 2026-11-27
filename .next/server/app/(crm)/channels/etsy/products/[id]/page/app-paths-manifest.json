@@ -1,0 +1,3 @@
+{
+  "/(crm)/channels/etsy/products/[id]/page": "app/(crm)/channels/etsy/products/[id]/page.js"
+}

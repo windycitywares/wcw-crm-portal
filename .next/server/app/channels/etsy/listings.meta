@@ -1,0 +1,50 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(crm)/layout,_N_T_/(crm)/channels/layout,_N_T_/(crm)/channels/etsy/layout,_N_T_/(crm)/channels/etsy/listings/layout,_N_T_/(crm)/channels/etsy/listings/page,_N_T_/channels/etsy/listings"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/_index",
+    "/!KGNybSk/channels/etsy/listings/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 0,
+    "slots": {
+      "children": {
+        "hints": 64,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 96,
+                "slots": {
+                  "children": {
+                    "hints": 96,
+                    "slots": {
+                      "children": {
+                        "hints": 160,
+                        "slots": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/f100e4815784018317ea1edc84ef2b1d24bcd1ea201b5e475f71a88a1cf966db/$/channels/etsy/listings",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(crm)/channels/etsy/listings/page"
+    },
+    "isFallback": false
+  }
+}
